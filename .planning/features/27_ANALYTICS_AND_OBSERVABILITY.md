@@ -55,7 +55,7 @@ A minimal write-only ingestion endpoint for allow-listed events (server-enforced
 
 ## 10. AI behaviour
 
-None, but this spec charges AI usage: every StoryModel/IllustrationModel/QA call is metered (model, token/image count, succeeded/failed) at the provider boundary so a regeneration storm is visible in cost before it is visible in billing.
+None, but this spec charges AI usage: every StoryProvider/IllustrationProvider/QA call is metered (model, token/image count, succeeded/failed) at the provider boundary so a regeneration storm is visible in cost before it is visible in billing.
 
 ## 11. QA
 

@@ -22,7 +22,7 @@ Make a book feel *written for* a family, including how they talk: region-correct
 
 None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
 
-Proposed subsystems extended: `BookService`/`BookRepository` (locale on profile + book; bilingual text model), `CharacterBible` (no locale impact), `GenerationJob` (per-locale story variant steps), provider interface `StoryModel` (locale+structured-fact context), F-017 print renderer (font/measurement/glyph handling).
+Proposed subsystems extended: `BookService`/`BookRepository` (locale on profile + book; bilingual text model), `CharacterBible` (no locale impact), `GenerationJob` (per-locale story variant steps), provider interface `StoryProvider` (locale+structured-fact context), F-017 print renderer (font/measurement/glyph handling).
 
 ## 4. Problems with current implementation
 
@@ -63,7 +63,7 @@ Bilingual books run `GenerationJob` story variants per locale: `story_generation
 
 ## 10. AI behaviour
 
-`StoryModel` receives the locale + structured facts only — vocabulary, spelling, school terms, units, seasons and cultural references are constrained to the confirmed facts and locale rules; the model never reinterprets a fact into a different locale's equivalent (spec §6 "preserve and validate facts"). Bilingual: `StoryModel` generates the second language from the *same* structured facts + approved canonical text (translation is a scaffold, not a second invention that can drift). Humour/idiolect instructions are locale-flagged so en-GB vs en-US differ authentically.
+`StoryProvider` receives the locale + structured facts only — vocabulary, spelling, school terms, units, seasons and cultural references are constrained to the confirmed facts and locale rules; the model never reinterprets a fact into a different locale's equivalent (spec §6 "preserve and validate facts"). Bilingual: `StoryProvider` generates the second language from the *same* structured facts + approved canonical text (translation is a scaffold, not a second invention that can drift). Humour/idiolect instructions are locale-flagged so en-GB vs en-US differ authentically.
 
 ## 11. QA
 

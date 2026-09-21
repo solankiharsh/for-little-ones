@@ -10,7 +10,8 @@ Sets the scaffolding that makes every later slice shippable.
 
 - Git repo initialised; monorepo scaffold: `shared / api / web / admin`.
 - Postgres schema + migration tooling; object-storage setup; secrets management; CI (typecheck, lint, unit+integration).
-- Provider-adapter skeleton (`StoryModel / IllustrationModel / IdentityReferenceModel / QualityModel / ModerationProvider / PrintProvider`) with **mock adapters** default in tests/staging.
+- Provider-adapter skeleton (`StoryProvider / IllustrationProvider / IdentityProvider / QualityProvider / ModerationProvider / PrintProvider`) with **mock adapters** default in tests/staging.
+- Generation contracts + provenance (D018): typed stage schemas (canonical contract names, `_SPEC_GUIDE` §3), `GenerationProvenance` schema, `/policies` skeleton + manifest (machine-readable version/hash) — so every M1+ stage runs against the invariant from day one.
 - Queue substrate spike → decision (PostgreSQL-backed vs Redis-backed candidate classes; prefer the simplest durable option — Temporal only if the spike justifies it) recorded in `DECISIONS.md` (feeds F-028/F-010).
 - **Exit:** single hello-world vertical slice runs in CI (Web → API → Postgres); skeletons committed.
 
@@ -25,8 +26,8 @@ Customer-visible: a parent can create a complete story and see it.
 | F-004 Photo Upload | 1–5 photos, client compression, validation tiers, delete; upload topology (direct vs API-relay) decided in spike |
 | F-005 Character Bible (v0) | Reference photos + approved appearance + versioning (region, cross-book later) |
 | F-002 Story Discovery | Data-driven theme/occasion catalogue |
-| F-007 Story Concepts | 3 concepts via StoryModel (structured JSON, moderation, fallback human concepts) |
-| F-008 Story Generation | Outline gate → per-page text; immutable-fact injection; en-GB/en-US wordlists |
+| F-007 Story Concepts | 3 concepts via StoryProvider (structured JSON, moderation, fallback human concepts) |
+| F-008 Story Generation | Stage pipeline (`OUTLINE` gate → per-page `PAGE_TEXT`); typed `StoryOutlineResult`/`PageTextResult` (runtime-schema-validated, `schemaVersion`); `text.v1` policy set (age/story/localisation under `/policies`); immutable-fact injection; per-page provenance |
 | F-010 Generation Progress (v0) | Durable job, per-step + per-page states, refresh-safe, emotional labels |
 | F-011 Book Preview (v0) | Lightweight reader: thumbnail rail + spread (desktop), flip (mobile); fixture/placeholder illustrations okay here |
 | D016 Shared print contract | PrintSpec + PrintPreflightContract (format feasibility, geometry, quote inputs) in the canonical model (D016) — consumed by F-015/F-016/F-014; the F-017 print renderer lands M4 |
@@ -40,9 +41,9 @@ Customer-visible: the generated child looks like the child on every page, and fa
 
 | Feature | Work |
 | --- | --- |
-| F-009 Illustration Generation | Illustration plans, identity-conditioned images, per-page attempt budget, ≥300 DPI gating |
+| F-009 Illustration Generation | Illustration plans + identity-conditioned images; typed `IllustrationPlan`/`IllustrationResult` (schemaVersion); `illustration.v1` policy set; per-artifact provenance; per-page attempt budget, ≥300 DPI gating |
 | F-015 Book QA (core) | Identity, wrong-child-count, name/pronoun, contradiction, duplicate checks |
-| F-028 Failure Recovery (core) | Idempotency keys, backoff, timeouts, worker-restart safety, one-page isolation |
+| F-028 Failure Recovery (core) | Idempotency keys, backoff, timeouts, worker-restart safety, one-page isolation; fail-closed vs graceful-degradation classification per capability (D018) |
 | F-010 Generation Progress (v1) | Lease/heartbeat, resumable steps, failure comms ("page 12 safe — try again") |
 
 **Acceptance:** 24-page book generates with measured identity QA pass (thresholds calibrated via the F-009 §10 methodology; calibration results recorded in RESEARCH_LOG). Worker killed mid-generation → resumes/states preserved. QA-blocked pages surfaced as repair intents.

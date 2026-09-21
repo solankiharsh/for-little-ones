@@ -25,7 +25,7 @@ None (Observed). No application code exists anywhere in the workspace.
 See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
 ```
 
-Proposed subsystems consumed: `BookService`/`BookRepository` (canonical reads), `ApprovedBookRevision` (F-016), `QualityModel` (geometry preflight, F-015), `PrintProvider` interface (defined here, §8).
+Proposed subsystems consumed: `BookService`/`BookRepository` (canonical reads), `ApprovedBookRevision` (F-016), `QualityProvider` (geometry preflight, F-015), `PrintProvider` interface (defined here, §8).
 
 ## 4. Problems with current implementation
 

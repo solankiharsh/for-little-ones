@@ -6,6 +6,57 @@ Use newest entries first.
 
 ---
 
+### 2026-09-21 — Structured, Stage-Based, Independently Evaluated Generation (Invariant)
+
+**Question**
+
+How do we keep AI generation reliable, repairable, traceable and provider-neutral as a
+greenfield, without trusting any single model call to own the outcome?
+
+**Sources / code inspected**
+
+- `.planning/features/08_STORY_GENERATION.md`, `09_ILLUSTRATION_GENERATION.md`, `10_GENERATION_PROGRESS.md`, `15_BOOK_QA.md`, `28_FAILURE_RECOVERY.md` (existing step/QA/recovery design)
+- `product/GENERATION_ARCHITECTURE.md`, `product/GENERATION_PROVENANCE.md` (new)
+- `policies/` skeleton + `MANIFEST.md` (new)
+
+**Observed**
+
+- The existing docs already split plan/step units and scheduled regeneration but did not
+  codify the general invariant: typed contracts with runtime schema validation, code-owned
+  control flow, independent evaluation, immutable provenance, fail-closed classification,
+  or versioned/hashable product policies. Provider interfaces were still named after
+  "XxxModel" in places. No prompt library or copied proprietary material exists in the
+  workspace; the design is native and must stay that way (no source-project naming).
+
+**Conclusion**
+
+- Accept D018: structured, stage-based, independently evaluated generation is an invariant.
+  Code owns control flow and invariants; models perform bounded judgement tasks; generated
+  output is independently evaluated; every artifact carries `GenerationProvenance`.
+- Provide via generic `StoryProvider / IllustrationProvider / IdentityProvider /
+  QualityProvider / ModerationProvider` interfaces; canonical contracts
+  (`StoryOutlineResult`, `PageTextResult`, `IllustrationPlan/Result`,
+  `QualityEvaluationRequest/Result`) validated at runtime with `schemaVersion`.
+- Fail closed (invalid structured output, auth uncertainty, missing approved revision,
+  corrupt print asset, mandatory QA unavailable, unsafe geometry) vs graceful degradation
+  (nonessential/analytics/optional enrichment) is explicit code, never vibes.
+- Product guidance lives in versioned `/policies` sets (`text.v1`, `illustration.v1`,
+  `qa.v1`) recorded by `policySetVersion` + content `policyHash` in provenance.
+
+**Impact**
+
+- architecture (pipeline conventions, provenance, provider boundary naming);
+- dependencies (M0 now includes contract + provenance + policy-set scaffolding);
+- docs (F-005/F-008/F-009/F-010/F-012/F-013/F-015/F-028, architecture diagram, roadmap).
+
+**Follow-up**
+
+- Calibrated identity threshold experiment (F-009 §10) and queue-substrate spike (D014)
+  still launch-blocking; launch calibration may shift drafting policy values, versioned per
+  manifest rules.
+
+---
+
 ## Entry Template
 
 ### YYYY-MM-DD — Topic

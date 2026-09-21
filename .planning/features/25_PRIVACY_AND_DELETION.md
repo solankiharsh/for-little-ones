@@ -23,7 +23,7 @@ Child photos, names and family data are sensitive product data (guide §7). Comp
 
 None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
 
-Proposed subsystems enforcing this: `BookService`/`BookRepository` (audit + deletion cascade), `CharacterBible` (likeness provenance), `GenerationJob` (cancel-on-delete, retention sweep jobs), provider interfaces `StoryModel`, `IllustrationModel`, `IdentityReferenceModel`, `QualityModel`, `ModerationProvider` (each must declare payload handling), `PrintProvider` (print data).
+Proposed subsystems enforcing this: `BookService`/`BookRepository` (audit + deletion cascade), `CharacterBible` (likeness provenance), `GenerationJob` (cancel-on-delete, retention sweep jobs), provider interfaces `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider` (each must declare payload handling), `PrintProvider` (print data).
 
 ## 4. Problems with current implementation
 
@@ -67,7 +67,7 @@ Commands: `requestDeletion(scope)` (returns deletionId, idempotent), `cancelInFl
 
 ## 10. AI behaviour
 
-Provider contracts: `StoryModel`, `IllustrationModel`, `IdentityReferenceModel`, `QualityModel`, `ModerationProvider` must declare retention (payload held only for the duration of the call) and a deletion path. **Never train public models on child data** is a contractual exclusion in every provider agreement (spec §18). Provider payloads are restricted to the minimum needed (guide §7: "no additional providers without documentation").
+Provider contracts: `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider` must declare retention (payload held only for the duration of the call) and a deletion path. **Never train public models on child data** is a contractual exclusion in every provider agreement (spec §18). Provider payloads are restricted to the minimum needed (guide §7: "no additional providers without documentation").
 
 ## 11. QA
 

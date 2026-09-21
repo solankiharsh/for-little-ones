@@ -68,6 +68,8 @@ States: PENDING (initial), RUNNING (label=active milestone), PARTIAL (some per-p
 GenerationJob
   id, bookId
   kind                    // FULL_BOOK | PAGE_TEXT | ILLUSTRATION | CONCEPT | REVISION
+  pipelineVersion         // stage-graph version (GENERATION_ARCHITECTURE §2) — becomes
+                          //   pipelineVersion in every artifact's GenerationProvenance
   status                  // PENDING | RUNNING | PARTIAL | FAILED | COMPLETED | CANCELLED
   currentStep             // step enum, see below
   createdAt, updatedAt, heartbeatAt
@@ -79,7 +81,9 @@ JobStep                     // one row per meaningful stage (guide §5 workflow)
   stepType,                // BULK | PER_PAGE | GATE
   status                   // PENDING | GENERATING | READY | FAILED | SKIPPED
   idempotencyKey,          // unique: deterministic per unit-of-work
-  retries, leaseUntil, startedAt, finishedAt, metadata{}  // { model, costCents, attemptCount }
+  retries, leaseUntil, startedAt, finishedAt, metadata{}  // { model, costCents, attemptCount,
+                                                          //   provenanceId → artifact's
+                                                          //   GenerationProvenance (§2) }
 
 BookUnitState               // per-page truth, shared across jobs (D010 isolation)
   bookId, unitType         // PAGE
@@ -112,7 +116,9 @@ Queue substrate: two candidate classes, selected after the D014 spike — a **Po
 
 ## 10. AI behaviour
 
-Not directly applicable to *generation* — this feature specifies how the pipeline is **orchestrated and observed**, not how prompts are built. It owns the plumbing that moves work between `StoryModel`/`IllustrationModel`/`QualityModel` calls and the canonical model, enforces idempotency around those calls, and records `generationMetadata` (attempt count, cost, descriptors) as the audit trail for F-027. No model/prompt/seed vocabulary ever reaches this feature's UI (D002).
+Not directly applicable to *generation* — this feature specifies how the pipeline is **orchestrated and observed**, not how prompts are built. It owns the plumbing that moves work between `StoryProvider`/`IllustrationProvider`/`QualityProvider` calls and the canonical model, enforces idempotency around those calls, and records `generationMetadata` (attempt count, cost, descriptors) as the audit trail for F-027.
+
+**Orchestration is deterministic application code** (GENERATION_ARCHITECTURE §2): the runtime drives step transitions; models never set job, book or approval state. Every step commit writes (or locates) its artifact's `GenerationProvenance` — `pipelineVersion` comes from `GenerationJob.pipelineVersion`, `schemaVersion`/`policySetVersion`/`policyHash` from the policies in force, `jobId`/`attempt` from the step — per GENERATION_PROVENANCE §2/§3. The lifecycle state machine is code-owned; fail-closed vs graceful degradation per F-028 §9. No model/prompt/seed vocabulary ever reaches this feature's UI (D002).
 
 ## 11. QA
 

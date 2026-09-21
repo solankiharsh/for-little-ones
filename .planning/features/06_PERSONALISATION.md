@@ -80,7 +80,7 @@ Fact
 - `sport` is a first-class typed fact (association football example, spec §11) with locale binding.
 
 **Rules:**
-1. `parentConfirmed` facts are immutable inputs to StoryModel (F-008). Generation sends type + value + locale, never a flattened prose blob.
+1. `parentConfirmed` facts are immutable inputs to StoryProvider (F-008). Generation sends type + value + locale, never a flattened prose blob.
 2. `suggested` facts are stored outside generation inputs and rendered as "Maybe this?".
 3. `rejected` facts are the parent's explicit no — never auto-re-asked for 30 days (provenance hygiene).
 4. Locale-aware options are re-resolved at selection time by locale; stored options keep the locale at capture (spec §11 — vocabulary, foods, measurements, seasonal references adjust per book locale later, F-024).
@@ -102,7 +102,7 @@ Proposed boundary (proposed shared subsystem `BookService` + a typed-option cata
 
 ## 10. AI behaviour
 
-- **StoryModel (F-008)** contract: receives the §8 `GetFactsForStory` set as immutable structured context. It must: spell names/pronouns exactly (spec §10: name mismatch, pronoun mismatch), use facts verbatim where referenced (contexts like "Mr Bear" are a proper name, not paraphrase material), never invent a counter-fact ("contrary to Ava's favourite colour, the horse was green"), and weave customFacts naturally rather than dumping them into dialogue (spec §6).
+- **StoryProvider (F-008)** contract: receives the §8 `GetFactsForStory` set as immutable structured context. It must: spell names/pronouns exactly (spec §10: name mismatch, pronoun mismatch), use facts verbatim where referenced (contexts like "Mr Bear" are a proper name, not paraphrase material), never invent a counter-fact ("contrary to Ava's favourite colour, the horse was green"), and weave customFacts naturally rather than dumping them into dialogue (spec §6).
 - **FactSuggestion emitter** (F-007 concept + this job) may call a cheap LLM only to *propose*, and any proposal is flagged `aiSuggested` — it is promoted only by a parent tap.
 - **Locality:** model always receives the fact `locale`; en-GB stories must say "football" = association football without the model choosing an American reading (spec §11). **Decision needed:** whether to pin vocabulary explicitly per locale into the prompt context (recommended) vs rely on locale-tuned models.
 

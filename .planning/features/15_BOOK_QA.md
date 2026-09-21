@@ -7,7 +7,7 @@
 
 ## Summary
 
-The QA suite catches generation and edit failures **before the parent or the printer sees them** (spec §10 — identity consistency as a product requirement; §25 quality bar). It is a re-runnable, severity-ranked set of checks over the canonical `Book` (plus its assets) exposed through the proposed `QualityModel` interface, executed at defined lifecycle points and surfacing `HARD_BLOCK` / `REVIEW_REQUIRED` / `ADVISORY` results to the parent (in product language) and to ops (precise, for F-026).
+The QA suite catches generation and edit failures **before the parent or the printer sees them** (spec §10 — identity consistency as a product requirement; §25 quality bar). It is a re-runnable, severity-ranked set of checks over the canonical `Book` (plus its assets) exposed through the proposed `QualityProvider` interface, executed at defined lifecycle points and surfacing `HARD_BLOCK` / `REVIEW_REQUIRED` / `ADVISORY` results to the parent (in product language) and to ops (precise, for F-026).
 
 ## 1. Goal
 
@@ -26,7 +26,7 @@ None (Observed). No application code exists anywhere in the workspace.
 See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
 ```
 
-Proposed subsystem: `QualityModel` (provider interface for content QA) consumed by `BookService`/`GenerationJob`; print-geometry inputs come from F-017's `printSpec`.
+Proposed subsystem: `QualityProvider` (provider interface for content QA) consumed by `BookService`/`GenerationJob`; print-geometry inputs come from F-017's `printSpec`.
 
 ## 4. Problems with current implementation
 
@@ -65,6 +65,8 @@ QARun
 └── runId, revisionSeq, stage, startedAt, finishedAt, results[], summary
 ```
 
+The QA stage's structured contract is `QualityEvaluationRequest` / `QualityEvaluationResult` (the `CheckResult[]` payload; GENERATION_ARCHITECTURE §3). Every run writes a QA **GenerationProvenance** record (`qa.v1` policy set + `policyHash`, `QualityProvider` model version, `schemaVersion`, revisionSeq) so approval can fail closed on provenance (GENERATION_PROVENANCE §5/§6).
+
 Check catalogue (title — what it inspects, severity when FAIL):
 
 | Check | Inspects | Severity when FAIL |
@@ -99,9 +101,11 @@ Check catalogue (title — what it inspects, severity when FAIL):
 
 ## 10. AI behaviour
 
-- `QualityModel` interface (proposed): `run(context: {bookRevision, scope, pageScope?, characterBible, printSpec, locale}) → CheckResult[]`; deterministic check **policies** (exact strings, geometry, count, asset existence) run first and are binary; model-assisted checks (likeness, artifacts, contradiction) run second and return a confidence score vs threshold.
-- Identity likeness uses `IdentityReferenceModel` embeddings of the `CharacterBible` vs page illustration — threshold set by the calibration methodology (F-009 §10); below-threshold = FAIL (HARD_BLOCK), near-threshold = REVIEW_REQUIRED.
+- `QualityProvider` interface (proposed): `run(ctx: QualityEvaluationRequest) → QualityEvaluationResult`; deterministic check **policies** (exact strings, geometry, count, asset existence, moderation per `policies/safety/content-rules.md` — the `qa.v1` set) run first and are binary; model-assisted checks (likeness, artifacts, contradiction) run second and return a confidence score vs threshold. Every result carries `schemaVersion`; the run's provenance uses the `qa.v1` `policySetVersion`/`policyHash` (GENERATION_PROVENANCE §3).
+- Identity likeness uses `IdentityProvider` embeddings of the `CharacterBible` vs page illustration — threshold set by the calibration methodology (F-009 §10); below-threshold = FAIL (HARD_BLOCK), near-threshold = REVIEW_REQUIRED.
 - No provider prompt/seed surfaces; structured output only. Facts are immutable — contradiction checks reference the facts block, never let the model "decide" a fact changed.
+
+**Generation and acceptance are separate responsibilities** (GENERATION_ARCHITECTURE §5): the QA evaluator returns structured findings only — it never mutates canonical facts; correction is a separate command path (F-012/F-013).
 
 ## 11. QA
 
