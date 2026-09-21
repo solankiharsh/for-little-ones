@@ -1,0 +1,24 @@
+{
+  "name": "for-little-one",
+  "version": "0.0.0",
+  "private": true,
+  "description": "For Little One — personalised children's-book platform (monorepo bootstrap, milestone 0 rails)",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}
