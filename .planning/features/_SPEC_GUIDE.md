@@ -84,8 +84,9 @@ Three distinct renderers (D005):
 - **Revision** — generated or edited snapshot of the book; the approved revision is preserved exactly for print.
 - **PrintSpec** — format, dimensions, bleed, paper, cover, binding, colour profile, min/max pages, resolution, provider metadata.
 - **PrintPreflightContract** — the print-feasibility + geometry rules derived from a `PrintSpec` (trim, bleed, safe areas, DPI, fonts, page rules, provider constraints) fixed as a **shared contract** (D016). QA, approval and the editor consume it; the print renderer implements it; the renderer is not a prerequisite of the contract.
-- **HARD_BLOCK / REVIEW_REQUIRED / ADVISORY** — QA severities: HARD_BLOCK cannot be waived (fix, or explicit recorded content override; print-geometry HARD_BLOCK is never overridable); REVIEW_REQUIRED must be reviewed/recorded before approval (no auto-block, no silent pass); ADVISORY is informational.
-- **Order → OrderItem → ApprovedBookRevision → PrintArtifact**.
+- **HARD_BLOCK / REVIEW_REQUIRED / ADVISORY** — QA severities: HARD_BLOCK cannot be waived (fix, or explicit recorded content override; print-geometry HARD_BLOCK is never overridable, incl. layout overflow); REVIEW_REQUIRED must be reviewed/recorded before approval (no auto-block, no silent pass); ADVISORY is informational.
+ - **GenerationStepExecution** — the execution interface that decouples generation specs (F-008/F-009) from the job runtime (F-010). Order: a generation spec *exposes* its `GenerationStep` units (structured inputs/outputs, idempotency keys, attempt budgets) and *consumes* the `GenerationStepExecution` interface; F-010 *implements* the runtime and depends on the step units. No generation spec may list F-010 as a dependency (that creates F-008/09 ⇄ F-010 cycles), and F-028 is a patterns spec consumed by F-010 — never a dependency of it. See §5 dependency rules.
+ - **Order → OrderItem → ApprovedBookRevision → PrintArtifact**.
 
 ---
 
@@ -123,6 +124,8 @@ Event-style state names to use where helpful (do NOT introduce event sourcing):
 `BOOK_CREATED → CHARACTER_CREATED → CONCEPT_SELECTED → STORY_GENERATION_STARTED → STORY_GENERATED → ILLUSTRATION_GENERATION_STARTED → PAGE_RENDERED → QA_COMPLETED → BOOK_READY_FOR_REVIEW → PAGE_REVISION_CREATED → BOOK_APPROVED → PRINT_ARTIFACT_CREATED → ORDER_CREATED → FULFILMENT_SUBMITTED`
 
 Decision: first inspect nothing (no code exists); then evaluate the actual jobs/queue need. Prefer the **simplest durable solution**: a PostgreSQL-backed queue is the default candidate, a Redis-backed queue (BullMQ-class) is the other candidate class — select after the D014 spike. Temporal only if the spike shows its guarantees are needed; a Redis-backed class additionally requires an outbox/reconciliation bridge so DB and queue stay consistent.
+
+Dependency inversion: generation specs (F-008/F-009) expose `GenerationStep` units (idempotency keys, attempt budgets per step) and consume the **`GenerationStepExecution` interface**; F-010 provides the runtime and depends on the step units; F-028 provides the durability patterns F-010 implements. A spec must never name the runtime a-generation-spec-rides-on as a hard dependency (F-008⇄F-010 and F-009⇄F-010 cycles), and F-028 must never be listed as a dependency of a feature it provides patterns to.
 
 Determinism: "deterministic generation outcome" means the same inputs produce the **same visible/content output**, not byte-identical blobs. For print (F-017) compare via normalized artifact hash · content-manifest hash · per-page raster comparison · geometry validation. Byte-identical PDFs are only required if the renderer also excludes timestamps/random IDs.
 

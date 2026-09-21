@@ -1,7 +1,7 @@
 # 10_GENERATION_PROGRESS.md — Persistent, Observable Generation Progress
 
 > **Spec ID:** F-010 · **Priority:** P0 (durability core) · **Status:** draft
-> **Depends on:** F-008 (story), F-009 (illustrations), F-028 (durability patterns) · **Consumed by:** F-011 (preview), F-012 (repair), F-016 (approval readiness)
+> **Depends on:** F-008/F-009 `GenerationStep` units (the steps to orchestrate) · F-028 durability patterns (lease, retry, idempotency, outbox) · **Provides** the `GenerationStepExecution` runtime that F-009 declares as its execution interface. · **Consumed by:** F-011 (preview), F-012 (repair), F-016 (approval readiness)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary

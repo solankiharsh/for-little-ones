@@ -2,7 +2,7 @@
 
 > **Spec ID:** F-028 · **Priority:** P0 (durability core) · **Status:** draft
 > **Scope note:** this spec is the shared discipline for every long-running feature and gates paid generation; the queue-substrate choice is **not** made here (D014 spike decides). Sections §3–§8 are milestone-linked rather than M1-locked; the acceptance library (§12/§13) ships with the job spine.
-> **Depends on:** F-010 (Generation Progress — persistent jobs) · F-008/F-009 (generation steps) · F-016 (Approved revision) · F-018/19 (payment/fulfilment webhooks). Consumed by every long-running feature.
+> **Depends on:** decisions D010 (reliability is product functionality) · D014 (queue-substrate spike — PostgreSQL-backed vs Redis-backed vs Temporal) · no feature-spec dependency: this spec **provides** the durability/concurrency patterns (job states, idempotency keys, lease/heartbeat, retry/backoff, outbox/dedupe, dead-letter, cancellation) that F-010 implements and F-015/16, F-018/19, F-020, F-022, F-025, F-027 consume.
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -99,7 +99,7 @@ Each is a stored Given/When/Then, implemented as an integration test:
 
 ## 15. Dependencies
 
-Rides on F-010 (job entity + progress UI) — these two are the durable-job pair. Consumed by F-016 (approval lock), F-018/19 (payment/webhooks), F-022 (reorder idempotency), F-025 (cascade/retention jobs), F-027 (observability of retries/dead letters).
+Implements into F-010 (job entity + progress UI — these two are the durable-job pair, F-010 implementing F-028's patterns). Consumed by F-016 (approval lock), F-018/19 (payment/webhooks), F-022 (reorder idempotency), F-025 (cascade/retention jobs), F-027 (observability of retries/dead letters).
 
 ## 16. Priority
 

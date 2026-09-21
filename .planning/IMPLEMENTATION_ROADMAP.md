@@ -29,7 +29,7 @@ Customer-visible: a parent can create a complete story and see it.
 | F-008 Story Generation | Outline gate → per-page text; immutable-fact injection; en-GB/en-US wordlists |
 | F-010 Generation Progress (v0) | Durable job, per-step + per-page states, refresh-safe, emotional labels |
 | F-011 Book Preview (v0) | Lightweight reader: thumbnail rail + spread (desktop), flip (mobile); fixture/placeholder illustrations okay here |
-| F-017 Shared print contract | PrintSpec + PrintPreflightContract (format feasibility, geometry, quote inputs) in the canonical model (D016) — consumed by F-015/F-016/F-014; renderer lands M4 |
+| D016 Shared print contract | PrintSpec + PrintPreflightContract (format feasibility, geometry, quote inputs) in the canonical model (D016) — consumed by F-015/F-016/F-014; the F-017 print renderer lands M4 |
 | F-025 Privacy & Deletion (core v0) | Retention classes, consent in upload/checkout copy, delete-now baseline, provider-audit contract (F-025 full = M6) |
 
 **Acceptance:** anonymous user → discover story → create profile → upload photo → pick concept → generate (progress UI survives refresh) → reads full story in reader. One-page text failure retried without restart. "Printability" gates against the shared contract are checkable even though the real renderer ships in M4.

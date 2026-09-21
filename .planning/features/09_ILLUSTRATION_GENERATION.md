@@ -1,7 +1,7 @@
 # 09_ILLUSTRATION_GENERATION.md — Illustration Generation Pipeline
 
 > **Spec ID:** F-009 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-005 (Character Bible), F-008 (page text + cues), F-010 (jobs), shared PrintSpec/PrintPreflightContract (D016 — print sizes; not the F-017 renderer) · **Consumed by:** F-011 (preview), F-015 (pre-print QA)
+> **Depends on:** F-005 (Character Bible), F-008 (page text + cues), the generation **step-execution interface** (`GenerationStepExecution` — the execution contract; F-010 provides the runtime), shared PrintSpec/PrintPreflightContract (D016 — print sizes; not the F-017 renderer). **Exposes** the `ILLUSTRATION_PLAN`/`ILLUSTRATION` `GenerationStep` units consumed by F-010. · **Consumed by:** F-011 (preview), F-015 (pre-print QA)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -97,7 +97,7 @@ Commands via `BookService`/`BookRepository`; image orchestration via `Generation
 
 ## 9. Background jobs
 
-Owned by `GenerationJob` (F-010): steps **`ILLUSTRATION_PLAN`** (bulk, cheap) then **`ILLUSTRATION`** per page (expensive).
+Execution owned by F-010 runtime; the step units are **`GenerationStep` contract entries defined here** and consumed by F-010: **`ILLUSTRATION_PLAN`** (bulk, cheap) then **`ILLUSTRATION`** per page (expensive).
 - Idempotency key = `planKey` (plan) and `planKey + attemptNonce` (image). A crashed worker re-enters: plans re-derive deterministically; `READY` pages skip; no duplicate image spend.
 - **Attempt budget (image cost control):** default **2 auto attempts** per page (1 + 1 identity/QA auto-retry). Any further attempt requires an explicit parent or support action ("Try again" / F-012). Budget tracked in `generationMetadata.attemptCount`; exhaustion → `FAILED` with repair routing to F-012.
 - Retry: auto-retry 1, backoff, timeout ~120s (image inference is slow); page-level isolation (D010) — other pages continue.
@@ -144,7 +144,7 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-005 (Character Bible: `CharacterVisualFacts`, approved references, style tokens), F-008 (`textBlocks` + `illustrationCue` contract), F-010 (job/queue substrate + attempt budget), the shared PrintSpec/PreflightContract (D016) print trim/dpi constants.
+- **Required first:** F-005 (Character Bible: `CharacterVisualFacts`, approved references, style tokens), F-008 (`textBlocks` + `illustrationCue` contract), the `GenerationStepExecution` interface (execution contract; F-010 provides the runtime + attempt budget), the shared PrintSpec/PreflightContract (D016) print trim/dpi constants.
 - **Consumed by:** F-011 (preview thumbnails/reading render), F-012 (page repair), F-015 (pre-print QA suite), F-013 (global corrections trigger full re-plan when the Bible changes).
 - **Parallel-safe:** F-008 text work proceeds independently; the `QualityModel` calibration experiment (§10) can run before front-end work.
 

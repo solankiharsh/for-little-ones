@@ -71,9 +71,9 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 | F-005 | 05_CHARACTER_BIBLE.md | Canonical visual identity + global corrections | P1 | F-003, F-004 | proposed |
 | F-006 | 06_PERSONALISATION.md | Progressive personal details (facts, immutable) | P0 | F-003 | proposed |
 | F-007 | 07_STORY_CONCEPTS.md | 3 generated concepts, select/regenerate | P0 | F-002, F-003, F-006 | proposed |
-| F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003 | proposed |
-| F-009 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 | F-005, F-008 | proposed |
-| F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P0 | F-008, F-009, F-028 | proposed |
+| F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003, GenerationStepExecution interface (F-010 runtime) | proposed |
+| F-009 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 | F-005, F-008, GenerationStepExecution interface (F-010 runtime) | proposed |
+| F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P0 | F-008/F-009 GenerationStep units, F-028 patterns | proposed |
 | F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, F-009 | proposed |
 | F-012 | 12_PAGE_CORRECTION.md | Page-level text/image repair | P1 | F-011, F-010 | proposed |
 | F-013 | 13_GLOBAL_CHARACTER_CORRECTION.md | Character-wide correction (hair, outfit, likeness) | P1 | F-005, F-012 | proposed |
@@ -91,7 +91,7 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 | F-025 | 25_PRIVACY_AND_DELETION.md | Retention, consent, deletion, provider audit | P0 | F-004, F-005 | proposed |
 | F-026 | 26_ADMIN_AND_SUPPORT.md | Ops/support view, dedupe, refunds | P1 | F-018, F-019 | proposed |
 | F-027 | 27_ANALYTICS_AND_OBSERVABILITY.md | Metrics, costs, logs, errors | P1 | F-010, F-018 | proposed |
-| F-028 | 28_FAILURE_RECOVERY.md | Cross-cutting durability, retries, resumability | P0 | F-010 | proposed |
+| F-028 | 28_FAILURE_RECOVERY.md | Cross-cutting durability, retries, resumability | P0 | — (provides patterns; D010/D014 decisions) | proposed |
 
 ## Parallelism (what can be built at the same time)
 

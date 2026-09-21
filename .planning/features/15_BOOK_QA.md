@@ -45,7 +45,7 @@ After generation completes, Emma sees a soft confirmation in preview: "We checke
 
 - **Summary state chip** near the top bar of preview (F-011): green "All checked", amber "A few things to look at", red `QA` block with count (HARD_BLOCK items enumerated with page thumbnails; REVIEW_REQUIRED items listed).
 - **Per-page badges** on the rail/page: small alert dot; tapping opens the same friendly card with "Try another" (F-012) or "Not a problem — keep anyway" for REVIEW_REQUIRED/ADVISORY-only items.
-- **Severity discipline (guide §3):** `HARD_BLOCK` items have no dismiss without an action — either fix (via F-012) or, for *content-level* HARD_BLOCK only, an explicit "I'm happy with this" confirmation that records the decision; **print-geometry HARD_BLOCK (text overflow, resolution, safe area, bleed, missing assets) has no override** — enforced at F-016/F-017 by the printer rules regardless of parent intent. `REVIEW_REQUIRED` items must be explicitly reviewed (fixed or "keep") before approval, but never auto-block it. `ADVISORY` items are informational.
+- **Severity discipline (guide §3):** `HARD_BLOCK` items have no dismiss without an action — either fix (via F-012) or, for *content-level* HARD_BLOCK only, an explicit "I'm happy with this" confirmation that records the decision; **print-geometry HARD_BLOCK (text overflow, layout overflow, resolution, safe area, bleed, missing assets) has no override** — enforced at F-016/F-017 by the printer rules regardless of parent intent. `REVIEW_REQUIRED` items must be explicitly reviewed (fixed or "keep") before approval, but never auto-block it. `ADVISORY` items are informational.
 - All copy product-facing; never "QA failed", never error codes (D002, guide §8).
 - Mobile: badges render as a "checks" icon with count; full list in a bottom sheet (D012).
 
@@ -79,8 +79,8 @@ Check catalogue (title — what it inspects, severity when FAIL):
 | Text overflow | text extent vs print-safe box (PrintSpec/PreflightContract geometry) | HARD_BLOCK (print-geometry, non-overridable) |
 | Resolution | illustration PPI vs print DPI floor (PrintSpec/PreflightContract) | HARD_BLOCK (print-geometry, non-overridable) |
 | Print safe area | illustration/decoration vs safe + bleed margins | HARD_BLOCK (print-geometry, non-overridable) |
-| Layout overflow | element outside canvas / cover bleed | ADVISORY |
-| Missing assets | page references an absent/un-openable asset | HARD_BLOCK |
+| Layout overflow | element outside canvas / cover bleed | HARD_BLOCK (print-geometry, non-overridable — same subset F-017 runs in `PRINT_RENDERING_JOB` step 2) |
+| Missing assets | page references an absent/un-openable asset | HARD_BLOCK (print-geometry subset, non-overridable) |
 | Repeated illustration | same asset appears with different intent | REVIEW_REQUIRED (parent decides "Try another" or keeps) |
 | Generation artifacts | obvious hands/fingers/limb duplication (model-assisted) | ADVISORY |
 
