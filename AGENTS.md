@@ -1,0 +1,346 @@
+# For Little One — Agent Instructions
+
+## Project
+
+For Little One is a personalised children's-book platform.
+
+The long-term product should feel like:
+
+> A small publishing studio that happens to know your child.
+
+The product should make creating a personalised book extremely easy while producing a result that feels polished, consistent, safe and trustworthy.
+
+---
+
+## Read First
+
+Before doing significant work, read:
+
+- `project-spec-initial.md`
+- `.planning/README.md`
+- `.planning/DECISIONS.md`
+- `.planning/OPEN_QUESTIONS.md`
+
+Then read the relevant planning documents for the subsystem being changed.
+
+---
+
+## Current Phase
+
+We are currently in:
+
+> research → architecture → feature specification
+
+Do NOT begin large-scale implementation yet unless explicitly instructed.
+
+Small throwaway/prototype spikes are allowed when necessary to validate architectural assumptions.
+
+Examples:
+
+- testing OpenPolotno capabilities;
+- testing Medusa integration;
+- testing print rendering;
+- testing generation workflow behaviour.
+
+Document conclusions from spikes before building production architecture around them.
+
+---
+
+## Core Working Rule
+
+Do not rewrite working functionality merely because a cleaner architecture exists.
+
+For every substantial change classify the current system as:
+
+- KEEP
+- MODIFY
+- REPLACE
+- ADD
+- DEFER
+- REJECT
+
+Explain why.
+
+Prefer incremental migration over greenfield rewrites.
+
+---
+
+## Research Discipline
+
+Never describe repository behaviour based only on filenames.
+
+Inspect the actual implementation.
+
+When documenting current behaviour:
+
+- cite exact source paths;
+- cite important functions/classes/components where useful;
+- distinguish observed behaviour from assumptions.
+
+Use:
+
+### Observed
+
+Something directly verified in code, configuration, runtime behaviour or external documentation.
+
+### Inferred
+
+A reasonable conclusion that has not yet been directly verified.
+
+### Decision needed
+
+Something requiring product or architectural choice.
+
+### Recommended experiment
+
+A small test that can resolve uncertainty.
+
+---
+
+## Product Principles
+
+Every proposed feature should answer at least one of these:
+
+1. Does it make creating a book easier?
+2. Does it make the result more personally meaningful?
+3. Does it increase confidence that the printed book will be excellent?
+4. Does it improve repeat usage or gifting?
+5. Does it materially reduce reliability/support problems?
+
+If not, deprioritise it.
+
+---
+
+## UX Principles
+
+The user is usually an adult creating something for a child.
+
+Design should feel:
+
+- warm;
+- premium;
+- calm;
+- magical;
+- trustworthy;
+- simple.
+
+Avoid:
+
+- generic SaaS-dashboard appearance;
+- AI neon aesthetics;
+- overly childish UI;
+- exposing prompts/model terminology;
+- Canva-level complexity during the normal creation journey.
+
+The intended interaction model is:
+
+> AI completes ~95% of the work; the parent corrects the remaining ~5%.
+
+The normal flow should be simple.
+
+Advanced editing should be an escape hatch, not the primary workflow.
+
+---
+
+## Important Product Requirements
+
+The platform should eventually support:
+
+- reusable child profiles;
+- consistent characters across pages;
+- personal facts that do not mutate;
+- multiple family members/relationships;
+- story concepts rather than blank prompting;
+- generation progress and recovery;
+- full book preview;
+- page-level correction;
+- character-wide correction;
+- revisions;
+- explicit approval before print;
+- deterministic print rendering;
+- commerce;
+- fulfilment;
+- order tracking;
+- privacy/deletion controls;
+- family story library.
+
+Do not implement all of these simultaneously.
+
+---
+
+## Platform Decisions Currently Under Evaluation
+
+### Commerce
+
+Primary candidate:
+
+- Medusa
+
+Use it for mature commerce primitives if it provides a meaningful improvement over the current implementation.
+
+Do not migrate to Medusa purely for architectural neatness.
+
+First compare it against what the repository already contains.
+
+---
+
+### Book Editor
+
+Primary candidate:
+
+- OpenPolotno / `@reyka/openpolotno`
+
+Potential use:
+
+> low-level editing engine underneath a custom For Little One interface.
+
+Do NOT expose the complete generic design-editor UI to normal customers.
+
+Do not make OpenPolotno JSON the canonical Book data model.
+
+Wrap external editor implementations behind our own book/editor domain.
+
+---
+
+### IMG.LY Photobook Starter
+
+Use as:
+
+- UX reference;
+- page-navigation reference;
+- editor-state architecture reference.
+
+Do not adopt CE.SDK automatically.
+
+---
+
+### Postiz
+
+Do NOT use Postiz as the application's foundation.
+
+Useful only as architectural inspiration for:
+
+- jobs;
+- retries;
+- observability;
+- integrations;
+- workflow organisation.
+
+---
+
+## Canonical Data Principle
+
+Our domain model must remain independent from:
+
+- image-generation provider;
+- text-generation provider;
+- editor engine;
+- print provider;
+- payment provider.
+
+Conceptually:
+
+Book
+├── metadata
+├── characters
+├── relationships
+├── story
+├── pages
+├── revisions
+├── print specification
+└── approval
+
+Adapters may translate this model into:
+
+- editor representation;
+- browser reader representation;
+- print representation;
+- external provider requests.
+
+---
+
+## Reliability
+
+Do not implement generation as:
+
+button → long request → spinner → hope.
+
+Long-running work should eventually be:
+
+- persisted;
+- restartable;
+- retryable;
+- observable;
+- resumable where practical;
+- idempotent where appropriate.
+
+Refreshing the browser must not destroy important generation state.
+
+A single-page failure should not require regenerating an entire book.
+
+---
+
+## Child Data
+
+This application handles children's images and personal information.
+
+Treat privacy as a product requirement.
+
+Never unnecessarily:
+
+- log children's photos;
+- log sensitive profile information;
+- expose assets publicly;
+- send data to additional providers;
+- retain uploads indefinitely.
+
+Every provider touching child data must eventually be documented.
+
+---
+
+## Printing
+
+Never treat browser screenshots as the production print pipeline.
+
+Print generation needs deterministic handling of:
+
+- dimensions;
+- bleed;
+- safe areas;
+- DPI;
+- image resolution;
+- fonts;
+- covers;
+- spine;
+- page-count requirements;
+- printer-specific validation.
+
+Orders must reference an immutable approved book revision.
+
+---
+
+## Documentation
+
+Planning documentation lives under:
+
+`.planning/`
+
+Keep documentation current when architectural decisions change.
+
+Do not create large amounts of speculative documentation that does not help implementation.
+
+---
+
+## Before Major Implementation
+
+We should have at least:
+
+- codebase map;
+- market conclusions;
+- platform evaluation;
+- feature map;
+- core feature specifications;
+- architecture proposal;
+- implementation roadmap.
+
+Only then should large production implementation begin.
