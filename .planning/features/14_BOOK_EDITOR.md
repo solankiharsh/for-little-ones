@@ -1,7 +1,7 @@
 # 14_BOOK_EDITOR.md — Custom Simple Book Editor (above OpenPolotno)
 
 > **Spec ID:** F-014 · **Priority:** P1 · **Status:** draft
-> **Depends on:** F-011 Book Preview, F-012 Page Correction, F-013 Global Character Correction, F-017 Print Renderer (font/asset contract)
+> **Depends on:** F-011 Book Preview, F-012 Page Correction, F-013 Global Character Correction, shared PrintSpec/PreflightContract (D016 — font/DPI/safe-area rules; the F-017 renderer is an implementation of the contract, a parallel surface, NOT a prerequisite)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -66,7 +66,7 @@ Round-trip rules: Editor → `BookService.importEditorSnapshot` validates (schem
 
 ## 9. Background jobs
 
-Not applicable to core editing — snapshot work is interactive. Reuse F-015's per-page QA job as a post-save check (listened to, can block commit if blocking severity).
+Not applicable to core editing — snapshot work is interactive. Reuse F-015's per-page QA job as a post-save check (listened to, can block commit if HARD_BLOCK severity).
 
 ## 10. AI behaviour
 
@@ -74,7 +74,7 @@ None inside the editor engine. The "Fix character", "Try another" affordances in
 
 ## 11. QA
 
-Post-save the page enters F-015 per-page checks: text overflow, print safe area, resolution (a dragged image below print DPI is refused at save with "This picture will look blurry when printed"), missing assets, repeated illustration. Blocking findings revert the save with a friendly message.
+Post-save the page enters F-015 per-page checks: text overflow, print safe area, resolution (a dragged image below print DPI is refused at save with "This picture will look blurry when printed"), missing assets, repeated illustration. HARD_BLOCK findings revert the save with a friendly message.
 
 ## 12. Privacy/security
 
@@ -101,7 +101,7 @@ Editor snapshot and working state live under the same session ownership as the b
 
 ## 15. Dependencies
 
-- Must exist first: F-011 (entry points + manifest), F-012 (intent API reused in editor panel), F-013 (character-wide actions reachable), F-017 contract (fonts/DPI/safe-area rules the editor validates against). Track C means F-011/F-014/F-017 are parallel over the canonical model, but import/export validation needs the `printSpec` definition from F-017's shared model.
+- Must exist first: F-011 (entry points + manifest), F-012 (intent API reused in editor panel), F-013 (character-wide actions reachable), the shared PrintSpec/PreflightContract (D016 — fonts/DPI/safe-area rules the editor validates against; defined in the canonical model, not owned by the renderer). Track C means F-011/F-014/F-017 are parallel over the canonical model, and the editor and renderer cross-check each other only through the shared contract.
 
 ## 16. Priority
 

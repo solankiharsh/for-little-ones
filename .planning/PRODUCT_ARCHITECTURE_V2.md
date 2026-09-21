@@ -89,13 +89,13 @@ Key properties:
 
 ## 6. Commerce approach
 
-**Adopt Medusa as the commerce module (D006, F-018).** Since we are greenfield, adoption is a build decision, not a migration:
+**Medusa is the candidate commerce module (D006, F-018) — pending spike (edition/hosting/tax), not selected.** Since we are greenfield, adoption would be a build decision, not a migration:
 
-- **In scope (Medusa):** carts, customers, products (stock keeping units for book editions), pricing, promotions, payments, orders, regions, currencies, shipping.
-- **Out of scope (stays OURS):** Book model, approval, print pipeline, generation, digital library. Medusa is a `CommerceModule` behind the API, not the domain center.
+- **In scope (if adopted):** carts, customers, products (stock keeping units for book editions), pricing, promotions, payments, orders, regions, currencies, shipping.
+- **Out of scope (stays OURS):** Book model, approval, print pipeline, generation, digital library. Medusa would sit behind a `CommerceModule` in the API, never as the domain center.
 - **Personalised-order fidelity:** each `OrderItem` carries `approvedBookRevisionId` + `contentHash` references so an order points at an immutable revision (D011, F-016/F-018). No silent regeneration after purchase.
-- **Incremental adoption dog-food:** implement cart→checkout→(payment)→order first; promotions/shipping/regions add later. Evaluate self-hosted vs headless-cloud Medusa as a spike before build (F-018 Decision needed #2).
-- **Why not rebuild:** carts, tax, PSP integrations, refunds, and multi-region shipping are well-trodden; our edge is identity+story+print, not payment plumbing.
+- **Incremental adoption dog-food:** implement cart→checkout→(payment)→order first; promotions/shipping/regions add later. Decide self-hosted vs headless-cloud Medusa in the spike before build (D014).
+- **Why not rebuild:** carts, tax, PSP integrations, refunds, and multi-region shipping are well-trodden; our edge is identity+story+print, not payment plumbing. The spike must still show a meaningful improvement over a purpose-built module for our scale before the candidate is adopted.
 
 ## 7. Canonical book model
 
@@ -124,6 +124,7 @@ Book
 **Adapters** translate this into: editor snapshot (OpenPolotno JSON, per version), reader payload (pre-rendered images + text), print payload (PDF/PDF-X artifacts per printer), digital version.
 
 - **Revision rule (F-016):** approval makes a deep-immutable snapshot with hash; print, order items, and reorder all bind to it. Edits always create a new revision; the approved one is byte-preserved.
+- **Print contract (D016):** a shared **PrintSpec/PrintPreflightContract** — format feasibility + geometry rules (trim/bleed/safe areas/DPI/fonts/page rules) + the quote interface's inputs — is part of the canonical model. Core QA (F-015), approval (F-016) and the editor (F-014) consume the contract; the print renderer (F-017) implements it. This is what keeps QA/approval off the renderer's critical path.
 
 ## 8. Character model & identity
 
@@ -145,10 +146,11 @@ CharacterBible
 
 ## 9. Editor architecture
 
-- **Engine:** OpenPolotno/Konva wrapped behind our own editor boundary (D007, F-014).
+- **Engine:** OpenPolotno/Konva wrapped behind our own editor boundary (D007, F-014) — **candidate** pending the D014 spike.
 - **Boundary:** API exposes canonical Book + an editor adapter that (a) renders canonical → OpenPolotno snapshot for a given editor version, and (b) commits canonical changes from minimal intent operations (page-level correction F-012, character-wide F-013). The editor never owns the model.
 - **UI:** custom, minimal — page rail, spread, "Something wrong?" intents; generic Canva surfaces are not exposed. Advanced editor is the escape hatch, not the default (D003).
 - **Dependency posture:** pin the version used; decide direct-dep vs small internal fork via spike 1 (Spread support) before F-014 is agreed. Underlying engine format is swappable behind the adapter.
+- **Print contract coupling:** the editor validates against the shared PrintSpec/PreflightContract (D016) — safe-area, DPI, embedded-font rules — no dependency on the renderer (F-017) existing.
 - **Fourth surface:** the reader (below) must not load the editor bundle — CI bundle-size/isolation guard (F-011).
 
 ## 10. Reading architecture
@@ -159,7 +161,7 @@ CharacterBible
 
 ## 11. Generation workflow
 
-State machine per book + per step, driven by DB-backed jobs (F-010, F-028) — **no Temporal by default; evaluate via spike.**
+State machine per book + per step, driven by durable jobs (F-010, F-028). Prefer the **simplest durable solution**: a PostgreSQL-backed queue is the default candidate; a Redis-backed queue (e.g. BullMQ) is the other candidate class; select after the D014 spike. Temporal is considered only if the spike shows its guarantees are actually needed.
 
 ```text
 CreateBook → validate inputs → validate photos → build/update Character Bible
@@ -181,22 +183,23 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 | Users, profiles, books, orders, jobs, events | Postgres | JSONB for book domain docs; FKs for profiles/orders; migration tooling from day 1 |
 | Photos, illustrations, print artifacts, PDFs | Object storage (S3-compatible) | Private; IDs in DB; short-lived signed URLs; lifecycle rules for retention |
 | Prompt/model payloads? | none retained | Log only minimal metadata (no photo PII in logs) |
-| Queues | DB-backed queue (table) or BullMQ+pg | Spike to choose (F-028) |
+| Queues | PostgreSQL-backed queue (accounted tables) | Redis-backed (BullMQ-class) is the second candidate class; spike decides (D014). Book state and queue must stay consistent: an outbox/reconciliation bridge is mandatory for any Redis-backed class |
 | Cache (later) | optional; not in v1 | skip until needed |
 
 - Single region first; photo handling per provider data-processing terms documented (F-025).
 
 ## 13. Print pipeline
 
-- Deterministic renderer (F-017): trim, bleed, safe areas, DPI/a, resolution validation, embedded fonts, cover+spine math, page-count rules, colour profile. Output PDF/PDF-X artifact per printer standard; adapted via `PrintProvider` (`validateArtifact · quote · submitOrder · getOrderStatus · cancelOrder · getTracking`) with per-vendor adapters.
+- Deterministic renderer (F-017): trim, bleed, safe areas, DPI/a, resolution validation, embedded fonts, cover+spine math, page-count rules, colour profile. Output PDF/PDF-X artifact per printer standard; adapted via `PrintProvider` (`validateArtifact · quote · submitOrder · getOrderStatus · cancelOrder · getTracking`) with per-vendor adapters. Implements the shared **PrintSpec/PrintPreflightContract** (D016).
 - **Never** browser screenshot (D005).
 - Assets pre-flattened at print resolution from the approved revision; cache artifact tagged with `revisionHash`.
+- **Determinism:** same `ApprovedBookRevision` + same `PrintSpec` → the same **visible/content output**. Compare via normalized artifact hash · content-manifest hash · per-page raster comparison · geometry validation report. Byte-identical PDF bytes are only required if the renderer also eliminates timestamps/random IDs (PDFs legitimately embed such values); that is a hardening option, not the launch guarantee (F-017 §14).
 
 ## 14. Payment/order flow
 
-1. Checkout (Medusa): cart contains items each referencing `approvedBookRevisionId`.
+1. Checkout (commerce module — Medusa candidate per D006): cart contains items each referencing `approvedBookRevisionId`.
 2. Estimate arrival before payment (quote from PrintProvider where available).
-3. Payment capture idempotent (PSP idempotency key; retries safe, duplicate webhook handled).
+3. Payment capture **business-effect idempotent**: PSP idempotency key + idempotent consumer → the capture/order effects happen at most once per attempt; duplicate webhooks replay the stored result (never claim exactly-once delivery — at-least-once + idempotent handling). Provider-crash uncertain-outcome cases go through reconciliation, not "exactly-once".
 4. Success → `ORDER_CREATED`; failure → `PAYMENT_FAILED` with clean retry; no print pre-payment.
 5. Order → fulfilment (below). Refunds/cancellations only via approved-revision-aware rules (F-026).
 
@@ -209,8 +212,8 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 ## 16. Privacy/deletion
 
 - Trace every system: browser → API → storage → model provider → output → retention/deletion (mandatory; F-025 data inventory).
-- Retention proposal (matches/beats Diffrun): unsaved uploads ≤48h; saved/order-adjacent photos ≤30 days unless order-in-flight; delete-now cascade into storage/DB/queues/provider payloads/derived likenesses; consent on profile + purchase.
-- No training on customer child data; no public asset URLs; staff access to photos default-denied (F-026).
+- Retention proposal (**PROPOSED — legal/product sign-off required before it goes live**): unsaved uploads ≤48h (draft); saved/order-adjacent photos ≤30 days unless order-in-flight; delete-now cascade into storage/DB/queues/provider payloads/derived likenesses; consent on profile + purchase. Parity floor with the category is *published, enforceable windows*, not a promise of specific numbers.
+- No training on customer child data; no public asset URLs; no "never-shared"/absolute guarantees beyond what we can enforce; staff access to photos default-denied (F-026).
 - Provider audit: every external party touching child data documented before code + reviewed on change.
 
 ## 17. Observability
@@ -223,7 +226,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 ## 18. Deployment implications
 
 - Monorepo recommended to start: `api` (domain + workers + adapters), `web` (customer app), `admin` (ops console), `shared` (canonical types/schemas). One deployable API service + worker service + web; later split on real load.
-- Postgres managed; object storage managed; queue inside Postgres/BullMQ+pg.
+- Postgres managed; object storage managed; queue = PostgreSQL-backed (default candidate) or Redis-backed (BullMQ-class) per the D014 spike.
 - CI: typecheck, lint, unit + integration, workflow E2E, visual regression for editor/reader, print-validation fixture tests.
 - Env/config: strict secrets hygiene (AGENTS.md), provider keys in secrets manager, no keys in repo.
 - Environments: staging mirrors production providers (rate-limited) + emulator/mock adapters for tests.

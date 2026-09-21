@@ -1,7 +1,7 @@
 # 17_PRINT_RENDERING.md — Deterministic Print Pipeline
 
 > **Spec ID:** F-017 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-016 Approval (frozen revision), F-014 Book Editor (font/asset contract), F-015 Book QA (geometry inputs shared)
+> **Depends on:** F-016 Approval (frozen revision), shared PrintSpec/PrintPreflightContract (D016), F-010 (long-running job execution). **NOT dependent on F-014** — the editor and the print renderer are parallel surfaces over the same canonical model + print contract.
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -35,7 +35,7 @@ Not applicable (greenfield). Risks the **design itself** must avoid:
 - **Live-book reads (D011):** rendering from a mutable book silently reintroduces post-approval drift; only the frozen revision + `assetManifest` may enter the pipeline (checksum-verified).
 - **Hardcoded printer rules:** geometry must come from the target adapter, not from a magic-constant. ("These rules live in adapters" is a load-bearing decision, mission §24.)
 - **Font/colour drift:** non-embedded fonts and unprofiled colour are silent, expensive failures; both are validated, not hoped for.
-- **Non-determinism:** the pipeline must be re-runnable to byte-stable artifacts for the same revision+spec (a retry or QA rerun must not produce a different PDF).
+- **Non-determinism:** the pipeline must be re-runnable so the same revision+spec yields the same **visible/content output** — a retry or QA rerun must not change what prints. Note: PDF blobs legitimately embed timestamps/IDs; determinism is defined at the content level (normalized artifact hash · content-manifest hash · per-page raster comparison · geometry validation report), and byte-identical output is an optional hardening if the renderer also excludes timestamps/random IDs (§14).
 
 ## 5. Desired UX
 
@@ -54,6 +54,8 @@ The parent sees little of this directly, and that is the point:
 - No mobile-specific UI: parents consume via progress states only; ops is desktop tooling.
 
 ## 7. Domain model
+
+> **Shared contract (D016):** `PrintSpec` + the derived **PrintPreflightContract** (format feasibility, geometry rules, quote inputs) are part of the canonical model (`_SPEC_GUIDE.md` §2/§3). QA (F-015), approval (F-016) and the editor (F-014) consume the contract; this spec *implements* it. Keeping the contract shared is what lets the renderer land in M4 without stalling the M2 QA/approval core.
 
 ```text
 PrintSpec (canonical; guide §3)
@@ -80,7 +82,7 @@ PrintArtifact (per approved revision + spec; guide §3 Order chain)
 
 ## 8. Backend/API requirements
 
-- `POST /print/artifacts` — create/re-render an artifact for an approved revision + printSpec (idempotent: same revision+spec → same artifact; returns existing if unchanged).
+- `POST /print/artifacts` — create/re-render an artifact for an approved revision + printSpec (idempotent: same revision+spec → same **visible/content output**; returns existing if unchanged).
 - `GET /print/artifacts/{id}` — geometry report, PDF download (signed), checksums.
 - `POST /print/artifacts/{id}/validate-printer` — push the Artifact through the target adapter's validator (`validateArtifact`) and store `printerValidationReportRef`.
 - `POST /print/artifacts/{id}/quote` — `quote(printSpec, quantity, destination)`; quoted cost is the number shown at F-016.
@@ -104,8 +106,8 @@ getTracking(printOrderId) → {events[], carrierRef?}
 ## 9. Background jobs
 
 - `PRINT_RENDERING_JOB`: trigger = `BOOK_APPROVED` event (F-016) (or `ORDERED`, see Decision §15); inputs = approvedRevisionRef + printSpec + adapterRef; steps = (1) manifest reconcile/checksum, (2) per-page geometry preflight (F-015 print-geometry subset), (3) layout engine run — text reflow at fixed metrics, illustration placement at print DPI, decorative elements composited, (4) cover+spine assembly via adapter formula, (5) PDF assembly (font embedding, colour profile set), (6) `validateArtifact` run (adapter), (7) mark VALIDATED.
-- Retry: full resumability by step checkpoint (re-running step 4 must reuse step 1–3 outputs; step-by-step outputs are cached by revision checksum, so byte-stable). Idempotent by `key = revision + spec + adapter + schemaVersion`. Timeout per provider call; failure state `RENDER_FAILED` (guide §4) with the failing step recorded for F-026/F-028.
-- Determinism requirement: same key → same artifact checksums; seedless layout, fixed source-of-truth text metrics, no timestamp/random in the PDF (a `producedAt` is added to metadata only, outside the printed pages).
+- Retry: full resumability by step checkpoint (re-running step 4 must reuse step 1–3 outputs; step-by-step outputs are cached by revision checksum, so content-stable). Idempotent by `key = revision + spec + adapter + schemaVersion`. Timeout per provider call; failure state `RENDER_FAILED` (guide §4) with the failing step recorded for F-026/F-028.
+- **Determinism requirement:** same key → same visible/content output, verified by normalized artifact hash (content normalized to exclude run metadata) · content-manifest hash · per-page raster comparison · geometry validation report. Seedless layout, fixed source-of-truth text metrics, no timestamp/random in the printed page content (a `producedAt` is added to PDF metadata only, outside the printed pages). Byte-identical PDFs are an optional hardening only if the renderer also strips metadata timestamps/IDs — not the launch requirement.
 
 ## 10. AI behaviour
 
@@ -129,17 +131,17 @@ None. Print rendering is fully deterministic, rule-based, numeric. If a generate
 
 ## 14. Acceptance criteria
 
-1. Given an approved revision of 41 pages, when the renderer runs, then the PDF has exactly 41 printed pages (cover through back) at the print DPI, with bleed + safe-area satisfied and all fonts embedded; a second run over the same key produces **byte-identical** artifacts.
+1. Given an approved revision of 41 pages, when the renderer runs, then the PDF has exactly 41 printed pages (cover through back) at the print DPI, with bleed + safe-area satisfied and all fonts embedded; a second run over the same key produces the **same visible/content output** — verified by normalized artifact hash, per-page raster comparison, content-manifest hash, and the geometry validation report. Byte-identical PDF bytes are only asserted if the renderer also excludes timestamps/random IDs.
 2. Given a page with an illustration below the DPI floor, when rendering runs, then that page fails with a structured resolution finding, the artifact is `RENDER_FAILED`, nothing is submitted, and ops sees the failing page and rule (no customer-facing error).
 3. Given an adapter whose bleed rule differs (e.g. 0.125" vs 3mm), when the same artifact is validated, then the adapter-specific `validateArtifact` outcome is recorded and governs; two adapters never share hardcoded print constants in the renderer.
 4. Given a parent who cancels approval (F-016) after an artifact rendered, when a new revision is later approved, then a new artifact is required and the old artifact is archived — it is never reused for the new revision (D011).
 5. Given a printer rejection payload at submit, when `submitOrder` returns a failure event, then the artifact flips to `RENDER_FAILED`/rework with the provider report stored, the parent remains on the calm order-status path (F-018/F-020), and ops has one-click re-validate/submit.
-6. Given a worker crash mid-step 4, when the job resumes, then steps 1–3 cached outputs are reused from the revision checksum (no drift, no re-layout) and the artifact completes byte-stable.
+6. Given a worker crash mid-step 4, when the job resumes, then steps 1–3 cached outputs are reused from the revision checksum (no drift, no re-layout) and the artifact completes with the same visible/content output for the same key.
 7. Given an unsigned/expired asset URL at render time, when the manifest reconcile runs, then the run aborts with a security finding rather than silently embedding a broken or public URL — fails closed.
 
 ## 15. Dependencies
 
-- Must exist first: F-016 (the frozen revision + assetManifest), F-014 (font/asset contract the editor must respect), F-015 (geometry preflight), F-010 (job execution for the long pipeline).
+- Must exist first: F-016 (the frozen revision + assetManifest), the shared PrintSpec/PreflightContract (D016 — the font/DPI/safe-area rules the editor also respects; the contract is defined up front, in M1, so QA/approval are not blocked on this spec), F-015 (geometry preflight), F-010 (job execution for the long pipeline).
 - Downstream consumers: F-018 (line item references the validated artifact + quote), F-019 (submits via `PrintProvider` and owns `IN_PRODUCTION`/`SHIPPED` transitions), F-020 (tracking via `getTracking`), F-024 localisation later (parallel PDF streams per locale rework the same deterministic engine — keep text layout engine locale-parametric from day one).
 - **Decision needed — render timing:** generate artifact at `APPROVED` (pre-payment; checkout is instant; minor cost for approvals that never order) vs at `ORDERED` (post-payment; saves cost, adds checkout latency + risk of surprise after payment). Recommendation: generate at `APPROVED`, validate at `ORDERED` — mark agreed in `DECISIONS.md` before F-018 work.
 - **Decision needed — PDF standard:** export PDF/X-1a (broad printer acceptance, subset fonts, no transparency) vs device-specific (some printers prefer plain PDF 1.7 + embedded fonts); resolve in the first adapter spike — the pipeline must isolate this in `PrintProvider.validateArtifact` so it is not a renderer fork.

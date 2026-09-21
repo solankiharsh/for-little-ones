@@ -4,7 +4,7 @@
 
 Do **not** begin by adding features.
 
-Before implementation, perform a research and product-definition pass similar to the one used by Natively before major development.
+Before implementation, perform a research and product-definition pass consistent with our own productisation discipline (objective → market → UX → architecture; record findings, decisions and rationale before building).
 
 The goal is to understand:
 
@@ -24,15 +24,16 @@ Do not implement major new functionality until the research documents described 
 
 ---
 
-# 1. What Natively Did
+# 1. Research Discipline for Studio Products
 
-Use the research pattern from:
+Use the standard productisation research pattern used across our studio products:
 
-`Natively-AI-assistant/natively-cluely-ai-assistant`
+1. Objective — what changes for the customer.
+2. Market — the five "current implementation" questions (this file, §2–§5).
+3. UX — the concrete friction that motivates each feature.
+4. Architecture — the minimal support that keeps the experience reliable.
 
-Commit:
-
-`db698ca99c79ebe21495da4bc631ff651eb3094c`
+Record conclusions in `.planning/` before implementation (see §21), and capture open questions with evidence, not assumptions.
 
 That commit created:
 
@@ -785,7 +786,7 @@ Ask for email/account only when needed to save, resume or order.
 
 # 21. Research Files to Create
 
-Mirror Natively's research discipline.
+Mirror the research discipline in §1.
 
 Create:
 

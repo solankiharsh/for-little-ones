@@ -10,15 +10,13 @@ If new evidence contradicts one, update this file with the reasoning.
 
 ---
 
-## D001 — Existing Application Is Not Disposable
+## D001 — Do Not Rewrite Working Systems Solely for Cleanliness
 
-**Status:** Accepted
+**Status:** Superseded for the current state (2026-09-21) by D013; retained as a **generic future rule**.
 
-For Little One already exists.
+The principle applies to whatever code actually exists at the time:
 
-We are not starting from an empty greenfield project.
-
-Existing functionality should be inspected and classified as:
+Whenever code exists, inspect and classify it as:
 
 - KEEP
 - MODIFY
@@ -28,6 +26,8 @@ Existing functionality should be inspected and classified as:
 - REJECT
 
 Do not rewrite working systems solely for architectural cleanliness.
+
+For the current state of this workspace there is **nothing to inspect or preserve as code** — see D013. When real code surfaces later, this classification discipline applies to it.
 
 ---
 
@@ -107,9 +107,9 @@ Do not make the browser editing canvas the print-production system.
 
 ## D006 — Medusa
 
-**Status:** Evaluate for adoption
+**Status:** CANDIDATE — pending spike (not selected)
 
-Purpose:
+Purpose (if adopted):
 
 - commerce;
 - cart;
@@ -120,15 +120,16 @@ Purpose:
 - shipping;
 - fulfilment.
 
-Before adoption compare it against existing repository functionality.
+Adoption depends on the spike decisions in D014 (self-hosted vs headless-cloud edition, tax/VAT routing) and must show a meaningful improvement over a purpose-built commerce module for our scale. No rewrite of any kind happens purely because Medusa exists. Progress flags:
 
-No rewrite should happen purely because Medusa exists.
+- `greenfield` → adoption is a build decision, not a migration;
+- if a real codebase appears later, re-run the comparison against *it* before adopting.
 
 ---
 
 ## D007 — OpenPolotno
 
-**Status:** Evaluate / potentially wrap or fork
+**Status:** CANDIDATE IMPLEMENTATION — pending spike (wrap or fork; not selected)
 
 Purpose:
 
@@ -138,12 +139,14 @@ Do not expose the complete generic design-editor UX.
 
 Do not make its data format canonical.
 
-Investigate:
+Spike (D014 #2) decides:
 
 - direct dependency;
 - pinned dependency;
 - internal fork;
 - wrapper/adapter.
+
+incl. spread support; the reader bundle must never load the editor package (D005, F-011).
 
 ---
 
@@ -248,7 +251,7 @@ Consequences:
 - "Current implementation" sections of feature specs must say `None (Observed)` and cite the research log.
 - The existing research (`project-spec-initial.md`, `.planning/`) is the asset to preserve.
 - When the first code is written, initialise git and record decisions in this log.
-- This does not weaken D001's spirit: avoid rewriting — but nothing exists to rewrite.
+- D001's principle (do not rewrite working systems for cleanliness) remains the future rule for whatever code actually exists; it is superseded as a statement about the present because nothing exists to rewrite.
 
 ---
 
@@ -267,11 +270,11 @@ Today's architecture + feature-specification work produced:
 - `product/DESIGN_SYSTEM.md` — design-system contract.
 
 **Next step before implementation:** agreement pass — promote specs `proposed → agreed` and run the blocking spikes, deciding in this log:
-1. Queue substrate (DB-backed vs BullMQ+pg; Temporal ruled out by default) — feeds F-010/F-028.
+1. Queue substrate (PostgreSQL-backed vs Redis-backed classes; prefer the simplest durable option — Temporal only if the spike shows its guarantees are needed) — feeds F-010/F-028.
 2. OpenPolotno consumption (direct dep vs pinned vs fork) incl. spread support — feeds F-014.
-3. Medusa version/edition (self-hosted vs headless-cloud) + tax routing — feeds F-018.
+3. Medusa edition (self-hosted vs headless-cloud) + tax routing — feeds F-018.
 4. Print partner + PDF standard (PDF/X-1a vs PDF 1.7+embedded fonts) — feeds F-017/F-019.
-5. QualityModel identity threshold calibration set — feeds F-009/F-015.
+5. QualityModel identity-threshold calibration method + launch calibration run — feeds F-009/F-015.
 
 ---
 
@@ -286,3 +289,41 @@ Future agents updating these docs must:
 - cite `codebase/README.md`, `RESEARCH_LOG.md` and D013 where they claim greenfield;
 - never invent files, endpoints, tables, components or providers to make a section look "known";
 - add a new decision when a real codebase surfaces instead of silently re-describing the product.
+
+---
+
+## D016 — Shared PrintSpec / Print-Preflight Contract Breaks the QA–Approval–Renderer Cycle (2026-09-21)
+
+**Status:** Accepted as baseline
+
+The render chain consumes a **shared domain contract**, not the renderer itself:
+
+```text
+Canonical Book/Layout → PrintSpec/PrintPreflightContract → Core QA (F-015)
+→ Approval (F-016) → ApprovedBookRevision → Print Renderer (F-017)
+→ Print Artifact → Fulfilment (F-019)
+```
+
+Consequences:
+
+- The contract fixes format feasibility (trim/bleed/safe areas/DPI/fonts/page rules) and the quote interface's inputs, and lives in the canonical model (`_SPEC_GUIDE.md` §2/§3).
+- F-015 (core QA) validates geometry against the contract only — no dependency on the renderer existing.
+- F-016 (approval) consumes the contract for format feasibility + delivery estimate — no dependency on the renderer existing.
+- F-014 (editor) validates against the same contract (fonts/DPI/safe-area); F-017 is a parallel surface, not a prerequisite.
+- F-017 implements the contract; it depends on the frozen revision (F-016) and the contract, **not** on F-014. This removes the F-015↔F-016↔F-017 dependency cycle.
+
+The renderer may ship later (M4) than the QA/approval core it unblocks (M2).
+
+---
+
+## D017 — Photo Upload Topology Is an Open Question (2026-09-21)
+
+**Status:** Question — no default; resolve in the security/architecture spike before build
+
+Direct-to-storage (browser → signed private object storage) vs API-relay (browser → API → storage) is **not decided**. Both must satisfy, regardless of choice:
+
+- private objects (no permanent public URLs);
+- content-type and size validation;
+- malware/image validation;
+- ownership enforcement (session/owner scoped);
+- retention/deletion per F-025.

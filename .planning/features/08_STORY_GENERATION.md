@@ -1,7 +1,7 @@
 # 08_STORY_GENERATION.md — Story Text Generation Pipeline
 
 > **Spec ID:** F-008 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-007 (selected concept), F-006 (facts), F-003 (profile), F-010 (jobs), F-024 (locale fields) · **Consumed by:** F-009 (illustrations), F-011 (preview)
+> **Depends on:** F-007 (selected concept), F-006 (facts), F-003 (profile), the generation **step-execution interface** (`GenerationStepExecution` — the execution contract; F-010 provides the runtime), F-024 (locale fields). **Exposes** the `OUTLINE`/`PAGE_TEXT` `GenerationStep` units consumed by F-010. · **Consumed by:** F-009 (illustrations), F-011 (preview)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -127,7 +127,7 @@ Commands via `BookService`/`BookRepository`; orchestration via `GenerationJob` (
 
 ## 9. Background jobs
 
-Owned by `GenerationJob` (F-010), two dependent steps: **`OUTLINE`** then **`PAGE_TEXT`** per page.
+Execution owned by F-010 runtime; the step units are **`GenerationStep` contract entries defined here** and consumed by F-010, two dependent steps: **`OUTLINE`** then **`PAGE_TEXT`** per page.
 - `OUTLINE`: input = concept + facts slice + locale + age band; output = validated outline; gate — if outline validation fails, the job stays `FAILED` at the outline step and nothing downstream runs (retry re-enters step, idempotent).
 - `PAGE_TEXT`: per-page; **`pageKey = sha256(bookId|conceptVersion|pageNumber|factsVersion|locale)`** — the same key always produces the same page intent, so a crashed worker or a duplicate request cannot double-generate or diverge; `POST …/pages/{n}/regenerate` reuses the same key (identical deterministic inputs) or a `revisionNonce` on REVISION_REQUIRED (different intent).
 - Retry: up to 2 auto retries/page with exponential backoff, 45s timeout; a page `FAILED` after that never blocks other pages (D010).
@@ -179,7 +179,7 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-007 (selected concept), F-006 facts + F-003 profile (canonical facts fields incl. `locale`), F-010 job substrate, `StoryModel` interface (architecture v2).
+- **Required first:** F-007 (selected concept), F-006 facts + F-003 profile (canonical facts fields incl. `locale`), the `GenerationStepExecution` interface (execution contract; F-010 provides the runtime), `StoryModel` interface (architecture v2).
 - **Consumed by:** F-009 (illustration plans read `textBlocks` + `illustrationCue`), F-011 (reading preview), F-012 (page rewrite hooks), F-024 (wordlist mapping extension).
 - **Parallel-safe:** F-004/F-005 (photos/bible) run independently; F-009 consumes the page contract but does not block text QA.
 
