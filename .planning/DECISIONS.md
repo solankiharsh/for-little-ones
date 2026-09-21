@@ -383,3 +383,19 @@ Consequences:
 - Substrate wording stays neutral — "durable execution substrate" — until the D014 spike; candidate classes (PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed) remain candidates, never defaults. (2026-09-21 consistency pass: D014 #1 reworded accordingly.)
 
 ---
+
+## D020 — Platform-Foundation Spikes: All Exit Criteria Explicitly OPEN Pending Evidence (2026-09-21)
+
+**Status:** OPEN — no evidence yet; experiments planned (Spike A–E per `PROJECT_SPIKES.md`), none executed. `OPEN` is recorded deliberately: insufficient evidence must never become a fake decision.
+
+Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`), each exit-criterion item remains explicitly open:
+
+- **Durable job substrate.** OPEN — Spike A compares a PostgreSQL-backed job approach vs a Redis-backed queue approach (lease semantics, retries, concurrency, cancellation, idempotency, restart recovery). Neutral "durable execution substrate" wording (D014/D019) stays until then; candidates stay candidates, never defaults. No exactly-once claim.
+- **Editor implementation posture.** OPEN — Spike B tests the candidate editor against an actual children's-book spread (dimensions, multipage, serialization/restoration, undo/redo, bundle size, canonical-model adapter). Decide: depend directly / pin / wrap / maintain an internal fork / reject. The editor snapshot must never become canonical.
+- **Commerce adoption/rejection.** OPEN — Spike C validates the candidate against the cart → payment → order path while preserving the invariant: commerce may reference an approved revision but may never own or mutate the Book.
+- **First print provider + print contract.** OPEN — Spike D determines actual print requirements (trim, bleed, safe area, page count, binding, cover, spine, fonts, colour, PDF profile, resolution) against one realistic partner or a faithful local fixture, and verifies the print-domain contract is editor-independent.
+- **Identity-generation approach.** OPEN — Spike E tests provider identity/reference-conditioning capabilities (multi-photo, provider-native reference conditioning, reusable private reference, retention/data-use) before any approach or threshold is chosen.
+- **QA approach.** OPEN — Spike E's vision-evaluator feasibility check (does an independent evaluator agree with human review often enough to be useful) must run before a QA threshold/methodology is fixed.
+- **Storage upload topology.** OPEN — D017 (direct-to-storage vs API-relay) is resolved by the same evidence discipline; unchanged pending spike evidence.
+
+---

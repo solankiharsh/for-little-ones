@@ -6,6 +6,32 @@ Use newest entries first.
 
 ---
 
+### 2026-09-21 — Platform-Foundation Spikes: Plan Only (No Evidence Yet)
+
+**Question**
+
+Do the platform-foundation spikes (durable jobs, editor primitive, commerce, print pipeline, identity + visual QA) validate the open architecture decisions — or are they still unexecuted plan-only?
+
+**Sources / code inspected**
+
+- `.planning/PROJECT_SPIKES.md` (Spike A–E specification) and `spike/` directory layout (README + per-spike scaffolding).
+
+**Observed**
+
+- The research PR defines five spikes plus their exit criteria. Only the specification and isolated scaffolding are present; there are **no** spike implementations, fixtures, dependency manifests, harnesses, or measured results.
+
+**Conclusion**
+
+- Every spike exit-criterion item is recorded as **explicitly OPEN** in `DECISIONS.md` (D020) rather than resolved: durable job substrate, editor posture, commerce adoption/rejection, first print provider + print contract, identity-generation approach, QA approach, storage upload topology (D017).
+- No exactly-once claim is made for any durable-job substrate (none measured).
+- Nothing in this PR validates the platforms; it only plans the validation.
+
+**Follow-up**
+
+- Run Spike A (durable jobs) and Spike B (editor primitive) first — they unblock the largest architecture decisions. Record each measured result here and remove each `OPEN` from D020 as evidence lands. Calibrated identity threshold and substrate decision remain launch-blocking.
+
+---
+
 ### 2026-09-21 — Structured, Stage-Based, Independently Evaluated Generation (Invariant)
 
 **Question**
