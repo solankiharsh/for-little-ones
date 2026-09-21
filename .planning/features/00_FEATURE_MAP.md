@@ -53,6 +53,8 @@ Onboarding(01) ─ Story Discovery(02)
 
 Cross-cutting: `Privacy/Deletion(25)` · `Admin/Support(26)` · `Analytics/Observability(27)` · `Failure Recovery(28)`.
 
+**Milestone shape of the identity path:** the core creation journey (M1) runs **without child photos** — `Onboarding → Discovery → Child Profile (basic, no visual refs) → Personalisation → Concepts → Story Generation → durable progress → text/layout book preview with fixture/placeholder illustrations`. The sensitive-image path lands in **M2**: `Photo Upload → Photo validation → visual identity / Character Bible → Illustration Generation → identity QA → illustrated preview`. Child Profile may exist in M1 without visual references.
+
 The QA→Approval→Print edge runs through the **shared PrintSpec/PrintPreflightContract** (D016), so F-015/F-016/F-014 consume a contract while F-017 implements it — no cycle:
 
 ```text
@@ -71,10 +73,10 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 | F-005 | 05_CHARACTER_BIBLE.md | Canonical visual identity + global corrections | P1 | F-003, F-004 | proposed |
 | F-006 | 06_PERSONALISATION.md | Progressive personal details (facts, immutable) | P0 | F-003 | proposed |
 | F-007 | 07_STORY_CONCEPTS.md | 3 generated concepts, select/regenerate | P0 | F-002, F-003, F-006 | proposed |
-| F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003, GenerationStepExecution interface (F-010 runtime) | proposed |
-| F-009 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 | F-005, F-008, GenerationStepExecution interface (F-010 runtime) | proposed |
-| F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P0 | F-008/F-009 GenerationStep units, F-028 patterns | proposed |
-| F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, F-009 | proposed |
+| F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003, DurableExecutionContract (foundation — D019) | proposed |
+| F-009 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 | F-005, F-008, DurableExecutionContract (foundation — D019) | proposed |
+| F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P0 | F-008/F-009 GenerationStep units, DurableExecutionContract/F-028 principles | proposed |
+| F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, canonical layout, F-010 (v0, M1); F-009 (illustrated preview, M2) | proposed |
 | F-012 | 12_PAGE_CORRECTION.md | Page-level text/image repair | P1 | F-011, F-010 | proposed |
 | F-013 | 13_GLOBAL_CHARACTER_CORRECTION.md | Character-wide correction (hair, outfit, likeness) | P1 | F-005, F-012 | proposed |
 | F-014 | 14_BOOK_EDITOR.md | Custom editor above OpenPolotno | P1 | F-011, F-012, F-013 | proposed |
@@ -88,10 +90,10 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 | F-022 | 22_REORDER_AND_SEQUELS.md | Reorder, duplicate, sequel from library | P2 | F-021, F-005 | proposed |
 | F-023 | 23_MULTI_PERSON_STORIES.md | Siblings/family/pet stories, relationship narrative | P1 | F-003, F-005, F-008 | proposed |
 | F-024 | 24_LOCALISATION.md | Locale-aware facts, en-GB/en-US, l10n, bilingual | P2 | F-003, F-006, F-008, F-017 | proposed |
-| F-025 | 25_PRIVACY_AND_DELETION.md | Retention, consent, deletion, provider audit | P0 | F-004, F-005 | proposed |
+| F-025 | 25_PRIVACY_AND_DELETION.md | Retention, consent, deletion, provider audit | P0 | F-003; F-004, F-005 (data domains it governs, M2); M1 core v0 = governance contract + baseline with no build dependency on M2 features | proposed |
 | F-026 | 26_ADMIN_AND_SUPPORT.md | Ops/support view, dedupe, refunds | P1 | F-018, F-019 | proposed |
 | F-027 | 27_ANALYTICS_AND_OBSERVABILITY.md | Metrics, costs, logs, errors | P1 | F-010, F-018 | proposed |
-| F-028 | 28_FAILURE_RECOVERY.md | Cross-cutting durability, retries, resumability | P0 | — (provides patterns; D010/D014 decisions) | proposed |
+| F-028 | 28_FAILURE_RECOVERY.md | Cross-cutting durability, retries, resumability | P0 | — (provides patterns; D010/D014/D019 decisions) | proposed |
 
 ## Parallelism (what can be built at the same time)
 
@@ -105,7 +107,7 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 
 - Commerce via Medusa: **CANDIDATE — pending spike** (D006) — edition/hosting/tax/VAT to be decided; not selected.
 - Editor primitive OpenPolotno: **CANDIDATE IMPLEMENTATION — pending spike** (D007) — proof-of-concept for spread support and wrap-vs-fork before F-014 approval.
-- Job backbone: prefer the **simplest durable solution**; PostgreSQL-backed queue = default candidate, Redis-backed (BullMQ-class) = other class (D014) — choose after the queue spike; Temporal only if the spike justifies it.
+- Durable execution substrate: candidate classes PostgreSQL-backed and Redis-backed (BullMQ-class); a workflow engine only if the D014 spike shows its guarantees are needed — wording stays neutral until the spike (D019).
 - Print contract (D016): PrintSpec/PrintPreflightContract is a shared landing decision — already agreed as the cycle-break for F-015/F-016/F-017.
 - Upload topology (D017): direct-to-storage vs API-relay — open question, resolved in the security/architecture spike.
 - Bilingual (F-024): P2, but keep locale on profile facts from day one.

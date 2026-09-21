@@ -110,7 +110,7 @@ Per-page state machine consumed from F-010: `PENDING · GENERATING · READY · F
 - Outputs: new `textBlocks[]` or `illustrationRef` for the revision; writes revision, flips page state `GENERATING → READY | FAILED`. **Re-entry is at the affected stage only** (GENERATION_ARCHITECTURE §8): a text intent re-enters the page-text stage (F-008), an image intent re-enters the illustration stage (F-009) — no earlier stage re-runs, sibling `READY` pages stay untouched, and each revision carries a fresh immutable `GenerationProvenance`.
 - Retry: 3 attempts, backoff; resumable across worker restart (D010); timeout per model call; **failure isolates to the page**: book state untouched, previous revision retained and served. An earlier revision stays the live page until the new one is `READY` (never a blank mid-generation page).
 - Cancellation: intent superseded by a newer intent on the same page → in-flight job may be flagged cancelled; its results are discarded if a newer revision already exists.
-- Queue choice: DB-backed persistent queue (F-028 default; no Temporal unless the queue spike demands it, guide §5).
+- Substrate choice: durable execution substrate per F-028/D019 (candidate classes decided in the D014 spike — wording neutral until then, guide §5).
 
 ## 10. AI behaviour
 

@@ -1,12 +1,12 @@
 # 11_BOOK_PREVIEW.md — Reading-Mode Book Preview
 
 > **Spec ID:** F-011 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-008 Story Generation, F-009 Illustration Generation, F-010 Generation Progress
+> **Depends on:** **Preview v0 (M1):** F-008 Story Generation (canonical page text), the basic canonical `layout`, F-010 Generation Progress (per-page `READY`/`FAILED` state); fixture/placeholder illustrations are fine at this stage. **Illustrated preview (M2):** additionally F-009 Illustration Generation (final-quality illustrated assets).
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
 
-Reading-mode preview is the way a parent sees the finished book before paying: a real, flip-through book (`../../project-spec-initial.md` §8 — "The Preview Should Be the Product", §15 — digital experience). It is the **reading renderer** of the three-renderer split (`_SPEC_GUIDE.md` §2, `DECISIONS.md` D005): lightweight, polished, read-only, and it never ships or loads the editor framework. It renders the canonical `Book` model directly and is reused by the purchased/digital view and the family library (F-021).
+Reading-mode preview is the way a parent sees the finished book before paying: a real, flip-through book (`../../project-spec-initial.md` §8 — "The Preview Should Be the Product", §15 — digital experience). It is the **reading renderer** of the three-renderer split (`_SPEC_GUIDE.md` §2, `DECISIONS.md` D005): lightweight, polished, read-only, and it never ships or loads the editor framework. It renders the canonical `Book` model directly and is reused by the purchased/digital view and the family library (F-021). Preview lands in two increments: **preview v0 (M1)** renders text + canonical layout with fixture/placeholder illustrations (no child photos, no real illustration generation); the **illustrated preview (M2)** additionally renders F-009's final-quality illustrated assets. The reading surface itself is identical in both.
 
 ## 1. Goal
 
@@ -142,7 +142,7 @@ Only genuinely useful events (mission §33 filter), no photo/sensitive payloads:
 
 ## 15. Dependencies
 
-- Must exist first: F-008 (canonical page text), F-009 (illustration assets + storage refs), F-010 (page states, persistence of `READY`/`FAILED` per page).
+- Must exist first: **Preview v0 (M1):** F-008 (canonical page text), the basic canonical layout, F-010 (page states, persistence of `READY`/`FAILED` per page). **Illustrated preview (M2):** F-009 (illustration assets + storage refs) additionally.
 - Reuses: `BookService`/`BookRepository` (canonical reads), asset proxy job.
 - Consumers: F-012 (page corrections operate from the "Something wrong?" surface on this reader); F-021 (family library & digital reading reuse this renderer); F-016 (approval presented from this reader).
 - Parallel track: F-014 (editor) and F-017 (print renderer) are independent renderers over the same canonical model (Track C).

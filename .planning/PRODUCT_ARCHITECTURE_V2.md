@@ -1,7 +1,7 @@
 # PRODUCT_ARCHITECTURE_V2.md — Revised Product Architecture
 
 > **Status:** Draft v2 — to be agreed before implementation (mission §28).
-> **Relationship to research:** this replaces the informal architecture notes in earlier planning; it does NOT violate the research spec (`project-spec-initial.md`) — decisions D001–D013 and the canonical-model principle stand.
+> **Relationship to research:** this replaces the informal architecture notes in earlier planning; it does NOT violate the research spec (`project-spec-initial.md`) — decisions D001–D017 and the canonical-model principle stand.
 > **Headline finding:** there is no existing codebase (see `codebase/README.md`, `RESEARCH_LOG.md`, D013). The "existing architecture" below is therefore the documentation-and-research asset, and everything else is greenfield by design.
 
 ---
@@ -11,7 +11,7 @@
 **Observed:** none as application code. The workspace today contains:
 
 - `project-spec-initial.md` — product/market/architecture research (spec §1–§28).
-- `.planning/` — decision log (D001–D013), open questions, research log, codebase/market/platform/product research, and 28 feature specs + feature map (`features/`).
+- `.planning/` — decision log (D001–D017), open questions, research log, codebase/market/platform/product research, and 28 feature specs + feature map (`features/`).
 - `AGENTS.md` — agent operating rules.
 
 There is no frontend, backend, database, auth, storage, queue, commerce, generation pipeline, book model, editor, or print integration. The "current application" is entirely conceptual.
@@ -33,7 +33,7 @@ Because there is no code, "problems" are the risks we design out from the start.
 | Item | Decision | Why |
 | --- | --- | --- |
 | Product research (`project-spec-initial.md`) | **KEEP** | Source of intent; referenced by every feature spec. |
-| Decision log + research discipline (D001–D013, `.planning/`) | **KEEP** | The "research before build" culture is the asset. |
+| Decision log + research discipline (D001–D017, `.planning/`) | **KEEP** | The "research before build" culture is the asset. |
 | Product principles (parent ⌘ 95%, AI 5%; no account wall; mobile-first; approval-before-print) | **KEEP** | Encode the differentiation. |
 | Canonical Book model + three-renderer principle | **KEEP** | Adopted into architecture (§7 below). |
 
@@ -64,8 +64,8 @@ Greenfield foundation with an explicit **domain-separation** structure:
 +------------+   +--------------+   +-----------+   +-----------------+
 | Postgres   |   | Object store |   | Queue /   |   | Provider layer   |
 | (canonical |   | (photos,     |   | workers   |   | StoryProvider ·     |
-| book,      |   |  illus,      |   | (DB-backed|   | IllustrationProvider·|
-| profiles,  |   |  artifacts)  |   |  jobs)    |   | Identity · QA ·  |
+| book,      |   |  illus,      |   | (durable  |   | IllustrationProvider·|
+| profiles,  |   |  artifacts)  |   | substr.)  |   | Identity · QA ·  |
 | orders)    |   +--------------+   +-----------+   | Moderation ·     |
 |            |                                     | PrintProvider ·   |
 +------------+                                     | CommerceModule    |
@@ -124,7 +124,7 @@ Book
 **Adapters** translate this into: editor snapshot (OpenPolotno JSON, per version), reader payload (pre-rendered images + text), print payload (PDF/PDF-X artifacts per printer), digital version.
 
 - **Revision rule (F-016):** approval makes a deep-immutable snapshot with hash; print, order items, and reorder all bind to it. Edits always create a new revision; the approved one is byte-preserved.
-- **Print contract (D016):** a shared **PrintSpec/PrintPreflightContract** — format feasibility + geometry rules (trim/bleed/safe areas/DPI/fonts/page rules) + the quote interface's inputs — is part of the canonical model. Core QA (F-015), approval (F-016) and the editor (F-014) consume the contract; the print renderer (F-017) implements it. This is what keeps QA/approval off the renderer's critical path.
+- **Print contract (D016):** a shared **PrintSpec/PrintPreflightContract + print catalogue (`PrintCapability`/`PrintQuote`)** — format feasibility + geometry rules (trim/bleed/safe areas/DPI/fonts/page rules) + capability and pricing inputs — is part of the canonical model. Core QA (F-015), approval (F-016) and the editor (F-014) consume the catalogue/contract; the print renderer (F-017) implements the geometry contract and its fulfilment adapter (`PrintProvider`, F-019) never answers an approval-facing quote. This is what keeps QA/approval off the renderer's critical path.
 
 ## 8. Character model & identity
 
@@ -163,7 +163,7 @@ CharacterBible
 
 **Structured, stage-based, independently evaluated generation is an accepted architectural invariant (D018).** The generation engine is decomposed into explicit stages with typed, schema-validated contracts and immutable provenance; control flow and invariants live in application code, never in a model (details: `product/GENERATION_ARCHITECTURE.md`, `product/GENERATION_PROVENANCE.md`).
 
-User-visible state machine per book + per step, driven by durable jobs (F-010, F-028). Prefer the **simplest durable solution**: a PostgreSQL-backed queue is the default candidate; a Redis-backed queue (e.g. BullMQ) is the other candidate class; select after the D014 spike. Temporal is considered only if the spike shows its guarantees are actually needed.
+User-visible state machine per book + per step, driven by durable jobs (F-010, F-028) on the **durable execution substrate** (D019). Candidate classes: a **PostgreSQL-backed** queue and a **Redis-backed** queue (BullMQ-class); the first is the simplest durable option, and the choice is made after the D014 spike (candidates stay candidates until then — never defaults). A full workflow engine is considered only if the spike shows its guarantees are actually needed. Wording stays neutral until then.
 
 ```text
 CreateBook → validate inputs → validate photos → build/update Character Bible
@@ -194,14 +194,14 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 | Users, profiles, books, orders, jobs, events | Postgres | JSONB for book domain docs; FKs for profiles/orders; migration tooling from day 1 |
 | Photos, illustrations, print artifacts, PDFs | Object storage (S3-compatible) | Private; IDs in DB; short-lived signed URLs; lifecycle rules for retention |
 | Prompt/model payloads? | none retained | Log only minimal metadata (no photo PII in logs) |
-| Queues | PostgreSQL-backed queue (accounted tables) | Redis-backed (BullMQ-class) is the second candidate class; spike decides (D014). Book state and queue must stay consistent: an outbox/reconciliation bridge is mandatory for any Redis-backed class |
+| Queues | durable execution substrate; simplest-durable PostgreSQL-backed schema is the first candidate | Redis-backed (BullMQ-class) is the second candidate class; spike decides (D014). Book state and substrate must stay consistent: an outbox/reconciliation bridge is mandatory for any Redis-backed class |
 | Cache (later) | optional; not in v1 | skip until needed |
 
 - Single region first; photo handling per provider data-processing terms documented (F-025).
 
 ## 13. Print pipeline
 
-- Deterministic renderer (F-017): trim, bleed, safe areas, DPI/a, resolution validation, embedded fonts, cover+spine math, page-count rules, colour profile. Output PDF/PDF-X artifact per printer standard; adapted via `PrintProvider` (`validateArtifact · quote · submitOrder · getOrderStatus · cancelOrder · getTracking`) with per-vendor adapters. Implements the shared **PrintSpec/PrintPreflightContract** (D016).
+- Deterministic renderer (F-017): trim, bleed, safe areas, DPI/a, resolution validation, embedded fonts, cover+spine math, page-count rules, colour profile. Output PDF/PDF-X artifact per printer standard; adapted via `PrintProvider` (`validateArtifact · submitOrder · getOrderStatus · cancelOrder · getTracking` — **pricing/capability lives in the shared print catalogue, D016, never here**) with per-vendor adapters. Implements the shared **PrintSpec/PrintPreflightContract** (D016).
 - **Never** browser screenshot (D005).
 - Assets pre-flattened at print resolution from the approved revision; cache artifact tagged with `revisionHash`.
 - **Determinism:** same `ApprovedBookRevision` + same `PrintSpec` → the same **visible/content output**. Compare via normalized artifact hash · content-manifest hash · per-page raster comparison · geometry validation report. Byte-identical PDF bytes are only required if the renderer also eliminates timestamps/random IDs (PDFs legitimately embed such values); that is a hardening option, not the launch guarantee (F-017 §14).
@@ -209,7 +209,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 ## 14. Payment/order flow
 
 1. Checkout (commerce module — Medusa candidate per D006): cart contains items each referencing `approvedBookRevisionId`.
-2. Estimate arrival before payment (quote from PrintProvider where available).
+2. Estimate arrival before payment (quote from the shared print catalogue — D016).
 3. Payment capture **business-effect idempotent**: PSP idempotency key + idempotent consumer → the capture/order effects happen at most once per attempt; duplicate webhooks replay the stored result (never claim exactly-once delivery — at-least-once + idempotent handling). Provider-crash uncertain-outcome cases go through reconciliation, not "exactly-once".
 4. Success → `ORDER_CREATED`; failure → `PAYMENT_FAILED` with clean retry; no print pre-payment.
 5. Order → fulfilment (below). Refunds/cancellations only via approved-revision-aware rules (F-026).
@@ -224,7 +224,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 
 - Trace every system: browser → API → storage → model provider → output → retention/deletion (mandatory; F-025 data inventory).
 - Retention proposal (**PROPOSED — legal/product sign-off required before it goes live**): unsaved uploads ≤48h (draft); saved/order-adjacent photos ≤30 days unless order-in-flight; delete-now cascade into storage/DB/queues/provider payloads/derived likenesses; consent on profile + purchase. Parity floor with the category is *published, enforceable windows*, not a promise of specific numbers.
-- No training on customer child data; no public asset URLs; no "never-shared"/absolute guarantees beyond what we can enforce; staff access to photos default-denied (F-026).
+- No use of customer child data to train general/public models (a product requirement confirmed via the provider data-use audit — F-025 — before any customer-facing claim); no public asset URLs; no "never-shared"/absolute guarantees beyond what we can enforce; staff access to photos default-denied (F-026).
 - Provider audit: every external party touching child data documented before code + reviewed on change.
 
 ## 17. Observability
@@ -237,7 +237,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 ## 18. Deployment implications
 
 - Monorepo recommended to start: `api` (domain + workers + adapters), `web` (customer app), `admin` (ops console), `shared` (canonical types/schemas). One deployable API service + worker service + web; later split on real load.
-- Postgres managed; object storage managed; queue = PostgreSQL-backed (default candidate) or Redis-backed (BullMQ-class) per the D014 spike.
+- Postgres managed; object storage managed; queue = durable execution substrate per the D014 spike (simplest-durable PostgreSQL-backed first candidate; Redis-backed/BullMQ-class second; workflow engine only if the spike justifies it — D019).
 - CI: typecheck, lint, unit + integration, workflow E2E, visual regression for editor/reader, print-validation fixture tests.
 - Env/config: strict secrets hygiene (AGENTS.md), provider keys in secrets manager, no keys in repo.
 - Environments: staging mirrors production providers (rate-limited) + emulator/mock adapters for tests.
@@ -246,7 +246,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 
 - Greenfield: introduce stack incrementally along roadmap milestones (see `IMPLEMENTATION_ROADMAP.md`) — no data migration exists.
 - **Do-first infrastructure (Milestone 0g, hidden):** git init, monorepo scaffold, Postgres schema + migration tooling, object storage, CI, provider-adapter skeleton, PF/store configs — so features land as vertical slices on working rails.
-- Re-evaluate this document at each milestone with a decision-log entry (D-series) — especially Medusa adoption (self-hosted vs cloud), queue substrate (spike), OpenPolotno wrapper, and print partner.
+- Re-evaluate this document at each milestone with a decision-log entry (D-series) — especially Medusa adoption (self-hosted vs cloud), durable-execution substrate (spike), OpenPolotno wrapper, and print partner.
 
 ---
 

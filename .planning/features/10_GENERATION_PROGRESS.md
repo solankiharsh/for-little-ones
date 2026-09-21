@@ -1,16 +1,16 @@
 # 10_GENERATION_PROGRESS.md — Persistent, Observable Generation Progress
 
 > **Spec ID:** F-010 · **Priority:** P0 (durability core) · **Status:** draft
-> **Depends on:** F-008/F-009 `GenerationStep` units (the steps to orchestrate) · F-028 durability patterns (lease, retry, idempotency, outbox) · **Provides** the `GenerationStepExecution` runtime that F-009 declares as its execution interface. · **Consumed by:** F-011 (preview), F-012 (repair), F-016 (approval readiness)
+> **Depends on:** F-008/F-009 `GenerationStep` units (the steps to orchestrate) · the foundational **DurableExecutionContract** (guide §3/§5, D019) and the F-028 durability principles it encodes (lease, retry, idempotency, outbox) · **Implements** the `DurableExecutionContract` runtime that generation specs (F-008/F-009) consume. · **Consumed by:** F-011 (preview), F-012 (repair), F-016 (approval readiness)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
 
-Generation is never *"button → request → spinner → hope"* (guide §5; spec §6 vibe). F-010 is the durable, observable, resumable execution layer for the whole generation pipeline (spec §6 conceptual workflow): a **DB-backed job/queue** (no Temporal by default — guide §5, D009/D010) that records step and per-page state, survives browser refresh and worker restarts, is idempotent at every unit of work, and maps busy internal steps to calm, emotional, product-facing progress labels. It is the spine F-008/F-009 (and later corrections/regenerations) attach to.
+Generation is never *"button → request → spinner → hope"* (guide §5; spec §6 vibe). F-010 is the durable, observable, resumable execution layer for the whole generation pipeline (spec §6 conceptual workflow): a **durable execution substrate** (candidate classes selected after the D014 spike — guide §5, D019) that records step and per-page state, survives browser refresh and worker restarts, is idempotent at every unit of work, and maps busy internal steps to calm, emotional, product-facing progress labels. It is the spine F-008/F-009 (and later corrections/regenerations) attach to.
 
 ## 1. Goal
 
-Make long-running, parallel, per-page generation **safe and legible**. The underlying jobs are backend infrastructure; the product-facing job is to (a) never lose a book's generation state, (b) isolate and repair failures per unit (D010), (c) communicate progress with warmth instead of a spinner, and (d) give every stage of the pipeline the restartable · idempotent · observable · retryable · resumable properties the guide §5 demands — while avoiding Temporal until a spike proves we need it.
+Make long-running, parallel, per-page generation **safe and legible**. The underlying jobs are backend infrastructure; the product-facing job is to (a) never lose a book's generation state, (b) isolate and repair failures per unit (D010), (c) communicate progress with warmth instead of a spinner, and (d) give every stage of the pipeline the restartable · idempotent · observable · retryable · resumable properties the guide §5 and the DurableExecutionContract (D019) demand — while keeping the substrate wording neutral until the D014 spike proves what the step graph needs.
 
 ## 2. User value
 
@@ -105,7 +105,7 @@ The canonical lifecycle (guide §4) holds the Book: this layer mirrors it — `D
 
 ## 9. Background jobs
 
-Queue substrate: two candidate classes, selected after the D014 spike — a **PostgreSQL-backed queue** (purpose-built pg job table) as the default candidate, or a **Redis-backed queue** (BullMQ-class). Prefer the simplest durable option; Temporal is considered only if the spike shows its guarantees are needed. In every case job + per-unit state must stay consistent with the Book in the same database (single transaction on every commit); a Redis-backed class additionally requires an outbox/reconciliation bridge. Requirements the spike must satisfy:
+Durable execution substrate: two candidate classes, selected after the D014 spike — a **PostgreSQL-backed queue** (purpose-built pg job table) and a **Redis-backed queue** (BullMQ-class); a workflow engine is considered only if the spike shows its guarantees are needed (D019 keeps the wording neutral until then). In every case job + per-unit state must stay consistent with the Book in the same database (single transaction on every commit); a Redis-backed class additionally requires an outbox/reconciliation bridge. Requirements the spike must satisfy:
 - Durability: job + per-unit state in the same DB as the Book (single transaction on every commit).
 - Restart safety: on worker boot, re-claim units whose `leaseUntil` expired or whose process heartbeat is stale; crashed work returns to `PENDING` and re-runs against idempotency keys (guide §5: "worker restart must not lose book state", D010).
 - Idempotency: every unit keyed (e.g. `pageKey`, `planKey`); consumers no-op if the key already produced `READY` output at the same versions.
@@ -150,10 +150,10 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-008/F-009 to have real units to orchestrate; F-028 durability/concurrency patterns (lease, retry policy) to finalise the queue spike; canonical Book lifecycle (guide §4) shape.
+- **Required first:** F-008/F-009 to have real units to orchestrate; the `DurableExecutionContract` / F-028 durability + concurrency principles (lease, retry policy) to finalise the substrate spike; canonical Book lifecycle (guide §4) shape.
 - **Consumed by:** F-011 (preview readiness gate), F-012 (retry/repair hooks), F-016 (approval only from `READY_FOR_REVIEW`), F-027 (observability feed).
-- **Parallel-safe:** the queue spike and F-028 policy draft can start immediately against a stub unit.
+- **Parallel-safe:** the substrate spike and F-028 policy draft can start immediately against a stub unit.
 
 ## 16. Priority
 
-**P0 — launch-critical durability core.** Generation reliability and repair are in the "reason to exist" set (spec §26; D010 "reliability is product functionality") and the P0 surfaces (preview, approval) depend on the durable job spine; an unreliable generate step is a launch blocker. The *incremental* build order still keeps the P0 spine first (F-008/F-009 with a stub queue) and hardens to this spec before launch. Priority rationale per the product filter: **fewer reliability/support problems + more confidence** (mission §33 filter, spec §27).
+**P0 — launch-critical durability core.** Generation reliability and repair are in the "reason to exist" set (spec §26; D010 "reliability is product functionality") and the P0 surfaces (preview, approval) depend on the durable job spine; an unreliable generate step is a launch blocker. The *incremental* build order still keeps the P0 spine first (F-008/F-009 with a stub substrate) and hardens to this spec before launch. Priority rationale per the product filter: **fewer reliability/support problems + more confidence** (mission §33 filter, spec §27).

@@ -7,7 +7,7 @@
 
 ## Summary
 
-The privacy programme the whole product runs on (spec §18). It defines (a) a **data inventory** of every party touching child data along the trace `browser → API → storage → model provider → output → retention/deletion` (spec §22), (b) explicit retention windows, (c) parent/guardian consent, (d) a **delete-now** control whose cascade removes data from storage, the DB, queues, model-provider payloads and derived likenesses (guide §7: derived likenesses are PII), and (e) privacy UX *inside the purchase experience*, not only legal pages. It also sets one non-negotiable: **photos are never used to train public models**.
+The privacy programme the whole product runs on (spec §18). It defines (a) a **data inventory** of every party touching child data along the trace `browser → API → storage → model provider → output → retention/deletion` (spec §22), (b) explicit retention windows, (c) parent/guardian consent, (d) a **delete-now** control whose cascade removes data from storage, the DB, queues, model-provider payloads and derived likenesses (guide §7: derived likenesses are PII), and (e) privacy UX *inside the purchase experience*, not only legal pages. It also sets one requirement: **child data must not train general/public models** — enforced via the provider data-use audit, and stated to customers only once verified (§10).
 
 ## 1. Goal
 
@@ -31,7 +31,7 @@ Not applicable — greenfield. The design risks are silent retention, scope cree
 
 ## 5. Desired UX
 
-During upload (F-004): "We use Ava's photos to draw Ava — never to train AI models, and never sold. Uploads you don't finish are deleted after a short while — see How we keep Ava's data safe." At checkout (spec §18): a short "Your child's data" panel — who processes it, how long it's kept, and a **Delete everything now** control. On the account page, "Data & privacy": per-child retention state, delete-now per child or for the whole account, plus a download-my-books before-deletion warning. Deleting shows a calm progress state ("We're removing Ava's photos everywhere — this takes a moment"), then a confirmation. Deleting is never hidden behind a legal page.
+During upload (F-004): "We use Ava's photos to create and check the personalised books you make with this saved profile. You can remove them from your profile and see how they are processed in Data & Privacy — see How we keep Ava's data safe." No absolute data-use claim is shown until the F-025 provider data-use audit verifies it (§10 verification chain; copy subject to provider/legal review). At checkout (spec §18): a short "Your child's data" panel — who processes it, how long it's kept, and a **Delete everything now** control. On the account page, "Data & privacy": per-child retention state, delete-now per child or for the whole account, plus a download-my-books before-deletion warning. Deleting shows a calm progress state ("We're removing Ava's photos everywhere — this takes a moment"), then a confirmation. Deleting is never hidden behind a legal page.
 
 ## 6. UI specification
 
@@ -62,12 +62,12 @@ Commands: `requestDeletion(scope)` (returns deletionId, idempotent), `cancelInFl
 ## 9. Background jobs
 
 - **Retention sweep job** (`GenerationJob` variant, internal): quarantines/evaluates expired uploads; expires unsaved uploads per the PROPOSED window (§12, legal sign-off pending), saved photos per rule below; idempotent per artifact, resumable on worker restart.
-- **Deletion cascade job**: walks prototypes → storage objects → DB rows → queue messages (cancel pending) → provider delete calls (where a delete API exists; where not, documented fallback: rotate/isolate) → derived likenesses (thumbnails, editor snapshots, colouring line-art, duplicated copies) → backups mark-for-purge → audit completion.
+- **Deletion cascade job**: walks prototypes → storage objects → DB rows → queue messages (cancel pending) → provider deletion/expiry per the provider's documented data-retention/deletion lifecycle → derived likenesses (thumbnails, editor snapshots, colouring line-art, duplicated copies) → backups mark-for-purge → audit completion. **Launch rule (§9/§14):** any provider receiving child data must have a documented data-retention/deletion lifecycle compatible with the approved privacy policy — an explicit deletion API, contractual auto-expiry/zero-retention, or another verified mechanism. A provider that cannot meet it is **rejected**, never adopted with a fallback; rotating/isolating data is not deletion and is never treated as one.
 - Both jobs are retried with backoff; a crashed cascade resumes from its checked-off audit record — deletion never "forgets" a party.
 
 ## 10. AI behaviour
 
-Provider contracts: `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider` must declare retention (payload held only for the duration of the call) and a deletion path. **Never train public models on child data** is a contractual exclusion in every provider agreement (spec §18). Provider payloads are restricted to the minimum needed (guide §7: "no additional providers without documentation").
+Provider contracts: `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider` must declare retention (payload held only for the duration of the call) and satisfy the data-retention/deletion lifecycle rule (§9 launch rule). **Requirement — not yet a customer-facing claim:** providers handling child data must not use it to train general/public models (spec §18). This is a product requirement confirmed via provider contracts/settings during the provider data-use audit; it becomes customer-facing copy **only through the chain: provider adoption → privacy/data-use audit → requirement verified → customer-facing claim enabled**. Evidence is recorded in the provider audit (§14). Provider payloads are restricted to the minimum needed (guide §7: "no additional providers without documentation").
 
 ## 11. QA
 
@@ -88,7 +88,7 @@ Aggregated, anonymous: `delete_requested(child|account)`, `delete_completed`, `r
 - **Given** an unsaved upload, **when** the PROPOSED retention window (48h) passes, **then** the retention sweep removes it and its provider payload.
 - **Recovery** **Given** a deletion cascade crashes mid-way, **when** the worker restarts, **then** the cascade resumes from the audit checkpoint and completes without resurrecting any data.
 - **Given** the checkout page renders, **when** a parent opens the data panel, **then** retention windows, processors list and the delete-now control are visible inline (not only on legal pages).
-- **Given** any provider contract, **when** it is reviewed, **then** it either provides a deletion path or the provider is rejected.
+- **Given** any provider contract, **when** it is reviewed, **then** it either satisfies the data-retention/deletion lifecycle rule (explicit deletion API, contractual auto-expiry/zero-retention, or another verified mechanism) or the provider is rejected — no rotate/isolate "fallback" ever qualifies as deletion.
 
 ## 15. Dependencies
 
@@ -98,4 +98,4 @@ Landing with F-003 (consent/retention fields), F-004 (upload registration), F-00
 
 **P0 (core v0) — launch-critical trust/privacy core.** The platform ingests children's photos from the very first session, so the deletion cascade, retention rules and provider-payload discipline must exist at launch; a privacy core promised but not built here is a launch blocker regardless of the P1 mark. The *full* program (account privacy hub, per-child retention cards, download-my-books, per-provider delete-api inventory) is the **P1 differentiation** surface (mission §26) and lands in M6. Mission §33 filter: fewer support problems and protective of the core promise ("we can be trusted with your children"). Launching behind Diffrun's privacy clarity is not acceptable (spec §18).
 
-**Decision needed (legal/product sign-off required before the numbers go live):** the exact retention windows above; whether saved reference photos survive 30 days after account deletion during in-flight orders or are purged immediately on order completion; document, in one place, which providers have no delete API and the approved fallback.
+**Decision needed (legal/product sign-off required before the numbers go live):** the exact retention windows above; whether saved reference photos survive 30 days after account deletion during in-flight orders or are purged immediately on order completion; document, in one place, the **verified data-retention/deletion lifecycle for every provider touching child data** (providers without one are rejected — §9 launch rule) and the provider data-use/training audit evidence (§10 verification chain).

@@ -2,12 +2,12 @@
 
 > **Spec ID:** F-028 · **Priority:** P0 (durability core) · **Status:** draft
 > **Scope note:** this spec is the shared discipline for every long-running feature and gates paid generation; the queue-substrate choice is **not** made here (D014 spike decides). Sections §3–§8 are milestone-linked rather than M1-locked; the acceptance library (§12/§13) ships with the job spine.
-> **Depends on:** decisions D010 (reliability is product functionality) · D014 (queue-substrate spike — PostgreSQL-backed vs Redis-backed vs Temporal) · no feature-spec dependency: this spec **provides** the durability/concurrency patterns (job states, idempotency keys, lease/heartbeat, retry/backoff, outbox/dedupe, dead-letter, cancellation) that F-010 implements and F-015/16, F-018/19, F-020, F-022, F-025, F-027 consume.
+> **Depends on:** decisions D010 (reliability is product functionality) · D014 (durable-execution-substrate spike — candidate classes to be decided; wording neutral until then, D019) · no feature-spec dependency: this spec **provides** the durability/concurrency principles (job states, idempotency keys, lease/heartbeat, retry/backoff, outbox/dedupe, dead-letter, cancellation) that the `DurableExecutionContract` (D019) encodes and F-010 implements; F-015/16, F-018/19, F-020, F-022, F-025, F-027 consume the outcomes.
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
 
-The reliability backbone: generation and order flows must be **durable, restartable, retryable, observable, resumable and idempotent** (spec §6 pipeline; mission §25 Recovery bar: "generation failures can resume rather than restart the entire book"; D010). Default architecture is a durable persistent queue with explicit job states — the substrate is **two candidate classes (PostgreSQL-backed vs Redis-backed/BullMQ-class), chosen by the D014 spike — PostgreSQL-backed simplest-durable default candidate; Temporal only if the spike shows the step graph needs it** (Decision needed, with a recommended spike). It standardises per-step idempotency keys, retry/backoff policies, timeouts, cancellation, one-page failure isolation, worker-restart-safe book state, and duplicate-webhook/payment-callback safety, plus a shared acceptance scenario library.
+The reliability backbone: generation and order flows must be **durable, restartable, retryable, observable, resumable and idempotent** (spec §6 pipeline; mission §25 Recovery bar: "generation failures can resume rather than restart the entire book"; D010). Default architecture is a **durable execution substrate** with explicit job states — the substrate is **two candidate classes (PostgreSQL-backed vs Redis-backed/BullMQ-class), chosen by the D014 spike; a workflow engine only if the spike shows the step graph needs it** (Decision needed, with a recommended spike; D019 keeps wording neutral until then). It standardises per-step idempotency keys, retry/backoff policies, timeouts, cancellation, one-page failure isolation, worker-restart-safe book state, and duplicate-webhook/payment-callback safety, plus a shared acceptance scenario library.
 
 ## 1. Goal
 
@@ -65,7 +65,7 @@ Job state is **durable and the source of truth**; in-memory state is never autho
 - **Timeouts:** per-step ceilings (story steps longer than page-illustration steps); exceed → step fails → retried under policy, not hung.
 - **Resumability:** each step stores its preceding output (structured) in the job row/artifact; a restart re-enqueues exactly the unfinished step.
 - **Webhook safety:** webhook handlers run under `OutboxMessage` dedupe; delivery is retried with backoff; correctness is **at-least-once delivery + idempotent business-effect handling** (state transitions are idempotent, so redelivery replays the stored result — never exactly-once delivery, which no HTTP webhook provider can guarantee).
-- Default queue: **two candidate classes — PostgreSQL-backed (simplest durable default candidate) vs Redis-backed/BullMQ-class — chosen by the D014 spike; if Redis-backed is chosen, an outbox + reconciliation sweep is mandatory for the Redis copy path.** Temporal only if the spike shows need. **Decision needed flagged below.**
+- Default substrate: **two candidate classes — PostgreSQL-backed vs Redis-backed/BullMQ-class — chosen by the D014 spike; if Redis-backed is chosen, an outbox + reconciliation sweep is mandatory for the Redis copy path.** A workflow engine (e.g. Temporal) only if the spike shows need. **Decision needed flagged below** (wording neutral until then, D019).
 
 ## 10. AI behaviour
 
@@ -110,10 +110,10 @@ Each is a stored Given/When/Then, implemented as an integration test:
 
 ## 15. Dependencies
 
-Implements into F-010 (job entity + progress UI — these two are the durable-job pair, F-010 implementing F-028's patterns). Consumed by F-016 (approval lock), F-018/19 (payment/webhooks), F-022 (reorder idempotency), F-025 (cascade/retention jobs), F-027 (observability of retries/dead letters). Fail-closed vs graceful degradation classification feeds `product/GENERATION_ARCHITECTURE.md` §10 and the approval/order gates (F-016/F-018).
+Implements into F-010 (job entity + progress UI — these two are the durable-job pair, F-010 implementing F-028's patterns). Consumed by F-016 (approval lock), F-018/19 (payment/webhooks), F-022 (reorder idempotency), F-025 (cascade/retention jobs), F-027 (observability of retries/dead letters). Fail-closed vs graceful-degradation classification feeds `product/GENERATION_ARCHITECTURE.md` §10 and the approval/order gates (F-016/F-018).
 
 ## 16. Priority
 
-**P0 (durability core) — launch-critical, gating everything long-running.** Mission §26 (reliability under P1 "our reason to exist"), §25 Recovery quality bar, D010 and spec §6 make durable recovery non-optional before any paid generation. Without it there is no safe checkout or reorder. As a *feature spec* most of it ships inside the M0/M1 job spine (F-008/F-009/F-010); the per-webhook/order hardening rides M4/M5.
+**P0 (durability core) — launch-critical, gating everything long-running.** Mission §26 (reliability under P1 "our reason to exist"), §25 Recovery quality bar, D010 and spec §6 make durable recovery non-optional before any paid generation. Without it there is no safe checkout or reorder. As a *feature spec*, its principles are implemented by the M0/M1 job spine (F-010 orchestrating F-008/F-009); the per-webhook/order hardening rides M4/M5.
 
-**Decision needed:** **job backbone — PostgreSQL-backed queue vs Redis-backed/BullMQ-class vs Temporal.** Recommended experiment: a D014 spike instrumenting one full generation book's step graph on a PostgreSQL-backed queue; if the step graph stays ≤ ~2 dozen bounded steps with no unbounded retries, keep the simplest durable choice (PostgreSQL-backed default candidate) and skip Temporal. Also decide: `maxAttempts` defaults (suggest: 5 for generation steps, 8 for webhooks); dead-letter routing destination once F-026/F-027 exist.
+**Decision needed:** **durable execution substrate — PostgreSQL-backed vs Redis-backed/BullMQ-class vs a workflow engine.** Recommended experiment: a D014 spike instrumenting one full generation book's step graph on a PostgreSQL-backed queue; if the step graph stays ≤ ~2 dozen bounded steps with no unbounded retries, keep the simplest durable choice (PostgreSQL-backed) and skip a workflow engine. Also decide: `maxAttempts` defaults (suggest: 5 for generation steps, 8 for webhooks); dead-letter routing destination once F-026/F-027 exist.
