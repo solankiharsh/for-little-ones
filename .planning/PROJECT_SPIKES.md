@@ -1,5 +1,7 @@
 # PROJECT_SPIKES — Platform-Foundation Validation
 
+**Status: PLAN — specification only.** This PR is the plan and directory layout; it includes no spike implementations, fixtures, or validation results. The spikes run in follow-up sessions and their evidence is recorded here in `.planning/RESEARCH_LOG.md` and `.planning/DECISIONS.md`. Until then every exit-criterion item below is `OPEN` (DECISIONS.md D020).
+
 This PR exists to replace assumptions with evidence.
 
 Do not build production features.

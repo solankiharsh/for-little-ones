@@ -1,8 +1,10 @@
 # Platform-Foundation Spikes
 
-This PR exists to **replace assumptions with evidence** for the platform foundations identified as open in `DECISIONS.md`. It does **not** build production features.
+**Status:** specification-only. This PR defines the spike plan and directory layout, but includes **no** spike implementations, fixtures, or validation results — they are built and recorded in follow-up sessions. It does **not** build production features.
 
 The authoritative specification lives in `.planning/PROJECT_SPIKES.md` (Spikes A–E) — read it first.
+
+Until the spikes run, every exit-criterion item below is explicitly `OPEN` (see `DECISIONS.md` D020); nothing here claims the foundations are validated.
 
 ## Ground rules
 
@@ -40,7 +42,7 @@ On merge, `DECISIONS.md` must resolve — or explicitly leave `OPEN` — each of
 6. QA approach (Spike E);
 7. storage upload topology (D017 — cross-cutting).
 
-## Evidence loop
+## Evidence loop (intended workflow — not yet executed)
 
 ```text
 spike experiment → measured result → RESEARCH_LOG.md entry → DECISIONS.md entry (or OPEN)
