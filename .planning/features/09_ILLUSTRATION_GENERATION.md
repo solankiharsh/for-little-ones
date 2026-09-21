@@ -6,7 +6,7 @@
 
 ## Summary
 
-F-009 turns each page's text + `illustrationCue` into a real illustration: a deterministic **IllustrationPlan** is derived first, then the **`IllustrationModel`** renders an image conditioned on the **Character Bible** identity reference via the **`IdentityReferenceModel`**, and the result is scored by the **`QualityModel`** for identity and rendering quality (spec §10, §25 identity bar). Identity is treated as a **measured, repairable property — never a guaranteed perfect likeness** (spec §10: "Do not rely only on generation prompts"). Per-page regeneration and a per-page attempt budget isolate cost and failures (D010).
+F-009 turns each page's text + `illustrationCue` into a real illustration: a deterministic **IllustrationPlan** is derived first, then the **`IllustrationProvider`** renders an image conditioned on the **Character Bible** identity reference via the **`IdentityProvider`**, and the result is scored by the **`QualityProvider`** for identity and rendering quality (spec §10, §25 identity bar). Identity is treated as a **measured, repairable property — never a guaranteed perfect likeness** (spec §10: "Do not rely only on generation prompts"). Per-page regeneration and a per-page attempt budget isolate cost and failures (D010).
 
 ## 1. Goal
 
@@ -31,7 +31,7 @@ Not applicable (greenfield). Design risks the spec itself must avoid:
 - **Sibling/profile swaps** and wrong child count → structured subject list per page, validated.
 - **Low-resolution assets** slipping to print → resolution gate at generation time (§25 print); never upscaled silently as "good".
 - **Runaway cost** (image calls are the expensive step) → hard per-page attempt budget + cost telemetry (F-027).
-- **Provider coupling** (D004) → all provider work behind `IllustrationModel`/`IdentityReferenceModel`/`QualityModel` interfaces.
+- **Provider coupling** (D004) → all provider work behind `IllustrationProvider`/`IdentityProvider`/`QualityProvider` interfaces.
 
 ## 5. Desired UX
 
@@ -60,15 +60,22 @@ IllustrationPlan            // derived deterministically before any image call
   subjects[]                 // canonical character ids + pose/expression/position
                              //   (from illustrationCue, validated ⊆ Book.characters)
   setting, props[], styleNote// style tokens reference Character Bible palette
+                             //   (resolved against policies/illustration/illustration-style.md)
   printConstraints           // { w, h, dpi, safeMargin } from the shared PrintSpec/PreflightContract (D016)
   layoutHint                 // where text overlays (keeps faces clear)
   planKey                    // sha256(pageKey|bibleVersion|styleVersion)
+  schemaVersion
 
-Illustration
+Illustration                // provider result = typed contract `IllustrationResult`
   id, planId, pageId
   assetUri                   // private store, signed URLs only (§7)
   width, height, dpi         // verified, not declared-believed
   generationMetadata         // { model, attempt, costCents, seedsInternal }
+  provenance                 // GenerationProvenance (GENERATION_PROVENANCE §2):
+                             //   schemaVersion, policySetVersion/policyHash (illustration.v1),
+                             //   provider/model version, characterVersion, storyRevision,
+                             //   inputAssetRefs (reference photo refs), jobId, attempt
+                             //   — required; a result without it is not canonical state
   status                     // PENDING | GENERATING | READY | FAILED | REVISION_REQUIRED
   qaReport → IdentityQAReport
 
@@ -82,6 +89,8 @@ IdentityQAReport
 CharacterVisualFacts         // lives in Character Bible (F-005), consumed here
   characterId, hair, skin, eyes, build, distinguishing, outfitTokens, ageLook
 ```
+
+Contract names follow `product/GENERATION_ARCHITECTURE.md` §3: **`IllustrationPlan`** (deterministic, derived, no model) and **`IllustrationResult`** (the provider's output, runtime-schema-validated, `schemaVersion` recorded; provider-specific response types stay in the adapter).
 
 The Bible (F-005) owns `CharacterVisualFacts`; F-009 only *reads* them as conditioning input — a parent's global edit (F-013) must re-drive illustration regeneration without editing this spec's model.
 
@@ -108,9 +117,9 @@ Execution owned by F-010 runtime; the step units are **`GenerationStep` contract
 
 Three provider interfaces behind adapters (D004):
 
-- **`IdentityReferenceModel`** — ingests the Character Bible's approved reference photos + `CharacterVisualFacts` and produces the **conditioning identity reference** (embedding/CLIP-style identity vector or provider-native reference payload). This is the *only* place raw photos go (§12). Output cache expires with the Bible version.
-- **`IllustrationModel`** — `generate(plan, identityReference, styleTokens) → image`. Prompt = canonical plan JSON + identity reference + Bible style tokens; interior seeds/temperatures never surfaced (D002). Total prompts are the plan fields — no free-text drift.
-- **`QualityModel`** — scores the result: `identityScore(identityReference, generatedImage)` per character present, plus render checks (resolution/aspect/duplicate). **Thresholds are calibrated via a documented methodology, not guessed and not hard-coded into the design.** Per spec §10's honesty rule we do not ship a fixed magic number up front. The method: (1) build a launch calibration set of diverse faces across age bands using our own validation data; (2) run the scoring pipeline on it and record the score distributions per age band; (3) set `passThreshold` so false-PASS of a visible likeness break is statistically rare and false-FAIL stays low enough that repair UX isn't spammy; (4) **record the results in RESEARCH_LOG and version the threshold** alongside the model version so later calibration shifts are tracked, not silently changed. Calibration is a launch-blocking prerequisite (see D014 #5 and F-009 §16); the numbers are an experiment outcome, not a design constant.
+- **`IdentityProvider`** — ingests the Character Bible's approved reference photos + `CharacterVisualFacts` and produces the **conditioning identity reference** (embedding/CLIP-style identity vector or provider-native reference payload). This is the *only* place raw photos go (§12). Output cache expires with the Bible version.
+- **`IllustrationProvider`** — `generate(plan, identityReference, styleTokens) → IllustrationResult` (typed contract, §7; runtime-schema-validated, `schemaVersion` recorded). Prompt = canonical plan JSON + identity reference + Bible style tokens; style tokens resolve from the product policy `policies/illustration/illustration-style.md` (illustration.v1 set) and safety rules from `policies/safety/content-rules.md` are applied via `ModerationProvider` + QA — policy, not prompt. Interior seeds/temperatures never surfaced (D002). Total prompts are the plan fields — no free-text drift. All generation runs carry the illustration.v1 `policySetVersion`/`policyHash` in provenance (GENERATION_PROVENANCE §3).
+- **`QualityProvider`** — scores the result: `identityScore(identityReference, generatedImage)` per character present, plus render checks (resolution/aspect/duplicate). **Thresholds are calibrated via a documented methodology, not guessed and not hard-coded into the design.** Per spec §10's honesty rule we do not ship a fixed magic number up front. The method: (1) build a launch calibration set of diverse faces across age bands using our own validation data; (2) run the scoring pipeline on it and record the score distributions per age band; (3) set `passThreshold` so false-PASS of a visible likeness break is statistically rare and false-FAIL stays low enough that repair UX isn't spammy; (4) **record the results in RESEARCH_LOG and version the threshold** alongside the model version so later calibration shifts are tracked, not silently changed. Calibration is a launch-blocking prerequisite (see D014 #5 and F-009 §16); the numbers are an experiment outcome, not a design constant.
 
 Style consistency: shared `styleNote`/palette tokens in every `IllustrationPlan` (spec §5A "global illustration style"); illustration plans list settings/props from the cue so e.g. "the same valley at dusk" stays the same valley.
 
@@ -124,7 +133,7 @@ Feeds the QA catalogue with measured, per-page items: identity consistency (scor
 
 ## 12. Privacy/security
 
-The **only** illustration-step consumer of `CharacterBible` reference photos is the `IdentityReferenceModel` ingestion (§7 trace: photos → storage → IdentityReferenceModel → conditioning output → retention). Generated illustrations are personally identifiable and treated as sensitive (spec §7): stored privately, served only via signed expiring URLs, no public bucket, no image data in logs (metrics carry sizes/costs, never pixels). Retained per the §18 deletion contract and F-025 (source photos and derived likenesses delete together). Every provider in this spec is documented in the provider audit (§18; F-025).
+The **only** illustration-step consumer of `CharacterBible` reference photos is the `IdentityProvider` ingestion (§7 trace: photos → storage → IdentityProvider → conditioning output → retention). Generated illustrations are personally identifiable and treated as sensitive (spec §7): stored privately, served only via signed expiring URLs, no public bucket, no image data in logs (metrics carry sizes/costs, never pixels). Retained per the §18 deletion contract and F-025 (source photos and derived likenesses delete together). Every provider in this spec is documented in the provider audit (§18; F-025).
 
 ## 13. Analytics
 
@@ -136,7 +145,7 @@ Given/When/Then, testable:
 
 - **Plan determinism:** Given the same story + Bible version, when plans are derived twice, then both runs produce identical `planKey`s and identical cue-derived composition (no image spend on the second run).
 - **Per-page isolation (D010):** Given page 12 `FAILED` at its attempt budget, when the parent taps "Try page 12 again", then only page 12's job reruns against the same `planKey`; pages 1–11, 13–N remain `READY`, and no page regenerates.
-- **Identity detection:** Given a generated page where the `QualityModel` identity score is below `passThreshold`, when QA runs, then the page is `FAILED`/`REVISION_REQUIRED` (not `READY`), an auto-retry consumes one budget slot, and if still failing, the parent-facing repair note (§5) appears and routing to F-012 is recorded.
+- **Identity detection:** Given a generated page where the `QualityProvider` identity score is below `passThreshold`, when QA runs, then the page is `FAILED`/`REVISION_REQUIRED` (not `READY`), an auto-retry consumes one budget slot, and if still failing, the parent-facing repair note (§5) appears and routing to F-012 is recorded.
 - **Resolution gate:** Given an asset at 200 DPI, when QA runs, then the verdict is `CONDITIONAL` with a print-softness flag; at 140 DPI → `FAILED`; nothing below the gate is marked `READY`.
 - **Wrong-child-count guard:** Given a plan whose `subjects` include a character not in `Book.characters`, when the plan is validated, then the request rejects with 422 before any image spend.
 - **Budget enforcement:** Given a per-page budget of 2, when the page fails twice, then the third attempt only starts on an explicit parent action and an analytics `illustration_budget_exhausted` fires.
@@ -146,7 +155,7 @@ Given/When/Then, testable:
 
 - **Required first:** F-005 (Character Bible: `CharacterVisualFacts`, approved references, style tokens), F-008 (`textBlocks` + `illustrationCue` contract), the `GenerationStepExecution` interface (execution contract; F-010 provides the runtime + attempt budget), the shared PrintSpec/PreflightContract (D016) print trim/dpi constants.
 - **Consumed by:** F-011 (preview thumbnails/reading render), F-012 (page repair), F-015 (pre-print QA suite), F-013 (global corrections trigger full re-plan when the Bible changes).
-- **Parallel-safe:** F-008 text work proceeds independently; the `QualityModel` calibration experiment (§10) can run before front-end work.
+- **Parallel-safe:** F-008 text work proceeds independently; the `QualityProvider` calibration experiment (§10) can run before front-end work.
 
 ## 16. Priority
 

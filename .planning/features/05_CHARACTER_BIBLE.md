@@ -28,7 +28,7 @@ See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; t
 
 Not applicable (greenfield). The design must avoid:
 
-1. **Provider coupling.** The identity representation is provider-specific; the Bible must hold an abstraction (`identityRepresentation` behind `IdentityReferenceModel`) so switching image providers (D004) does not orphan character identity. Never store raw provider prompt blobs as canonical identity (guide §2: canonical model is ours).
+1. **Provider coupling.** The identity representation is provider-specific; the Bible must hold an abstraction (`identityRepresentation` behind `IdentityProvider`) so switching image providers (D004) does not orphan character identity. Never store raw provider prompt blobs as canonical identity (guide §2: canonical model is ours).
 2. **Unconfirmed inference as appearance.** Derived appearance attributes (hair colour guessed from photos) are proposals, not facts (guide §10 rule; spec §2 Adorabook lesson). Only parent-confirmed appearance enters generation.
 3. **Version incoherence.** Mixing pages generated under Bible v1 and v2 inside one *approved* revision breaks identity QA. Version handles must be immutable per page and re-verified at approval (F-016).
 4. **Character/Book scope confusion.** A Bible is a character-level entity that can span books; per-book differences (outfits for a specific story) belong to the book, not the Bible — otherwise a family-shared character would leak a story's costume into unrelated books.
@@ -61,14 +61,14 @@ CharacterBible
 ├── childProfileId? (nullable — family/guest characters)          ← shareable across a family profile (F-023)
 ├── scope: profileShared | bookLimited
 ├── referencePhotoIds[]           ← from PhotoReference (F-004); primary first
-├── identityRepresentation {      ← provider-agnostic abstraction (IdentityReferenceModel)
+├── identityRepresentation {      ← provider-agnostic abstraction (IdentityProvider)
 │     provider, providerRefs[] (normalised embeds/face vectors),
 │     modelVersion, derivedAt }}
 ├── appearance {                  ← canonical, parent-confirmed when present
 │     hairStyle, hairColour, skinTone, eyeColour, build?,
 │     typicalOutfit, accessories[0..3],
 │     style: watercolour | warmFlat | storybook }
-├── proposedAppearance { … }      ← AI-derived, unconfirmed (never used by IllustrationModel)
+├── proposedAppearance { … }      ← AI-derived, unconfirmed (never used by IllustrationProvider)
 ├── bookOverrides[] { bookId, outfitForBook, … }   ← per-book, not propagated
 ├── version: int (bumps on any confirmed change)
 ├── generations: { pageId → bibleVersionUsed }     ← audit for QA + F-015
@@ -76,7 +76,7 @@ CharacterBible
 └── createdAt, updatedAt, lastAppliedAt
 ```
 
-Books reference it: canonical Book `characters[]` entries store `bibleId + bibleVersion`, NOT a copy of appearance. A page's `generationMetadata` records `characterBibleVersion` used per character, enabling identity QA and scope-limited regeneration.
+Books reference it: canonical Book `characters[]` entries store `bibleId + bibleVersion`, NOT a copy of appearance. A page's `generationMetadata` records `characterBibleVersion` used per character, enabling identity QA and scope-limited regeneration. This is this spec's slot in the stage pipeline (`product/GENERATION_ARCHITECTURE.md` §2 "Character/profile preparation") and in provenance (`product/GENERATION_PROVENANCE.md`): every illustration carries `characterVersion` + the illustration style `policySetVersion`/`policyHash` active when it was generated.
 
 **Versioning rules (this is the contract F-013 builds on):**
 - Version bumps on (a) any confirmed `appearance` change, (b) `referencePhotoIds` change, (c) `identityRepresentation` rederivation, (d) style change with confirmation. Not bumped on book-specific `bookOverrides`.
@@ -88,7 +88,7 @@ Books reference it: canonical Book `characters[]` entries store `bibleId + bible
 Proposed command/query boundary (proposed shared subsystem `BookService`; Bible operations live beside it, names consistent):
 
 - `CreateCharacterBible{ childProfileId, referencePhotoIds }` (from F-004's final photo set).
-- `ProposeAppearance{ bibleId }` → derives `proposedAppearance` via `IdentityReferenceModel` (job, see §9).
+- `ProposeAppearance{ bibleId }` → derives `proposedAppearance` via `IdentityProvider` (job, see §9).
 - `ConfirmAppearance{bibleId, appearancePatch}` → merge, set approved, bump version, emit event `CHARACTER_UPDATED`, fan-out candidate page ids (F-013 compute).
 - `UpdateCharacterAppearance{bibleId, field, value}` (per-field, idempotent; optimistic lock on `version`).
 - `SetBookOutfit{bibleId, bookId, outfit}` (no version bump).
@@ -99,25 +99,25 @@ Proposed command/query boundary (proposed shared subsystem `BookService`; Bible 
 
 ## 9. Background jobs
 
-**Job: IdentityDerivation ("BuildAva")** — `GenerationJob`; inputs = `referencePhotoIds` (+ optional `proposedAppearance` seed); runs `IdentityReferenceModel` to produce the stable `identityRepresentation` and derived attribute proposals. Retry 3× backoff; timeout 120s; resumable (D010) and idempotent (same refs ⇒ same providerRefs unless provider model changed). Failure state: `derived` pending → `needsAttention`, UI falls back to "use photo references" (illustration continues with refs only, §5 fallback). Cancellation on photo replacement.
+**Job: IdentityDerivation ("BuildAva")** — `GenerationJob`; inputs = `referencePhotoIds` (+ optional `proposedAppearance` seed); runs `IdentityProvider` to produce the stable `identityRepresentation` and derived attribute proposals. Retry 3× backoff; timeout 120s; resumable (D010) and idempotent (same refs ⇒ same providerRefs unless provider model changed). Failure state: `derived` pending → `needsAttention`, UI falls back to "use photo references" (illustration continues with refs only, §5 fallback). Cancellation on photo replacement.
 
 **Job: Single-Page Re-illustration** — is F-013's job, defined there; this spec only defines the *input* contract (bible version snapshot + `identityRepresentation` current).
 
 ## 10. AI behaviour
 
-- **IdentityReferenceModel** (guide §6): builds and stores the stable identity rep from references. It is the only interface allowed to write `identityRepresentation`; illustration never re-embeds identity itself.
-- **IllustrationModel** (F-009) receives per page: bible `identityRepresentation` + `appearance` (parent-confirmed fields only) + `bookOverrides.outfitForBook` + scene/narrative context. Never receives `proposedAppearance`, raw prompts, seeds (D002).
-- **Appearance derivation is a proposal**: `IdentityReferenceModel` output enters `proposedAppearance`, is shown as "AI guess", and only a parent confirmation promotes it to `appearance` (rule from spec §2/§11, guide §10). Confirmed appearance is an immutable input to all illustration generation until the parent changes it (spec §25).
+- **IdentityProvider** (guide §6): builds and stores the stable identity rep from references. It is the only interface allowed to write `identityRepresentation`; illustration never re-embeds identity itself.
+- **IllustrationProvider** (F-009) receives per page: bible `identityRepresentation` + `appearance` (parent-confirmed fields only) + `bookOverrides.outfitForBook` + scene/narrative context. Never receives `proposedAppearance`, raw prompts, seeds (D002).
+- **Appearance derivation is a proposal**: `IdentityProvider` output enters `proposedAppearance`, is shown as "AI guess", and only a parent confirmation promotes it to `appearance` (rule from spec §2/§11, guide §10). Confirmed appearance is an immutable input to all illustration generation until the parent changes it (spec §25).
 - Style picker output is a fixed enum, not a free-form style prompt.
 
 ## 11. QA
 
-Feeds/consumes (spec §10 catalogue): identity consistency (child resembles references); face changes substantially across pages (all pages must carry the same `identityRepresentation` ref — detectable when `page.generationMetadata.characterBibleVersion` mismatches the current bible for any approved book); sibling identities swap (multi-character pages compare per-character representation); hair/skin/clothing sudden changes (any page generation must pass through the bible `appearance`, so drift is structurally a QA failure not a mystery). `generations[]` map gives the audit trail F-015 needs. Approved books (F-016) that reference an outdated bible version are flagged `needsAttention` — the parent must re-approve the updated revision before print.
+Feeds/consumes (spec §10 catalogue): identity consistency (child resembles references); face changes substantially across pages (all pages must carry the same `identityRepresentation` ref — detectable when `page.generationMetadata.characterBibleVersion` mismatches the current bible for any approved book); sibling identities swap (multi-character pages compare per-character representation); hair/skin/clothing sudden changes (any page generation must pass through the bible `appearance`, so drift is structurally a QA failure not a mystery). `generations[]` map gives the audit trail F-015 needs; combined with each artifact's `GenerationProvenance` (`product/GENERATION_PROVENANCE.md`) a score regression is attributable to the changed version (provider model, `policySetVersion`, or `characterVersion`). Approved books (F-016) that reference an outdated bible version are flagged `needsAttention` — the parent must re-approve the updated revision before print.
 
 ## 12. Privacy/security
 
 - Generated likeness (`identityRepresentation`, derived appearance) is **PII derived from photos — treat like the source** (guide §7). Stored in private storage, not logged, not exposed publicly.
-- Continues the F-004 trace: references → `IdentityReferenceModel` provider (documented in F-025 audit); the provider may receive normalized reference images but not profile facts.
+- Continues the F-004 trace: references → `IdentityProvider` provider (documented in F-025 audit); the provider may receive normalized reference images but not profile facts.
 - Bible version snapshots follow the profile's retention class; F-025 delete-now removes source photos **and** invalidates/removes `identityRepresentation` and any regen queues referencing it.
 - Book/character scatter: a family-shared Bible is readable only by owners + `sharedWith[]` grants (F-023); book-level overrides never expose Bible internals.
 
@@ -128,7 +128,7 @@ Feeds/consumes (spec §10 catalogue): identity consistency (child resembles refe
 ## 14. Acceptance criteria
 
 1. Given a Bible at v1 used by a book, When the parent changes "hair colour" and confirms, Then the version bumps to v2, an immutable v1 snapshot is kept, and only pages whose `generationMetadata.characterBibleVersion=1` are listed as affected (F-013 count) — unrelated pages untouched.
-2. Given a derived `proposedAppearance`, When generation is triggered before confirmation, Then `IllustrationModel` inputs contain only photo references and confirmed fields — never `proposedAppearance`.
+2. Given a derived `proposedAppearance`, When generation is triggered before confirmation, Then `IllustrationProvider` inputs contain only photo references and confirmed fields — never `proposedAppearance`.
 3. Given an approved book (F-016) plus a late Bible bump to v2, Then the book is flagged `needsAttention` and must be re-approved before it can be ordered (D011).
 4. **Recovery:** Given IdentityDerivation fails after 3 retries, When generation proceeds, Then pages render with references-only fallback (marked in `generationMetadata` as `refs_only`), the parent sees "described with photos only", and a queued retry can repair visibly without regenerating a whole book (D010).
 5. Given a family profile where Ava and Leo share a Bible set, When a two-person story page is generated, Then each character's page illustration uses its own `identityRepresentation` and QA compares each independently (no swapping, spec §10).

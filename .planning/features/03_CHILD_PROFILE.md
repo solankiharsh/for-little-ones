@@ -89,7 +89,7 @@ ChildProfile
 ├── photoReferenceIds[] → PhotoUpload(F-004): primary + refs
 ├── interestIds[], favouriteThingIds[], customFactIds[] → Fact(F-006, typed, parent-confirmed)
 ├── relationshipIds[] → Relationship (guide §3)
-├── suggestedFactIds[] (inferred, never sent to StoryModel)
+├── suggestedFactIds[] (inferred, never sent to StoryProvider)
 ├── photoRetention, consent, confirmations[] (audit of fact confirmations)
 ```
 
@@ -113,8 +113,8 @@ Not applicable. Profile reads/writes are synchronous, idempotent commands. The o
 
 This spec itself performs no generation. Two interfaces consume/produce profile data:
 
-- **StoryModel** (F-008) receives facts (name, DOB-derived age, pronouns, locale, typed favourites, custom facts) as immutable structured inputs. It must never receive `suggested` facts.
-- **IdentityReferenceModel** (F-005) may derive *proposed* appearance attributes from profile photos; these return into the profile/suggested bucket (or bible `proposedAppearance`) and require parent confirmation before use in generation. Inference is never stored as fact (guide §10 rule line above).
+- **StoryProvider** (F-008) receives facts (name, DOB-derived age, pronouns, locale, typed favourites, custom facts) as immutable structured inputs. It must never receive `suggested` facts.
+- **IdentityProvider** (F-005) may derive *proposed* appearance attributes from profile photos; these return into the profile/suggested bucket (or bible `proposedAppearance`) and require parent confirmation before use in generation. Inference is never stored as fact (guide §10 rule line above).
 
 ## 11. QA
 
@@ -130,7 +130,7 @@ Lives mostly in F-015 but this spec feeds the checks:
 
 - **Data:** name, DOB, pronouns, facts, family relations, consent, retention settings — all sensitive (guide §7).
 - **Retention/deletion** via F-025 contract; `photoRetention` per profile; delete-now control surfaces on the profile and jest refresh both profile facts and generated likenesses (guide §7: generated likenesses derived from photos are PII — treat like the source).
-- **Provider exposure:** only `StoryModel`/`IdentityReferenceModel` per documented F-025 provider audit; no child data to commerce, print, or analytics (guide §7).
+- **Provider exposure:** only `StoryProvider`/`IdentityProvider` per documented F-025 provider audit; no child data to commerce, print, or analytics (guide §7).
 - **Logging:** no photo or sensitive field logging (dashboard-id avoids name/DOB).
 - **Access:** profile-bound to owner account; `sharedWith[]` grants only.
 - **Consent:** stored profile against an account requires explicit `parent/guardian` confirmation captured with timestamp and identity (spec §18). Draft-session profiles are temp and auto-purged per F-025.
@@ -143,7 +143,7 @@ Events (aggregated only, no sensitive payloads): `profile_created`, `profile_upd
 
 1. Given an anonymous first session, When Ava's parent creates a profile with name + DOB + one valid photo and then claims the account later (F-001), Then the profile is bound to that account with all fields intact and no data loss on refresh (D010).
 2. Given a confirmed profile, When a second book targets Ava, Then creation skips name/DOB/photo and reuses profile facts verbatim in generation.
-3. Given a `suggested` fact exists, When generation starts, Then it is excluded from all StoryModel inputs (verify a story never contains an unconfirmed suggested value).
+3. Given a `suggested` fact exists, When generation starts, Then it is excluded from all StoryProvider inputs (verify a story never contains an unconfirmed suggested value).
 4. Given a parent edits `firstName` spelling after a book exists, When any later generation runs, Then it uses the corrected spelling and any previously generated text carrying the old spelling is flagged/qpended for regeneration (never silently reworded).
 5. Recovery: Given a network failure during `CreateChildProfile`, When the client retries with the same `creationToken`, Then exactly one profile exists (idempotent), no partial write.
 6. Given a stored profile superate removal via F-025 delete-now, When deletion completes, Then profile, photo refs, confirmations log, and derived bible likeness are unrecoverable-pulled and downstream book revisions are revoked from regeneration queues.
