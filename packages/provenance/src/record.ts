@@ -3,9 +3,9 @@ import { z } from "zod";
 /**
  * GenerationProvenance — GENERATION_PROVENANCE §2. Immutable attribution for every
  * generated artifact/revision. All fields required; a stage result without a
- * provenance record does not become canonical state. `characterVersion` and
- * `storyRevision` are required but allowed to be empty for stages where they do
- * not apply (their absence is itself recorded).
+ * provenance record does not become canonical state. `characterVersion`,
+ * `storyRevision` and `providerModelVersion` are required but allowed to be empty
+ * for stages where they do not apply (their absence is itself recorded).
  */
 export const GenerationProvenanceSchema = z.strictObject({
   pipelineVersion: z.string().min(1),
@@ -14,7 +14,7 @@ export const GenerationProvenanceSchema = z.strictObject({
   policyHash: z.string().regex(/^[0-9a-f]{64}$/),
   provider: z.string().min(1),
   providerModel: z.string().min(1),
-  providerModelVersion: z.string().optional(),
+  providerModelVersion: z.string(),
   generationConfigVersion: z.string().min(1),
   characterVersion: z.string(),
   storyRevision: z.string(),

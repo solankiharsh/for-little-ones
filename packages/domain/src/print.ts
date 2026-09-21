@@ -110,27 +110,3 @@ export function validateGeometry(spec: PrintSpec, context: GeometryContext = {})
 
   return found.length === 0 ? { ok: true } : { ok: false, violations: found };
 }
-
-/**
- * Shared print catalogue (D016): PrintCapability + PrintQuote are foundation-level
- * types consumed by approval (F-016) and the editor (F-014) — the renderer only
- * renders and fulfilment only submits; neither answers an approval-facing quote.
- * Details of `validateFormat`/`quote`/`estimate` land with the print spike (D020).
- */
-export interface PrintCapability {
-  formatId: string;
-  formatEligible: boolean;
-  minPages: number;
-  maxPages: number;
-  geometryLimits: {
-    maxTrimMm: [number, number];
-    maxBleedMm: number;
-  };
-}
-
-export interface PrintQuote {
-  cents: number;
-  currency: string;
-  deliveryEstimateDays: [number, number];
-  providerId: string;
-}

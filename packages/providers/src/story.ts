@@ -58,6 +58,18 @@ export class ExampleVendorStoryAdapter implements StoryAdapter {
     vendorPayload: unknown
   ): Promise<ParseResult<StoryOutlineResult>> {
     const vendor = asVendorOutline(vendorPayload);
+    if (vendor === null) {
+      return {
+        ok: false,
+        contract: CONTRACT_NAMES.storyOutlineResult,
+        issues: [
+          {
+            path: "<vendor>",
+            message: "adapter received a non-object vendor payload (expected story outline JSON)"
+          }
+        ]
+      };
+    }
     const canonical = {
       schemaVersion: "1",
       title: vendor.storyTitle,
@@ -80,9 +92,9 @@ interface VendorOutline {
   pages: number;
 }
 
-function asVendorOutline(input: unknown): VendorOutline {
-  if (typeof input !== "object" || input === null) {
-    throw new Error("adapter: vendor payload is not an object");
+function asVendorOutline(input: unknown): VendorOutline | null {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return null;
   }
   const o = input as Record<string, unknown>;
   return {

@@ -70,6 +70,22 @@ describe("providers: adapter → canonical contract seam", () => {
     }
   });
 
+  it("returns a typed ParseFailure for a non-object vendor payload — the adapter never throws", async () => {
+    const adapter = new ExampleVendorStoryAdapter();
+    const request = {
+      schemaVersion: "1",
+      concept: { title: "T", pitch: "P" },
+      locale: "en-GB",
+      facts: [],
+      policySetVersion: "text.v1@1"
+    };
+    const outcome = await adapter.generateOutline(request, null);
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.contract).toBe(CONTRACT_NAMES.storyOutlineResult);
+    }
+  });
+
   it("adapter output is itself parseable by the canonical schema (round-trip proof)", async () => {
     const adapter = new ExampleVendorStoryAdapter();
     const parsed = await adapter.generateOutline(

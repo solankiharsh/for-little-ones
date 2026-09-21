@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SCHEMA_VERSION_V1 } from "./base";
+import { SCHEMA_VERSION_V1, GenerationMetadataSchema } from "./base";
 
 export const IllustrationPlanSchema = z.strictObject({
   schemaVersion: z.literal(SCHEMA_VERSION_V1),
@@ -32,13 +32,7 @@ export const IllustrationResultSchema = z.strictObject({
     height: z.number().int().positive(),
     storageRef: z.string().min(1)
   }),
-  generationMetadata: z
-    .strictObject({
-      model: z.string().min(1),
-      attemptCount: z.number().int().min(1),
-      costCents: z.number().int().min(0).optional()
-    })
-    .optional()
+  generationMetadata: GenerationMetadataSchema.optional()
 });
 
 export type IllustrationPlan = z.infer<typeof IllustrationPlanSchema>;

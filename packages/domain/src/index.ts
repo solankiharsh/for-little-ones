@@ -21,8 +21,6 @@ export type {
   GeometryResult,
   GeometryViolation,
   GeometryViolationCode,
-  AssetGeometryChecks,
-  PrintCapability,
-  PrintQuote
+  AssetGeometryChecks
 } from "./print";
 export type { GenerationStep, GenerationStepOutput } from "./generation";

@@ -19,6 +19,9 @@ export interface ParseSuccess<T> {
 
 export type ParseResult<T> = ParseSuccess<T> | ParseFailure;
 
+/** Cap on reported issues per failure so a pathological payload cannot balloon a response. */
+const MAX_REPORTED_ISSUES = 5;
+
 const toIssue = (issue: z.ZodIssue): ParseIssue => ({
   path: issue.path.map((p) => String(p)).join("."),
   message: issue.message
@@ -41,6 +44,6 @@ export function parseContract<T>(
   return {
     ok: false,
     contract,
-    issues: result.error.issues.slice(0, 5).map(toIssue)
+    issues: result.error.issues.slice(0, MAX_REPORTED_ISSUES).map(toIssue)
   };
 }

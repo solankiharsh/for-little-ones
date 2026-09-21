@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SCHEMA_VERSION_V1 } from "./base";
+import { SCHEMA_VERSION_V1, GenerationMetadataSchema } from "./base";
 
 export const ConceptRequestSchema = z.strictObject({
   schemaVersion: z.literal(SCHEMA_VERSION_V1),
@@ -96,13 +96,7 @@ export const PageTextResultSchema = z.strictObject({
     .min(1),
   illustrationCue: z.string().min(1).optional(),
   locale: z.string().min(2),
-  generationMetadata: z
-    .strictObject({
-      model: z.string().min(1),
-      attemptCount: z.number().int().min(1),
-      costCents: z.number().int().min(0).optional()
-    })
-    .optional()
+  generationMetadata: GenerationMetadataSchema.optional()
 });
 
 export type ConceptRequest = z.infer<typeof ConceptRequestSchema>;
