@@ -123,6 +123,46 @@ What remains unresolved?
 
 # Entries
 
+## 2026-09-21 — codebase — Monorepo bootstrap: first production code (M0 rails)
+
+**Question**
+
+Step 2 of the implementation plan called for real production code immediately, in parallel with the spike programme. What is the first codebase that commits the milestone-0 rails (layout, dependency direction, generation contracts, DurableExecutionContract, provenance, policy manifest, provider boundaries) without depending on any pending spike outcome?
+
+**Sources / code inspected**
+
+- The bootstrap branch `feat/bootstrap-domain-generation-contracts` (this workspace) — all new files.
+- `AGENTS.md` (D004 canonical model, reliability, printing, provider boundaries), `_SPEC_GUIDE.md` §2/§3/§5, `GENERATION_ARCHITECTURE.md` §3/§4, `GENERATION_PROVENANCE.md` §2/§3, `DECISIONS.md` D013/D015/D016/D018/D019/D020, `IMPLEMENTATION_ROADMAP.md` M0, `policies/MANIFEST.md`.
+- `tsc --noEmit` clean; `vitest run` 58/58 passing across the five agreed seams.
+
+**Observed**
+
+- Layout committed as `apps/{web,api,worker}` + `packages/{domain, contracts, providers, execution, provenance, policies, storage, testing}`; dependency direction enforced: apps → domain/(providers) → contracts → (nothing); execution/provenance/policies/storage are foundational (no feature deps); contracts depends only on zod and never on adapters.
+- Generation contracts defined per `GENERATION_ARCHITECTURE.md` §3 (Concept, StoryOutline, PagePlan, PageText, IllustrationPlan/Result, QualityEvaluation) with strict zod schemas, literal `schemaVersion "1"`, and a `parseContract` helper that returns typed, structured `ParseResult` failures — never silent best-effort fixes.
+- `DurableExecutionContract` (D019) implemented as a neutral contract surface plus `InMemoryDurableRuntime` (test/staging semantics only — idempotent enqueue by business-operation key, expired-lease reclaim, retry budgets, cancellation, progress observation). Substrate wording stays neutral; no exactly-once claim.
+- Provider boundaries (`StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider`) each carry a structured `ProviderCard` documenting child-data path, retention, idempotency, timeout, retry, cost, deletion — the privacy rule/audit is structurally enforced rather than advisory.
+- `GenerationProvenance` schema (all fields required) and a content-true `policyHash` (SHA-256 over ordered policy-file bytes, matching `policies/MANIFEST.md` sets) shipped; `policies` package mirrors the manifest in machine-readable form.
+- PrintSpec geometry rules (`validateGeometry`: bleed/safe-area/page-range/DPI/sheet-coverage) give M1 printability gates that QA/approval/editor can consume without the F-017 renderer existing (D016).
+- Adapter→contract seam proven by an example story adapter: vendor payload → canonical `ParseResult`; vendor-only fields never leak; malformed vendor output is a typed failure.
+
+**Conclusion**
+
+The bootstrap is the agreed M0 rails: safe, direction-committing, and free of any dependency on the open spike outcomes (durable substrate, editor, commerce, print partner, QA threshold). All implementation choices (npm workspaces, TypeScript strict + bundler resolution with source-first exports and no emit yet, zod v4, vitest) are recorded as D021 and remain reversible. The greenfield "no code" framing in D013/_SPEC_GUIDE §0 now applies only to pre-bootstrap state (D021 supersedes it for the new packages; specs will be updated when promoted).
+
+**Impact**
+
+- Implementation: M1 vertical slices can now build on these packages.
+- Architecture: dependency direction formally committed and typecheck-enforced.
+- Priority: foundation rails no longer speculative.
+- Dependencies: zero on spike outcomes; spike PRs remain independent.
+
+**Follow-up**
+
+- Electron-free; no lint/CI yet (roadmap M0 also lists CI, Postgres, secrets, storage, provider mocks — deferred to later bootstrap PRs).
+- Editor/commerce/print/QA-threshold spikes (D020) still pending; nothing here selects them.
+
+---
+
 ## 2026-09-21 — planning docs — Post-review audit: dependency graph acyclic, milestone-ordered; durable-execution + print-catalogue + privacy/generation invariants reconciled
 
 **Question**
@@ -157,6 +197,7 @@ All planning docs and feature specs under `.planning/`, with targeted greps for 
 - `FEATURE_SPEC_SUMMARY.md` row 25 deps qualifier confirmed: M1 core v0 = governance contract/baseline only (no M2 build dependency), full feature governs F-004/F-005 data domains at M6 — matches the feature map.
 - D014 (substrate) and D017 (upload topology) spikes still decide the open choices; retain neutral wording until then.
 - Commit and push the `docs/pr1-review-fixes` branch (PR #1 merged; this is follow-up docs-only).
+ (feat: bootstrap domain and generation contracts (M0 monorepo rails))
 
 ---
 

@@ -29,9 +29,14 @@ Then read the relevant planning documents for the subsystem being changed.
 
 We are currently in:
 
-> research → architecture → feature specification
+> research → architecture → feature specification → milestone-0 foundation rails
 
-Do NOT begin large-scale implementation yet unless explicitly instructed.
+Milestone-0 monorepo rails have explicitly begun (`packages/` + `apps/`, generation contracts, durable-execution contract, provenance, policy manifest — `DECISIONS.md` D021). The platform-foundation spikes (durable substrate, editor, commerce, print partner, QA threshold) run **in parallel** and are explicitly NOT blocked by the rails, and vice versa.
+
+Do NOT begin large-scale feature implementation (a spec feature end-to-end) until:
+
+- the relevant blocking spikes have evidence, and
+- the feature spec is promoted `agreed`.
 
 Small throwaway/prototype spikes are allowed when necessary to validate architectural assumptions.
 
@@ -328,6 +333,29 @@ Planning documentation lives under:
 Keep documentation current when architectural decisions change.
 
 Do not create large amounts of speculative documentation that does not help implementation.
+
+---
+
+## Repository Layout & Dependency Direction (D021)
+
+The monorepo is `apps/` + `packages/` (npm workspaces). Dependency direction is load-bearing and typecheck-enforced:
+
+```text
+apps → domain/(providers) → contracts → (nothing)
+adapters (providers) → contracts
+contracts must NEVER depend on adapters or apps
+execution / provenance / policies / storage are foundational: no feature dependencies
+```
+
+- `packages/domain` — canonical Book/Child/PrintSpec model (D004, D016) and `GenerationStep` units.
+- `packages/contracts` — canonical generation contracts (`GENERATION_ARCHITECTURE.md` §3), strict zod schemas, literal `schemaVersion`; provider payloads never leak past adapters.
+- `packages/execution` — `DurableExecutionContract` (D019). The `InMemoryDurableRuntime` is for tests/staging only — it must never be used as a production substrate.
+- `packages/providers` — provider boundaries (Story/Illustration/Identity/Quality/Moderation); each must carry a `ProviderCard` documenting child-data path, retention, idempotency, timeout, retry, cost and deletion before it may receive data.
+- `packages/provenance` + `packages/policies` — immutable `GenerationProvenance` + policy-set manifest/hash (mirrors `policies/MANIFEST.md`).
+- `packages/storage` — private-storage contract only (owner-scoped, signed expiring URLs); no implementation yet. Upload topology (D017) still open.
+- `packages/testing` — shared fakes live here, next to the seams they satisfy.
+
+Before committing: `npm run typecheck` and `npm test` must be green. Add generation code to `packages/` first; keep `contracts` free of adapter/app imports.
 
 ---
 

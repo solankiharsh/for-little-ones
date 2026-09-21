@@ -399,3 +399,50 @@ Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`
 - **Storage upload topology.** OPEN — D017 (direct-to-storage vs API-relay) is resolved by the same evidence discipline; unchanged pending spike evidence.
 
 ---
+## D021 — Monorepo Bootstrap: First Production Code and Dependency Direction (2026-09-21)
+
+**Status:** Accepted (M0 foundation rails; first real code — recorded per D015 now that a codebase exists)
+
+The recommended path to "run the D014-blocking spikes and start some real code immediately" converges here: a parallel PR (`feat/` branch) boots the monorepo so M1 vertical slices can build on real packages, without depending on any spike outcome.
+
+**Layout (committed):**
+
+```text
+apps/{web, api, worker}            — application shells (stubs commit the direction only)
+packages/domain                    — canonical Book/Child/PrintSpec model (D004/D016), GenerationStep units
+packages/contracts                 — canonical generation contracts (GENERATION_ARCHITECTURE §3) + parseContract
+packages/providers                 — Story/Illustration/Identity/Quality/Moderation boundaries + ProviderCard audit
+packages/execution                 — DurableExecutionContract (D019) + in-memory semantics runtime (test/staging only)
+packages/provenance                — GenerationProvenance schema + content-true policyHash
+packages/policies                  — machine-readable policy-set manifest (mirrors policies/MANIFEST.md)
+packages/storage                   — foundational private-storage contract (D017 invariants; no impl)
+packages/testing                   — shared fakes (InMemoryDurableRuntime re-export)
+spike/ .planning/                  — spike programme + planning (unchanged)
+```
+
+**Dependency direction (load-bearing, typecheck-enforced):**
+
+```text
+apps → domain/(providers) → contracts → (nothing)
+adapters (providers) → contracts
+contracts must NEVER depend on adapters or apps
+execution / provenance / policies / storage are foundational: no feature dependencies
+```
+
+**Toolchain (reversible M0 choices):** npm workspaces; TypeScript strict (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`) with bundler module resolution and source-first `exports` (no emit yet — bundlers arrive when apps need them); zod v4 for runtime contract schemas; vitest.
+
+**Scope boundaries (this decision):**
+
+- The `DurableExecutionContract` is implemented as an interface plus an **in-memory semantics runtime** for tests/staging only. It is NOT a durable substrate and must never be used as one in production. Substrate wording stays neutral (D019, D014 spike); no exactly-once claim; the spike still chooses PostgreSQL-backed vs Redis-backed.
+- No platform candidate was promoted. Editor (D007 candidate), commerce (D006 candidate), quality threshold, print partner all remain OPEN pending spike evidence.
+- Provider interfaces carry a structured `ProviderCard` (child-data path, retention, idempotency, timeout, retry, cost, deletion) so the privacy rule (GENERATION_ARCHITECTURE §12, F-025) is enforced structurally, not by convention.
+- Print geometry gates (`validateGeometry`) are canonical from M1 (D016); the F-017 print renderer is not a prerequisite of QA/approval/editor.
+- CI (typecheck, lint, unit+integration), Postgres schema tooling, secrets management, object storage and provider mock adapters are roadmap-M0 items deliberately deferred to later bootstrap PRs, not forgotten.
+
+**Consequences:**
+
+- D013's "no code exists" framing is superseded for these packages; planning-corpus wording updates as specs are promoted.
+- F-008/F-009/F-010 can build: generation steps expose `GenerationStep` units and consume the contract; F-010 will implement a substrate-backed runtime later.
+- Contract dependencies are checked by the typecheck gate; a future violation (a contract depending on an adapter, a provider leak past the boundary, the in-memory runtime used in production) is a defect.
+ (feat: bootstrap domain and generation contracts (M0 monorepo rails))
+ (feat: bootstrap domain and generation contracts (M0 monorepo rails))
