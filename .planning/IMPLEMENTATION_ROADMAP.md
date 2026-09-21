@@ -11,7 +11,7 @@ Sets the scaffolding that makes every later slice shippable.
 - Git repo initialised; monorepo scaffold: `shared / api / web / admin`.
 - Postgres schema + migration tooling; object-storage setup; secrets management; CI (typecheck, lint, unit+integration).
 - Provider-adapter skeleton (`StoryModel / IllustrationModel / IdentityReferenceModel / QualityModel / ModerationProvider / PrintProvider`) with **mock adapters** default in tests/staging.
-- Queue substrate spike → decision (PostgreSQL-backed vs Redis-backed candidate classes; prefer the simplest durable option — Temporal only if the spike justifies it) recorded in `DECISIONS.md` (feeds F-028/F-010).
+- Durable-execution substrate spike → decision (candidate classes: PostgreSQL-backed vs Redis-backed/BullMQ-class; **simplest durable option wins**; a workflow engine only if the spike shows its guarantees are needed) recorded in `DECISIONS.md` (D014/D019; feeds F-028/F-010).
 - **Exit:** single hello-world vertical slice runs in CI (Web → API → Postgres); skeletons committed.
 
 ## Milestone 1 — Stable creation core
@@ -21,31 +21,32 @@ Customer-visible: a parent can create a complete story and see it.
 | Feature | Work |
 | --- | --- |
 | F-001 Anonymous session (v0) | `anonymous_project_id` + ownership token; refresh-safe; purge/claim contract (email claim lands M6) |
-| F-003 Child Profile | Reusable profile (name/DOB/display name/pronouns/locale/interests/facts/consent) |
-| F-004 Photo Upload | 1–5 photos, client compression, validation tiers, delete; upload topology (direct vs API-relay) decided in spike |
-| F-005 Character Bible (v0) | Reference photos + approved appearance + versioning (region, cross-book later) |
+| F-003 Child Profile | Reusable profile (name/DOB/display name/pronouns/locale/interests/facts/consent) — **no visual reference photos in M1** |
+| F-006 Personalisation | Personal-facts staging → immutable-facts block feeding F-002/F-007/F-008 |
 | F-002 Story Discovery | Data-driven theme/occasion catalogue |
 | F-007 Story Concepts | 3 concepts via StoryModel (structured JSON, moderation, fallback human concepts) |
 | F-008 Story Generation | Outline gate → per-page text; immutable-fact injection; en-GB/en-US wordlists |
 | F-010 Generation Progress (v0) | Durable job, per-step + per-page states, refresh-safe, emotional labels |
-| F-011 Book Preview (v0) | Lightweight reader: thumbnail rail + spread (desktop), flip (mobile); fixture/placeholder illustrations okay here |
-| D016 Shared print contract | PrintSpec + PrintPreflightContract (format feasibility, geometry, quote inputs) in the canonical model (D016) — consumed by F-015/F-016/F-014; the F-017 print renderer lands M4 |
+| F-011 Book Preview (v0) | Lightweight reader: thumbnail rail + spread (desktop), flip (mobile); fixture/placeholder illustrations — the M1 print-look preview; real illustrated assets land M2 |
+| D016 Shared print contract | PrintSpec + shared print catalogue (`PrintCapability`/`PrintQuote`: format feasibility, geometry, quote inputs) in the canonical model (D016) — consumed by F-015/F-016/F-014; the F-017 print renderer lands M4 |
 | F-025 Privacy & Deletion (core v0) | Retention classes, consent in upload/checkout copy, delete-now baseline, provider-audit contract (F-025 full = M6) |
 
-**Acceptance:** anonymous user → discover story → create profile → upload photo → pick concept → generate (progress UI survives refresh) → reads full story in reader. One-page text failure retried without restart. "Printability" gates against the shared contract are checkable even though the real renderer ships in M4.
+**Acceptance:** anonymous user → discover story → create profile (no photos) → pick concept → generate (progress UI survives refresh) → reads full story in reader — **text + layout with fixture/placeholder illustrations**. One-page text failure retried without restart. "Printability" gates against the shared contract are checkable even though the real renderer ships in M4.
 
 ## Milestone 2 — Reliable book generation
 
-Customer-visible: the generated child looks like the child on every page, and failures are rare + recoverable.
+Customer-visible: the generated child looks like the child on every page (**child photos enter the product here**), and failures are rare + recoverable.
 
 | Feature | Work |
 | --- | --- |
+| F-004 Photo Upload | 1–5 photos, client compression, validation tiers, delete; upload topology (direct vs API-relay) decided in spike (D017) |
+| F-005 Character Bible (v0) | Reference photos + approved appearance + versioning (region, cross-book later) |
 | F-009 Illustration Generation | Illustration plans, identity-conditioned images, per-page attempt budget, ≥300 DPI gating |
 | F-015 Book QA (core) | Identity, wrong-child-count, name/pronoun, contradiction, duplicate checks |
 | F-028 Failure Recovery (core) | Idempotency keys, backoff, timeouts, worker-restart safety, one-page isolation |
 | F-010 Generation Progress (v1) | Lease/heartbeat, resumable steps, failure comms ("page 12 safe — try again") |
 
-**Acceptance:** 24-page book generates with measured identity QA pass (thresholds calibrated via the F-009 §10 methodology; calibration results recorded in RESEARCH_LOG). Worker killed mid-generation → resumes/states preserved. QA-blocked pages surfaced as repair intents.
+**Acceptance:** 24-page book generates with measured identity QA pass (thresholds calibrated via the F-009 §10 methodology; calibration results recorded in RESEARCH_LOG). Worker killed mid-generation → resumes/states preserved. QA-blocked pages surfaced as repair intents. The M1 text/layout preview upgrades in-place to the illustrated preview (F-011 M2).
 
 ## Milestone 3 — Excellent correction UX
 

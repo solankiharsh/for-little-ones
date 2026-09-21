@@ -2,7 +2,7 @@
 
 These questions should be resolved through repository inspection, research or small technical spikes.
 
-**2026-09-21 note:** the "what currently exists" style questions below predate the greenfield finding (D013). Where a question asks about existing systems, the answer is *none* — the remaining sections now read as **forward design questions**, most of which are answered in draft form by `features/01_*…28_*.md` and `PRODUCT_ARCHITECTURE_V2.md`. The still-genuinely-open items (queue substrate, OpenPolotno wrap, Medusa edition, print partner/PDF standard, identity-threshold calibration) are listed as the blocking spikes in `DECISIONS.md` D014.
+**2026-09-21 note:** the "what currently exists" style questions below predate the greenfield finding (D013). Where a question asks about existing systems, the answer is *none* — the remaining sections now read as **forward design questions**, most of which are answered in draft form by `features/01_*…28_*.md` and `PRODUCT_ARCHITECTURE_V2.md`. The still-genuinely-open items (durable-execution substrate, OpenPolotno wrap, Medusa edition, print partner/PDF standard, identity-threshold calibration) are listed as the blocking spikes in `DECISIONS.md` D014.
 
 ---
 
@@ -74,7 +74,7 @@ Repository inspection concluded: **no application code exists**. The workspace i
 - What happens if one page fails?
 - What happens if the worker/process crashes?
 - What retries exist?
-- Do we need Temporal, or is a simpler persistent queue sufficient?
+- Do we need a full workflow engine, or is a simpler durable execution substrate sufficient? (candidate classes PostgreSQL-backed vs Redis-backed/BullMQ-class; decided after the D014 spike — D019)
 
 ---
 

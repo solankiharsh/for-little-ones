@@ -163,7 +163,7 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-002 (theme + `conceptSeed`), F-003 (profile base), F-006 (facts), F-010 (job/queue substrate), `StoryModel` provider interface agreed (architecture v2).
+- **Required first:** F-002 (theme + `conceptSeed`), F-003 (profile base), F-006 (facts), F-010 (durable execution substrate runtime), `StoryModel` provider interface agreed (architecture v2).
 - **Consumed by:** F-008 (outline/page text) takes `selectedConceptId` as its narrative contract; F-011 preview and F-012 corrections build on the chosen concept later.
 - **Parallel-safe:** F-004/F-005 (photos/bible) run in parallel — concepts deliberately exclude photos.
 

@@ -25,7 +25,7 @@ None (Observed). No application code exists anywhere in the workspace.
 See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
 ```
 
-Proposed subsystems: `BookService` (approveBook command), `BookRepository` (revision freeze), `GenerationJob` (all work must settle before approval), `QualityModel` (approval gate, F-015). Print availability/format/cost come from F-017's `PrintProvider` quotes.
+Proposed subsystems: `BookService` (approveBook command), `BookRepository` (revision freeze), `GenerationJob` (all work must settle before approval), `QualityModel` (approval gate, F-015). Print availability/format/cost come from the **shared print catalogue** (`PrintCapability`/`PrintQuote`, D016) — they do NOT come from the renderer (F-017) or its fulfilment adapter (`PrintProvider`, F-019). Approval never depends on the renderer existing.
 
 ## 4. Problems with current implementation
 
@@ -43,7 +43,7 @@ Emma has corrected three pages, QA shows all clear, and the book is `READY_FOR_A
 
 1. **Tap Approve & Print → approval review screen:**
    - Left: a final reading of the book (F-011 embedded; last chance to flip every page — a "Reprint preview" link back).
-   - Right (card, "What we'll print"): cover thumbnail · format selector **Paperback** / **Hardcover** (radio, both pre-validated by F-017 for this revision's page count and printSpec) · quantity stepper (1–5, gift multiples) · price + shipping estimate · **estimated delivery range** (computed from the F-017 quote, shown *before* payment per spec §16).
+   - Right (card, "What we'll print"): cover thumbnail · format selector **Paperback** / **Hardcover** (radio, both pre-validated against the shared print capability/catalogue — D016 — for this revision's page count and printSpec) · quantity stepper (1–5, gift multiples) · price + shipping estimate · **estimated delivery range** (computed from the shared print quote `PrintQuote` — D016 — shown *before* payment per spec §16).
    - A clear statement in the parent's copy: "From here we print **exactly this version**. After you approve, this book can't be changed — if you spot something, cancel approval and we'll fix it first."
 2. **Tap the confirm button** → inline progress "We're saving your approved book…". Small delay only; result:
    - Success: the book state flips to `APPROVED`, a "Saved — what happens next" screen shows the approved snapshot summary (book title, format, quantity, delivery estimate, order status once placed via F-018) and a single CTA **Proceed to payment** → F-018. Also available: "Back to my book" (read-only; edit chrome gone).
@@ -75,7 +75,7 @@ ApprovedBookRevision (immutable snapshot; guide §3 Object model)
 │              min/max pages, resolution, provider metadata)
 ├── assetManifestRef (all assets + checksums; the print renderer's input contract)
 ├── qaRunRef (the passing F-015 run; approval gate evidence)
-├── quoteRef (F-017 PrintProvider quote at time of approval)
+├── quoteRef (shared print catalogue quote at time of approval — D016)
 └── status: APPROVED | CANCELLED | ORDERED (once F-018 creates an order)
 ```
 

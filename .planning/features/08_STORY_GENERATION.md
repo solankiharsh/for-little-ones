@@ -1,7 +1,7 @@
 # 08_STORY_GENERATION.md — Story Text Generation Pipeline
 
 > **Spec ID:** F-008 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-007 (selected concept), F-006 (facts), F-003 (profile), the generation **step-execution interface** (`GenerationStepExecution` — the execution contract; F-010 provides the runtime), F-024 (locale fields). **Exposes** the `OUTLINE`/`PAGE_TEXT` `GenerationStep` units consumed by F-010. · **Consumed by:** F-009 (illustrations), F-011 (preview)
+> **Depends on:** F-007 (selected concept), F-006 (facts), F-003 (profile), the foundational **DurableExecutionContract** / `GenerationStepExecution` interface (guide §3/§5, D019 — F-010 implements the runtime; this spec depends on the contract, never on the F-010 feature), F-024 (locale fields). **Exposes** the `OUTLINE`/`PAGE_TEXT` `GenerationStep` units consumed by F-010. · **Consumed by:** F-009 (illustrations), F-011 (preview)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -179,7 +179,7 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-007 (selected concept), F-006 facts + F-003 profile (canonical facts fields incl. `locale`), the `GenerationStepExecution` interface (execution contract; F-010 provides the runtime), `StoryModel` interface (architecture v2).
+- **Required first:** F-007 (selected concept), F-006 facts + F-003 profile (canonical facts fields incl. `locale`), the `DurableExecutionContract` / `GenerationStepExecution` interface (foundational — D019; F-010 implements the runtime), `StoryModel` interface (architecture v2).
 - **Consumed by:** F-009 (illustration plans read `textBlocks` + `illustrationCue`), F-011 (reading preview), F-012 (page rewrite hooks), F-024 (wordlist mapping extension).
 - **Parallel-safe:** F-004/F-005 (photos/bible) run independently; F-009 consumes the page contract but does not block text QA.
 

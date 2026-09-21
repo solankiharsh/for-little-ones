@@ -1,7 +1,7 @@
 # 09_ILLUSTRATION_GENERATION.md — Illustration Generation Pipeline
 
 > **Spec ID:** F-009 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-005 (Character Bible), F-008 (page text + cues), the generation **step-execution interface** (`GenerationStepExecution` — the execution contract; F-010 provides the runtime), shared PrintSpec/PrintPreflightContract (D016 — print sizes; not the F-017 renderer). **Exposes** the `ILLUSTRATION_PLAN`/`ILLUSTRATION` `GenerationStep` units consumed by F-010. · **Consumed by:** F-011 (preview), F-015 (pre-print QA)
+> **Depends on:** F-005 (Character Bible), F-008 (page text + cues), the foundational **DurableExecutionContract** / `GenerationStepExecution` interface (guide §3/§5, D019 — enqueue, durable per-unit state, lease/reclaim, retry, cancellation, idempotency, progress observation; F-010 implements the runtime and is NOT a dependency of this spec), shared PrintSpec/PrintPreflightContract (D016 — print sizes; not the F-017 renderer). **Exposes** the `ILLUSTRATION_PLAN`/`ILLUSTRATION` `GenerationStep` units consumed by F-010. · **Consumed by:** F-011 (preview), F-015 (pre-print QA)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -144,7 +144,7 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-005 (Character Bible: `CharacterVisualFacts`, approved references, style tokens), F-008 (`textBlocks` + `illustrationCue` contract), the `GenerationStepExecution` interface (execution contract; F-010 provides the runtime + attempt budget), the shared PrintSpec/PreflightContract (D016) print trim/dpi constants.
+- **Required first:** F-005 (Character Bible: `CharacterVisualFacts`, approved references, style tokens), F-008 (`textBlocks` + `illustrationCue` contract), the `DurableExecutionContract` / `GenerationStepExecution` interface (foundational — D019; F-010 implements the runtime + attempt budget; this spec depends on the contract, not on F-010), the shared PrintSpec/PreflightContract (D016) print trim/dpi constants.
 - **Consumed by:** F-011 (preview thumbnails/reading render), F-012 (page repair), F-015 (pre-print QA suite), F-013 (global corrections trigger full re-plan when the Bible changes).
 - **Parallel-safe:** F-008 text work proceeds independently; the `QualityModel` calibration experiment (§10) can run before front-end work.
 

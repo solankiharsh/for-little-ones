@@ -39,7 +39,7 @@ Not applicable (greenfield). The design itself must avoid:
 
 Per-photo states: `Checking → Ready` (green check), `Check again` (amber, e.g. dark but salvageable), or `Choose another` (red, e.g. no face at all). For two faces the card asks "Which person is Ava?" with a tap-on-face affordance; tapping a face marks the subject; if the parent can't say, the photo is treated as `Not usable` but never blocked from being replaced.
 
-Empty/partial states: "Ava's face will appear in every story." with a count "2 of 5". The **Continue** CTA is disabled until ≥1 photo is `Ready`. The parent can reorder photos by drag/hold (first = primary), tap to replace, swipe to delete (with "Remove photo?" confirm). A persistent privacy line under the grid: "We use Ava's photos to create this book and any later books you make with her saved profile — we never sell them and we don't use children's photos to train AI. See how we use and delete photos" (spec §18) with a link to F-025 settings.
+Empty/partial states: "Ava's face will appear in every story." with a count "2 of 5". The **Continue** CTA is disabled until ≥1 photo is `Ready`. The parent can reorder photos by drag/hold (first = primary), tap to replace, swipe to delete (with "Remove photo?" confirm). A persistent privacy line under the grid: "We use Ava's photos to create and check the personalised books you make with this saved profile. You can remove them from your profile and see how they are processed in Data & Privacy" (spec §18; exact copy **subject to provider/legal review**, and user-facing claims about provider data-use are only made once the F-025 provider data-use audit verifies them — see §12) with a link to F-025 settings.
 
 **Failure:** upload fails → the slot returns to `Picked, not sent` with "Try again" (idempotent retry, D010). App refreshes mid-upload → queued upload resumes from the last completed chunk or re-sends the whole file with the same `uploadToken`; any validated photos remain validated.
 
@@ -68,7 +68,7 @@ PhotoReference
 ├── derived: thumbKey, webKey (size-limited, signed, non-public), maxEdge
 ├── score: 0..1  (likeness reference quality for F-005 sub-photo scoring)
 ├── primary: bool  (exactly one per profile)
-├── createdAt, claimedAt, retentionClass (F-025), sourceIp (hashed, not logged raw)
+├── createdAt, claimedAt, retentionClass (F-025)
 └── traceHistory: [{ hop: browser|api|storage|model-provider|output, at, providerId }]
 ```
 
@@ -107,7 +107,8 @@ Checks this spec performs directly (catalogue refs): resolution within min bound
 ## 12. Privacy/security
 
 - **Full trace recorded** per `traceHistory` (guide §7); providers documented in F-025 audit; no additional providers without documentation.
-- **No public URLs**, no photo logging, debug logs identify by `id` and hashed source IP only.
+- **No public URLs**, no photo logging; debug logs identify by `id` only.
+- **No source IP is collected or stored with photo records.** Principle: we do not collect/persist personal data merely because we can. If source IP is ever needed later for security/abuse work, it must live outside `ChildProfile`/`PhotoReference`, be purpose-limited and minimised, carry a short retention window, and be documented independently (with its own justification) — not added to photo records.
 - **Retention:** `retentionClass` from F-025 defaults — unsaved uploads deleted on a short posted schedule (draft window 48h); saved/order-related retained per F-025 proposal then purged (guide §7). These windows are PROPOSED until legal/product sign-off (F-025 decision needed); the parity floor with the category is *published, enforceable windows*, not specific numbers (spec §2 Diffrun communicates 48h/30-day windows as a category norm to match, not to copy verbatim).
 - **Generated likenesses derived from photos are PII** (guide §7): deleting a photo must invalidate/re-generate derived likeness metadata per F-025.
 - Parent/guardian consent surfaces at the upload moment (spec §18) and is recorded with the first stored photo (`claimedAt`).

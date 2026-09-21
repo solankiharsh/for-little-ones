@@ -270,7 +270,7 @@ Today's architecture + feature-specification work produced:
 - `product/DESIGN_SYSTEM.md` — design-system contract.
 
 **Next step before implementation:** agreement pass — promote specs `proposed → agreed` and run the blocking spikes, deciding in this log:
-1. Queue substrate (PostgreSQL-backed vs Redis-backed classes; prefer the simplest durable option — Temporal only if the spike shows its guarantees are needed) — feeds F-010/F-028.
+1. Durable execution substrate (candidate classes: PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed — wording stays neutral until then, see D019) — feeds F-010/F-028.
 2. OpenPolotno consumption (direct dep vs pinned vs fork) incl. spread support — feeds F-014.
 3. Medusa edition (self-hosted vs headless-cloud) + tax routing — feeds F-018.
 4. Print partner + PDF standard (PDF/X-1a vs PDF 1.7+embedded fonts) — feeds F-017/F-019.
@@ -306,13 +306,16 @@ Canonical Book/Layout → PrintSpec/PrintPreflightContract → Core QA (F-015)
 
 Consequences:
 
-- The contract fixes format feasibility (trim/bleed/safe areas/DPI/fonts/page rules) and the quote interface's inputs, and lives in the canonical model (`_SPEC_GUIDE.md` §2/§3).
+- The contract fixes format feasibility (trim/bleed/safe areas/DPI/fonts/page rules) and **print capability/quote** (producibility, pricing, delivery estimate) and lives in the canonical model (`_SPEC_GUIDE.md` §2/§3).
+- **Print capabilities and quotes are foundation-level, not renderer-owned:** the shared print catalogue exposes `PrintCapability` + `PrintQuote` (format feasibility `validateFormat`, pricing/delivery `quote`, `estimate`). Approval (F-016) consumes these without depending on the renderer; the renderer (F-017) only renders frozen revisions; fulfilment (`PrintProvider`, F-019) only submits artifacts. The renderer is never the source of approval-facing quotes.
 - F-015 (core QA) validates geometry against the contract only — no dependency on the renderer existing.
 - F-016 (approval) consumes the contract for format feasibility + delivery estimate — no dependency on the renderer existing.
 - F-014 (editor) validates against the same contract (fonts/DPI/safe-area); F-017 is a parallel surface, not a prerequisite.
 - F-017 implements the contract; it depends on the frozen revision (F-016) and the contract, **not** on F-014. This removes the F-015↔F-016↔F-017 dependency cycle.
 
 The renderer may ship later (M4) than the QA/approval core it unblocks (M2).
+
+**Milestone mapping of the shared contract:** the contract + catalogue are part of the canonical model from **M1** (printability gates are checkable against them even though the real renderer ships in M4); **M2** core QA consumes the contract for geometry; **M3** the editor (F-014) validates against it; **M4** approval (F-016) consumes capability/quote and the production print renderer (F-017) implements the contract.
 
 ---
 
@@ -327,3 +330,31 @@ Direct-to-storage (browser → signed private object storage) vs API-relay (brow
 - malware/image validation;
 - ownership enforcement (session/owner scoped);
 - retention/deletion per F-025.
+
+---
+
+## D019 — DurableExecutionContract Is a Foundational, Feature-Free Contract (2026-09-21)
+
+**Status:** Accepted as baseline
+
+The reliability backbone (F-028) and every generation feature must depend on a neutral **foundational contract**, not on each other and not on the orchestration feature:
+
+```text
+Durability principles (F-028 — feature-free, provides patterns only)
+        ↓
+DurableExecutionContract (foundational vocabulary; _SPEC_GUIDE.md §3/§5)
+        ↓
+F-010 Generation orchestration runtime (implements the contract)
+        ↓
+F-008/F-009 generation step implementations
+   (expose their GenerationStep units; consume the contract — never the F-010 feature)
+```
+
+The contract covers **only**: enqueue work · durable state · per-unit (per-page/per-step) state · lease/reclaim semantics · retry · cancellation · idempotency / business-operation key · progress observation.
+
+Consequences:
+
+- F-008 and F-009 depend on the `DurableExecutionContract`, **not** on F-010 (the feature) — depending on the feature would recreate the F-008⇄F-010 / F-009⇄F-010 cycles.
+- F-010 implements the contract's runtime and depends on the `GenerationStep` units F-008/F-009 expose.
+- F-028 provides the durability principles (lease, retry, idempotency, outbox, dead-letter) the contract encodes; F-028 has no feature dependency, and no feature may list F-028 as a dependency merely to use its rules.
+- Substrate wording stays neutral — "durable execution substrate" — until the D014 spike; candidate classes (PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed) remain candidates, never defaults. (2026-09-21 consistency pass: D014 #1 reworded accordingly.)

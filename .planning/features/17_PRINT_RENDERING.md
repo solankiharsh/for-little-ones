@@ -85,20 +85,21 @@ PrintArtifact (per approved revision + spec; guide §3 Order chain)
 - `POST /print/artifacts` — create/re-render an artifact for an approved revision + printSpec (idempotent: same revision+spec → same **visible/content output**; returns existing if unchanged).
 - `GET /print/artifacts/{id}` — geometry report, PDF download (signed), checksums.
 - `POST /print/artifacts/{id}/validate-printer` — push the Artifact through the target adapter's validator (`validateArtifact`) and store `printerValidationReportRef`.
-- `POST /print/artifacts/{id}/quote` — `quote(printSpec, quantity, destination)`; quoted cost is the number shown at F-016.
+- `POST /print/artifacts/{id}/quote` — resolves the quote from the **shared print catalogue** (`PrintQuote`, D016 — `quote(printSpec, quantity, destination)`); quoted cost is the number shown at F-016. The renderer provides **no approval-facing quote of its own** — capability/quote belong to the catalogue, independent of this pipeline.
 - `POST /print/artifacts/{id}/submit` — `submitOrder(approvedRevision, artifact, quote)` → `printOrderId`; `POST /orders/{printOrderId}/cancel` — `cancelOrder` within the adapter's cancellation window; `GET /orders/{printOrderId}` — `getOrderStatus` + `getTracking`.
 - Access: ops/staff for all; the parent sees only the order-facing statuses through F-018/F-020. All renderer endpoints are workers/ops-only — no customer-triggered rendering.
 
-**`PrintProvider` interface (proposed, in our domain, implemented once per printer):**
+**`PrintProvider` interface (proposed, in our domain, implemented once per printer) — fulfilment + validation only:**
 
 ```text
 validateArtifact(artifact, printSpec) → ValidationReport   # printer-specific rules
-quote(printSpec, quantity, destination) → Quote            # {unitPrice, total, currency, deliveryEstimateDays}
 submitOrder(approvedRevisionRef, artifactRef, quoteRef) → PrintOrder {printOrderId, events[]}
 getOrderStatus(printOrderId) → {status, events[]}
 cancelOrder(printOrderId) → {cancelled, reason?}           # honour adapter cancellation window
 getTracking(printOrderId) → {events[], carrierRef?}
 ```
+
+Pricing/delivery quotes (`quote(...)`, `estimate(...)`, `validateFormat(...)`) live in the **shared print catalogue (`PrintCapability`/`PrintQuote`, D016)**, used by approval (F-016) and the editor (F-014) without depending on this renderer; this adapter's `PrintProvider` never answers an approval-facing quote.
 
 - Adapters own: bleed/safe-area exacts, DPI floor, colour profile acceptance (e.g. GRACoL vs ISO Coated), paper stock, spine formulas, page-count parity rules, hardcover lamination. The renderer runs generic geometry first, then the adapter's validator; **both must pass** before a PDF is marked valid.
 - Adapter selection is data-driven (per product/region/priority), not code-switching; a failing adapter's rules never leak into another's artifact.
@@ -115,7 +116,7 @@ None. Print rendering is fully deterministic, rule-based, numeric. If a generate
 
 ## 11. QA
 
-- **F-015 print-geometry subset** (shared, blocking): text overflow vs safe area, illustration resolution ≥ DPI floor, print safe area, layout overflow, missing assets, bleed completeness (illustrations/decorations reach bleed edge where tagged full-bleed).
+- **F-015 print-geometry subset** (shared, **blocking and non-overridable**): text overflow vs safe area, element outside the valid canvas and layout overflow, illustration resolution ≥ DPI floor, print safe area, invalid/incomplete bleed, page geometry vs `printSpec` (min/max pages, parity, spine), missing assets. These are HARD_BLOCK regardless of parent intent (F-015 §6/§7). Purely stylistic layout observations belong in QA as ADVISORY only.
 - **F-017 physical suite** (added here): page-count parity (final PDF pages == `printSpec.min/max`, even-count + full-bleed first/last per adapter), spine width within printer tolerance, font embedding completeness (every glyph used across artboards), colour profile attached and accepted, per-page checksum stable across re-runs.
 - Output: `ValidationReport` (both generic + adapter), stored with the artifact; a FAIL opens the `RENDER_FAILED` state, blocks `SUBMIT`, alerts ops.
 

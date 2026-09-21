@@ -26,7 +26,7 @@ None (Observed). No application code exists anywhere in the workspace.
 See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
 ```
 
-Proposed subsystem: `QualityModel` (provider interface for content QA) consumed by `BookService`/`GenerationJob`; print-geometry inputs come from F-017's `printSpec`.
+Proposed subsystem: `QualityModel` (provider interface for content QA) consumed by `BookService`/`GenerationJob`; print-geometry inputs come from the shared `PrintSpec`/`PrintPreflightContract` (D016) — never from the F-017 renderer.
 
 ## 4. Problems with current implementation
 
@@ -45,7 +45,7 @@ After generation completes, Emma sees a soft confirmation in preview: "We checke
 
 - **Summary state chip** near the top bar of preview (F-011): green "All checked", amber "A few things to look at", red `QA` block with count (HARD_BLOCK items enumerated with page thumbnails; REVIEW_REQUIRED items listed).
 - **Per-page badges** on the rail/page: small alert dot; tapping opens the same friendly card with "Try another" (F-012) or "Not a problem — keep anyway" for REVIEW_REQUIRED/ADVISORY-only items.
-- **Severity discipline (guide §3):** `HARD_BLOCK` items have no dismiss without an action — either fix (via F-012) or, for *content-level* HARD_BLOCK only, an explicit "I'm happy with this" confirmation that records the decision; **print-geometry HARD_BLOCK (text overflow, layout overflow, resolution, safe area, bleed, missing assets) has no override** — enforced at F-016/F-017 by the printer rules regardless of parent intent. `REVIEW_REQUIRED` items must be explicitly reviewed (fixed or "keep") before approval, but never auto-block it. `ADVISORY` items are informational.
+- **Severity discipline (guide §3):** `HARD_BLOCK` items have no dismiss without an action — either fix (via F-012) or, for *content-level* HARD_BLOCK only, an explicit "I'm happy with this" confirmation that records the decision; **print-geometry HARD_BLOCK is never overridable** — any condition capable of producing an invalid printed artifact. The non-overridable set is: element outside the valid canvas, text outside the safe area, invalid/incomplete bleed, missing assets, insufficient mandatory resolution, invalid page geometry. `REVIEW_REQUIRED` items must be explicitly reviewed (fixed or "keep") before approval, but never auto-block it. `ADVISORY` items are informational and non-gating — this is where purely stylistic layout observations belong (never HARD_BLOCK).
 - All copy product-facing; never "QA failed", never error codes (D002, guide §8).
 - Mobile: badges render as a "checks" icon with count; full list in a bottom sheet (D012).
 
@@ -79,10 +79,12 @@ Check catalogue (title — what it inspects, severity when FAIL):
 | Text overflow | text extent vs print-safe box (PrintSpec/PreflightContract geometry) | HARD_BLOCK (print-geometry, non-overridable) |
 | Resolution | illustration PPI vs print DPI floor (PrintSpec/PreflightContract) | HARD_BLOCK (print-geometry, non-overridable) |
 | Print safe area | illustration/decoration vs safe + bleed margins | HARD_BLOCK (print-geometry, non-overridable) |
-| Layout overflow | element outside canvas / cover bleed | HARD_BLOCK (print-geometry, non-overridable — same subset F-017 runs in `PRINT_RENDERING_JOB` step 2) |
+| Layout overflow | element outside valid canvas (incl. cover bleed) | HARD_BLOCK (print-geometry, non-overridable — same subset F-017 runs in `PRINT_RENDERING_JOB` step 2) |
+| Print bleed & page geometry | full-bleed edge coverage/bleed completeness; page geometry vs PrintSpec (min/max pages, even-count + full-bleed first/last, spine) | HARD_BLOCK (print-geometry, non-overridable) |
 | Missing assets | page references an absent/un-openable asset | HARD_BLOCK (print-geometry subset, non-overridable) |
 | Repeated illustration | same asset appears with different intent | REVIEW_REQUIRED (parent decides "Try another" or keeps) |
 | Generation artifacts | obvious hands/fingers/limb duplication (model-assisted) | ADVISORY |
+| Stylistic layout note | purely stylistic observations (e.g. "this spread feels busy") | ADVISORY (non-gating) |
 
 ## 8. Backend/API requirements
 
@@ -94,7 +96,7 @@ Check catalogue (title — what it inspects, severity when FAIL):
 
 ## 9. Background jobs
 
-- Run as part of `GenerationJob` completion (F-010): after `PAGE_RENDERED` per book, after `PAGE_REVISION_CREATED` (page-scoped, F-012), before `BOOK_READY_FOR_REVIEW`, and re-run scoped to changed pages before F-016 approval. Uses the DB-backed queue; retry 3×; resumable; cancelled if the target revision is superseded mid-run.
+- Run as part of `GenerationJob` completion (F-010): after `PAGE_RENDERED` per book, after `PAGE_REVISION_CREATED` (page-scoped, F-012), before `BOOK_READY_FOR_REVIEW`, and re-run scoped to changed pages before F-016 approval. Runs on the durable execution substrate (F-028/D019); retry 3×; resumable; cancelled if the target revision is superseded mid-run.
 - Failure of a QA job = `UNKNOWN` (never silently PASS); a revision with `UNKNOWN` checks cannot be approved (fails closed).
 
 ## 10. AI behaviour
