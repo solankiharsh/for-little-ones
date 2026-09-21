@@ -49,7 +49,7 @@ DigitalDelivery { entitlementId, orderItemId, artifactId (digital render),
   issuedAt, accessUrl, accessExpiry, revokedByDeletion? }        (F-021/F-025)
 ```
 
-`PrintArtifact` comes from F-017 keyed to the approved revision; the submission mirror is a snapshot (shipTo, printSpec, quote), so a later edit of a book never affects an in-flight job (D011). `PrintProvider` is ours (an adapter around the partner API); Medusa's fulfilment step marks the order fulfilled once submission succeeds.
+`PrintArtifact` comes from F-017 keyed to the approved revision; the submission mirror is a snapshot (shipTo, printSpec, quote), so a later edit of a book never affects an in-flight job (D011). `PrintProvider` is ours (an adapter around the partner API); the commerce module's fulfilment step (Medusa candidate — D006) marks the order fulfilled once submission succeeds.
 
 ## 8. Backend/API requirements
 

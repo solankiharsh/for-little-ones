@@ -2,6 +2,7 @@
 
 > **Spec ID:** F-001 · **Priority:** P0 · **Status:** draft
 > **Depends on:** — (foundational); feeds F-002 Story Discovery and every creation feature
+> **Scope note:** the **anonymous session identity** (opaque `anonymous_project_id` + ownership token/cookie, server-side ownership enforcement, refresh-safe, claimable later) is P0 and ships with the M0/M1 foundation. The **full account layer** (magic-link claim, customer profile, cross-device library) is a later milestone (M6) but is described in this same file as the forward design.
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -84,4 +85,4 @@ None upstream; prerequisite for F-002, F-003, F-007, F-008, F-011, F-018 (checko
 
 ## 16. Priority
 
-**P0 — category parity** (spec §26: an account-less creation start is table-stakes parity). Filter (spec §27): directly makes creation easier and protects the personal result from loss. Ship with launch; claims and consent copy land together.
+**P0 — category parity** (spec §26: an account-less creation start is table-stakes parity). Filter (spec §27): directly makes creation easier and protects the personal result from loss. The anonymous-session core ships at launch (M0/M1); the account claim layer is M6. Ship with launch; claims and consent copy land with the privacy core (F-025) and claim milestone respectively.

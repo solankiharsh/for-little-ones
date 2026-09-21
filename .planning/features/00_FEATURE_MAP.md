@@ -53,6 +53,13 @@ Onboarding(01) ─ Story Discovery(02)
 
 Cross-cutting: `Privacy/Deletion(25)` · `Admin/Support(26)` · `Analytics/Observability(27)` · `Failure Recovery(28)`.
 
+The QA→Approval→Print edge runs through the **shared PrintSpec/PrintPreflightContract** (D016), so F-015/F-016/F-014 consume a contract while F-017 implements it — no cycle:
+
+```text
+Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-016 Approval
+→ ApprovedBookRevision → F-017 Print Renderer → Print Artifact → F-019 Fulfilment
+```
+
 ## Feature register
 
 | ID | File | Feature | Priority | Depends on | Status |
@@ -66,14 +73,14 @@ Cross-cutting: `Privacy/Deletion(25)` · `Admin/Support(26)` · `Analytics/Obser
 | F-007 | 07_STORY_CONCEPTS.md | 3 generated concepts, select/regenerate | P0 | F-002, F-003, F-006 | proposed |
 | F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003 | proposed |
 | F-009 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 | F-005, F-008 | proposed |
-| F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P1 | F-008, F-009, F-028 | proposed |
+| F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P0 | F-008, F-009, F-028 | proposed |
 | F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, F-009 | proposed |
 | F-012 | 12_PAGE_CORRECTION.md | Page-level text/image repair | P1 | F-011, F-010 | proposed |
 | F-013 | 13_GLOBAL_CHARACTER_CORRECTION.md | Character-wide correction (hair, outfit, likeness) | P1 | F-005, F-012 | proposed |
 | F-014 | 14_BOOK_EDITOR.md | Custom editor above OpenPolotno | P1 | F-011, F-012, F-013 | proposed |
-| F-015 | 15_BOOK_QA.md | Pre-print/pre-approval QA suite | P1 | F-009, F-011, F-017 | proposed |
-| F-016 | 16_APPROVAL.md | Approve & Print lock, revision freeze | P0 | F-015, F-010 | proposed |
-| F-017 | 17_PRINT_RENDERING.md | Deterministic print pipeline + PDF | P0 | F-014, F-016 | proposed |
+| F-015 | 15_BOOK_QA.md | Pre-print/pre-approval QA suite | P0 | F-009, F-011, PrintSpec/PreflightContract (D016) | proposed |
+| F-016 | 16_APPROVAL.md | Approve & Print lock, revision freeze | P0 | F-015, F-010, PrintSpec/PreflightContract (D016) | proposed |
+| F-017 | 17_PRINT_RENDERING.md | Deterministic print pipeline + PDF | P0 | F-016, PrintSpec/PreflightContract (D016) — not F-014 (parallel surfaces) | proposed |
 | F-018 | 18_CART_AND_CHECKOUT.md | Cart, Medusa commerce, payment | P0 | F-016 | proposed |
 | F-019 | 19_FULFILMENT.md | Print submit, shipping, fulfilment events | P0 | F-017, F-018 | proposed |
 | F-020 | 20_ORDER_TRACKING.md | Customer tracking/status | P0 | F-019, F-026 | proposed |
@@ -81,10 +88,10 @@ Cross-cutting: `Privacy/Deletion(25)` · `Admin/Support(26)` · `Analytics/Obser
 | F-022 | 22_REORDER_AND_SEQUELS.md | Reorder, duplicate, sequel from library | P2 | F-021, F-005 | proposed |
 | F-023 | 23_MULTI_PERSON_STORIES.md | Siblings/family/pet stories, relationship narrative | P1 | F-003, F-005, F-008 | proposed |
 | F-024 | 24_LOCALISATION.md | Locale-aware facts, en-GB/en-US, l10n, bilingual | P2 | F-003, F-006, F-008, F-017 | proposed |
-| F-025 | 25_PRIVACY_AND_DELETION.md | Retention, consent, deletion, provider audit | P1 | F-004, F-005 | proposed |
+| F-025 | 25_PRIVACY_AND_DELETION.md | Retention, consent, deletion, provider audit | P0 | F-004, F-005 | proposed |
 | F-026 | 26_ADMIN_AND_SUPPORT.md | Ops/support view, dedupe, refunds | P1 | F-018, F-019 | proposed |
 | F-027 | 27_ANALYTICS_AND_OBSERVABILITY.md | Metrics, costs, logs, errors | P1 | F-010, F-018 | proposed |
-| F-028 | 28_FAILURE_RECOVERY.md | Cross-cutting durability, retries, resumability | P1 | F-010 | proposed |
+| F-028 | 28_FAILURE_RECOVERY.md | Cross-cutting durability, retries, resumability | P0 | F-010 | proposed |
 
 ## Parallelism (what can be built at the same time)
 
@@ -96,7 +103,9 @@ Cross-cutting: `Privacy/Deletion(25)` · `Admin/Support(26)` · `Analytics/Obser
 
 ## Open decision inputs
 
-- Commerce via Medusa: **EVALUATE** (D006) — greenfield caveat: appropriate to adopt as the commerce module.
-- Editor primitive OpenPolotno: **EVALUATE/wrap** (D007) — proof-of-concept spike for spread support before F-014 approval.
-- Job backbone: no Temporal by default (F-028/F-010) — confirm after queue spike.
+- Commerce via Medusa: **CANDIDATE — pending spike** (D006) — edition/hosting/tax/VAT to be decided; not selected.
+- Editor primitive OpenPolotno: **CANDIDATE IMPLEMENTATION — pending spike** (D007) — proof-of-concept for spread support and wrap-vs-fork before F-014 approval.
+- Job backbone: prefer the **simplest durable solution**; PostgreSQL-backed queue = default candidate, Redis-backed (BullMQ-class) = other class (D014) — choose after the queue spike; Temporal only if the spike justifies it.
+- Print contract (D016): PrintSpec/PrintPreflightContract is a shared landing decision — already agreed as the cycle-break for F-015/F-016/F-017.
+- Upload topology (D017): direct-to-storage vs API-relay — open question, resolved in the security/architecture spike.
 - Bilingual (F-024): P2, but keep locale on profile facts from day one.

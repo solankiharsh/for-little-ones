@@ -137,7 +137,7 @@ Per-page state machine consumed from F-010: `PENDING · GENERATING · READY · F
 
 ## 11. QA
 
-- Every correction **immediately re-runs the per-page QA subset** (F-015) scoped to this page: identity consistency (vs `CharacterBible`, using `QualityModel`), text overflow, print safe area (text respects print-safe box), missing assets, repeated illustration. Blocking findings roll the revision back to `REVISION_REQUIRED` and show the parent a friendly explanation rather than committing a broken page.
+- Every correction **immediately re-runs the per-page QA subset** (F-015) scoped to this page: identity consistency (vs `CharacterBible`, using `QualityModel`), text overflow, print safe area (text respects print-safe box), missing assets, repeated illustration. HARD_BLOCK findings roll the revision back to `REVISION_REQUIRED` and show the parent a friendly explanation rather than committing a broken page; REVIEW_REQUIRED items ask for a decision before proceeding.
 - Post-commit: `story contradiction` and `duplicate paragraph` checks run against the adjacent two pages (text intents only) because tone/delta edits can collide with continuity.
 - The book-level QA state is unchanged by a failing page; only the page revision is affected (D010).
 

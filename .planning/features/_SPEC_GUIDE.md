@@ -53,7 +53,7 @@ Book
 │   ├── layout
 │   └── generationMetadata
 ├── revisions[]
-├── printSpec
+├── printSpec             ← PrintSpec/PrintPreflightContract (D016): format feasibility + geometry rules
 ├── approval
 └── status
 ```
@@ -64,6 +64,7 @@ Rules:
 - Adapters translate it: editor (OpenPolotno/Konva), browser reader, print renderer, digital version, future editors.
 - **Editor JSON is never stored as the canonical book.** Store canonical model + a derived `editorSnapshot` cached per editor/version if needed.
 - Orders reference an **immutable approved revision**, never a live book (D011).
+- **PrintSpec/PrintPreflightContract (D016) breaks the F-015/F-016/F-017 cycle:** the contract (format feasibility, trim/bleed/safe areas/DPI/fonts/page rules, quote inputs) lives in the canonical model. Core QA (F-015) and approval (F-016) and the editor (F-014) consume *the contract*; the print renderer (F-017) is an implementation of it and is NOT a dependency of QA/approval/editor. Reference the contract by name in any spec that validates against print geometry.
 
 Three distinct renderers (D005):
 1. **Editing renderer** — interactive (candidate: OpenPolotno wrapped behind our editor domain).
@@ -82,6 +83,8 @@ Three distinct renderers (D005):
 - **Page/Spread** — independently editable unit (decide page vs spread per spec; state the choice).
 - **Revision** — generated or edited snapshot of the book; the approved revision is preserved exactly for print.
 - **PrintSpec** — format, dimensions, bleed, paper, cover, binding, colour profile, min/max pages, resolution, provider metadata.
+- **PrintPreflightContract** — the print-feasibility + geometry rules derived from a `PrintSpec` (trim, bleed, safe areas, DPI, fonts, page rules, provider constraints) fixed as a **shared contract** (D016). QA, approval and the editor consume it; the print renderer implements it; the renderer is not a prerequisite of the contract.
+- **HARD_BLOCK / REVIEW_REQUIRED / ADVISORY** — QA severities: HARD_BLOCK cannot be waived (fix, or explicit recorded content override; print-geometry HARD_BLOCK is never overridable); REVIEW_REQUIRED must be reviewed/recorded before approval (no auto-block, no silent pass); ADVISORY is informational.
 - **Order → OrderItem → ApprovedBookRevision → PrintArtifact**.
 
 ---
@@ -119,7 +122,9 @@ Requirements for each meaningful step: restartable · idempotent · observable �
 Event-style state names to use where helpful (do NOT introduce event sourcing):
 `BOOK_CREATED → CHARACTER_CREATED → CONCEPT_SELECTED → STORY_GENERATION_STARTED → STORY_GENERATED → ILLUSTRATION_GENERATION_STARTED → PAGE_RENDERED → QA_COMPLETED → BOOK_READY_FOR_REVIEW → PAGE_REVISION_CREATED → BOOK_APPROVED → PRINT_ARTIFACT_CREATED → ORDER_CREATED → FULFILMENT_SUBMITTED`
 
-Decision: first inspect nothing (no code exists); then evaluate the actual jobs/queue need — do NOT default to Temporal. A simple persistent queue (e.g. BullMQ/Postgres-backed) is the default recommendation unless evidence demands otherwise.
+Decision: first inspect nothing (no code exists); then evaluate the actual jobs/queue need. Prefer the **simplest durable solution**: a PostgreSQL-backed queue is the default candidate, a Redis-backed queue (BullMQ-class) is the other candidate class — select after the D014 spike. Temporal only if the spike shows its guarantees are needed; a Redis-backed class additionally requires an outbox/reconciliation bridge so DB and queue stay consistent.
+
+Determinism: "deterministic generation outcome" means the same inputs produce the **same visible/content output**, not byte-identical blobs. For print (F-017) compare via normalized artifact hash · content-manifest hash · per-page raster comparison · geometry validation. Byte-identical PDFs are only required if the renderer also excludes timestamps/random IDs.
 
 ---
 
@@ -127,12 +132,12 @@ Decision: first inspect nothing (no code exists); then evaluate the actual jobs/
 
 | Topic | Position |
 | --- | --- |
-| Commerce | Evaluate **Medusa** as a module for cart/customer/product/pricing/payment/order/regions/currency/shipping/fulfilment (D006). Do not fork it. Represent personalised configuration so a line item references the approved revision. Greenfield → adopt if it deposits value; keep the Book model ours. |
-| Book editor | **OpenPolotno `@reyka/openpolotno`** as the low-level editing engine, wrapped behind our own editor boundary with a **custom simple UI** (D007). Never expose generic Canva UX. Decide direct dep vs pinned version vs small fork. Editor JSON is a derived snapshot, never canonical. |
+| Commerce | **Medusa is a CANDIDATE commerce module (D006 — pending spike: edition/hosting/tax/VAT)** for cart/customer/product/pricing/payment/order/regions/currency/shipping/fulfilment. Do not fork it. Represent personalised configuration so a line item references the approved revision. Keep the Book model ours; adopt only if the spike shows a meaningful win over a purpose-built module. |
+| Book editor | **OpenPolotno `@reyka/openpolotno` is a CANDIDATE IMPLEMENTATION — pending spike (D007):** low-level editing engine, wrapped behind our own editor boundary with a **custom simple UI**. Never expose generic Canva UX. Decide direct dep vs pinned version vs small fork after the spread spike. Editor JSON is a derived snapshot, never canonical. |
 | IMG.LY Photobook Starter | UX/architecture reference only: page navigation, thumbnails, asset management, selection model, provider separation. Not adopted by default (D008). |
 | Postiz | Architecture inspiration only (jobs, retries, observability). REJECTED as foundation (D009). |
 | Providers | Abstract as interfaces where switching is realistically useful: `StoryModel · IllustrationModel · IdentityReferenceModel · QualityModel · ModerationProvider`. No abstraction for its own sake. Never expose model/prompt/seeds to users (D002). |
-| Long jobs | A DB-backed queue with explicit states; worker restart must not lose book state (D010). No Temporal unless evaluation of the real queue requirement shows it is needed. |
+| Long jobs | Prefer the simplest durable queue (PostgreSQL-backed default candidate; Redis-backed BullMQ-class valid); select after the D014 spike; outbox/reconciliation required for a Redis-backed class; worker restart must not lose book state (D010). Temporal only if the spike shows it is needed. |
 
 ---
 
@@ -143,6 +148,7 @@ Decision: first inspect nothing (no code exists); then evaluate the actual jobs/
 - No unnecessary logging of photos or sensitive fields; no public asset URLs; no additional providers without documentation.
 - Parents must have explicit retention language and a delete-now control (§18 of spec, D-series).
 - Generated likenesses derived from photos are personally identifiable — handle like the source.
+- **Retention windows are PROPOSED until legal/product sign-off** (F-025 decision-needed); specs must phrase windows as "proposed/published schedule", never as fixed consumer-facing guarantees.
 
 ---
 
@@ -240,12 +246,12 @@ State the class AND prioritisation rationale per mission §33 product filter.>
 | 07_STORY_CONCEPTS.md | 3 generated concepts, select/regenerate | P0 |
 | 08_STORY_GENERATION.md | Outline + page text pipeline | P0 |
 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 |
-| 10_GENERATION_PROGRESS.md | Persistent, observable generation job | P1 |
+| 10_GENERATION_PROGRESS.md | Persistent, observable generation job | P0 |
 | 11_BOOK_PREVIEW.md | Reading-mode preview | P0 |
 | 12_PAGE_CORRECTION.md | Page-level image/text repair | P1 |
 | 13_GLOBAL_CHARACTER_CORRECTION.md | Character-wide changes | P1 |
 | 14_BOOK_EDITOR.md | Custom editor above OpenPolotno | P1 |
-| 15_BOOK_QA.md | Pre-print QA suite | P1 |
+| 15_BOOK_QA.md | Pre-print QA suite | P0 |
 | 16_APPROVAL.md | Approve & Print lock | P0 |
 | 17_PRINT_RENDERING.md | Deterministic print pipeline | P0 |
 | 18_CART_AND_CHECKOUT.md | Cart, payment, Medusa | P0 |
@@ -255,7 +261,7 @@ State the class AND prioritisation rationale per mission §33 product filter.>
 | 22_REORDER_AND_SEQUELS.md | Reorder, duplicate, sequel | P2 |
 | 23_MULTI_PERSON_STORIES.md | Siblings/family/pet stories | P1 |
 | 24_LOCALISATION.md | Locale-aware facts, l10n, bilingual | P2 |
-| 25_PRIVACY_AND_DELETION.md | Retention, consent, deletion | P1 |
+| 25_PRIVACY_AND_DELETION.md | Retention, consent, deletion | P0 |
 | 26_ADMIN_AND_SUPPORT.md | Ops/support tooling | P1 |
 | 27_ANALYTICS_AND_OBSERVABILITY.md | Internal metrics, cost, logs | P1 |
 | 28_FAILURE_RECOVERY.md | Cross-cutting durability + recovery | P1 |

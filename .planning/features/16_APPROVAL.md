@@ -1,7 +1,7 @@
 # 16_APPROVAL.md — Approve & Print
 
 > **Spec ID:** F-016 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-015 Book QA, F-010 Generation Progress, F-011 Book Preview, F-017 Print Renderer (availability + spec), F-013/F-012/F-014 corrections (edit window closes here)
+> **Depends on:** F-015 Book QA, F-010 Generation Progress, F-011 Book Preview, shared PrintSpec/PrintPreflightContract (D016 — format feasibility + quote interface; the F-017 renderer is an implementation of it and is NOT a prerequisite of approval), F-013/F-012/F-014 corrections (edit window closes here)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -85,7 +85,7 @@ ApprovedBookRevision (immutable snapshot; guide §3 Object model)
 
 ## 8. Backend/API requirements
 
-- `POST /books/{id}/approval` — the only approval command. Body: `{format, quantity}`. Validation: book state == `READY_FOR_APPROVAL`; no open `GENERATING`/`FAILED` pages or jobs (F-010 must report settled); latest QA run for the revision has **no BLOCKING** results (F-015) — else 409 with the blocking list; format+quantity producible per F-017 quote — else 409 with the disabled-format reason; session owns the book; anonymous session may approve only after claiming (F-001).
+- `POST /books/{id}/approval` — the only approval command. Body: `{format, quantity}`. Validation: book state == `READY_FOR_APPROVAL`; no open `GENERATING`/`FAILED` pages or jobs (F-010 must report settled); latest QA run for the revision has **no HARD_BLOCK** results and every **REVIEW_REQUIRED** item is resolved/recorded (F-015) — else 409 with the pending list; format+quantity producible per the shared PrintSpec/PreflightContract + quote interface (D016) — else 409 with the disabled-format reason; session owns the book; anonymous session may approve only after claiming (F-001).
 - **Idempotency:** `approvalIdempotencyKey` — re-POST after a network failure returns the same approved revision, does not double-approve.
 - `GET /books/{id}/approval` — current approval or `pending` with the create-one view (quote, estimate, QA summary).
 - `DELETE /books/{id}/approval` — **cancel**, only while `status == APPROVED` and no order references it; returns the book to `READY_FOR_REVIEW` preserving all page revisions (nothing is rolled back — the parent's corrections stay; only the freeze lifts). After `ORDERED` this returns 409 (routed to F-019).
@@ -105,7 +105,7 @@ None at approval — and enforce that: approval triggers **zero** model calls. N
 
 ## 11. QA
 
-Approval is the consumer gate for F-015: it is not approvable while any BLOCKING result exists or any required run is missing/`UNKNOWN`. (A parent overrode a *content*-advisory item earlier in F-015 §6 — approval still requires all BLOCKING to be resolved or explicitly overridden-and-recorded; print-geometry BLOCKING is never overridable, F-015 §6.) The frozen snapshot's `qaRunRef` is re-run **once** against the frozen revision (same inputs → same result by determinism; a pass is required before `ORDERED`).
+Approval is the consumer gate for F-015: it is not approvable while any HARD_BLOCK result exists, any REVIEW_REQUIRED item is unresolved, or any required run is missing/`UNKNOWN`. (A parent may explicitly record a decision to keep a *content-level* HARD_BLOCK item or a REVIEW_REQUIRED item — print-geometry HARD_BLOCK is never overridable, F-015 §6.) The frozen snapshot's `qaRunRef` is re-run **once** against the frozen revision (same inputs → same result by determinism; a pass is required before `ORDERED`).
 
 ## 12. Privacy/security
 
@@ -120,7 +120,7 @@ Approval is the consumer gate for F-015: it is not approvable while any BLOCKING
 ## 14. Acceptance criteria
 
 1. Given a book in `READY_FOR_APPROVAL` with QA fully passing, when the parent taps **Approve & Print** and confirms, then a deep-immutable `ApprovedBookRevision` with assetManifest + printSpec + quote is created, the book enters `APPROVED`, the CTA is replaced by "Proceed to payment" (F-018), and every editing surface (F-012 sheet, F-014 editor) refuses changes with the approval-lock message.
-2. Given a book with a BLOCKING QA item, when the parent taps Approve & Print, then the API returns 409 with the blocking list and the UI shows the friendly per-page cards routed to F-012; no snapshot is created.
+2. Given a book with a HARD_BLOCK QA item, when the parent taps Approve & Print, then the API returns 409 with the item list and the UI shows the friendly per-page cards routed to F-012; no snapshot is created.
 3. Given the approval request retried with the same `idempotencyKey` after a network failure, then exactly one revision is created and the second call returns the same approvalId (no double-approval).
 4. Given a parent who cancels approval before payment, then the freeze lifts to `READY_FOR_REVIEW`, all correction history is preserved, and re-approving creates a new snapshot (old `CANCELLED` revision remains audit-only).
 5. Given an approved book, when any code path attempts to regenerate or edit a page, then the store rejects the write (write-after-freeze guard) and a monitoring alert fires (F-027); the approved revision's checksums never change.
@@ -129,7 +129,7 @@ Approval is the consumer gate for F-015: it is not approvable while any BLOCKING
 
 ## 15. Dependencies
 
-- Must exist first: F-015 (approval gate), F-010 (job settle check), F-011 (CTA surface), F-017 (format feasibility, quote, delivery estimate — the review card's numbers), F-012/F-013/F-014 (edit window that closes on approval). F-018 consumes the snapshot (line item = ApprovedBookRevision); F-019 obtains print instructions from it.
+- Must exist first: F-015 (approval gate), F-010 (job settle check), F-011 (CTA surface), the shared PrintSpec/PreflightContract + quote interface (D016 — the review card's format feasibility and delivery estimate; F-017 implements the renderer in M4), F-012/F-013/F-014 (edit window that closes on approval). F-018 consumes the snapshot (line item = ApprovedBookRevision); F-019 obtains print instructions from it.
 - Track order: approval lands after corrections+QA; print/checkout consume it; family library (F-021) reads it for the digital copy.
 - Decision needed: whether the F-017 print artifact generates at `APPROVED` (pre-payment) or `ORDERED` (post-payment) — cost/latency tradeoff is F-017's input, but approval events decide it; recommend generate-at-`APPROVED` so checkout is instant.
 

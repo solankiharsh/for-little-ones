@@ -1,6 +1,7 @@
 # 25_PRIVACY_AND_DELETION.md — Child-Data Privacy, Retention & Deletion Program
 
-> **Spec ID:** F-025 · **Priority:** P1 · **Status:** draft
+> **Spec ID:** F-025 · **Priority:** P0 (core v0) · **Status:** draft
+> **Scope note:** the privacy *core* — the deletion cascade/delete-now, retention rules, provider-payload discipline and checkout privacy copy — is launch-critical (P0, M1 core) because the platform stores children's photos from the first session; the *full* program (account revenue hub, per-child retention cards, download-my-books UX) follows in M6. All specific retention numbers below are **PROPOSED — legal/product sign-off required** before they go live (§16).
 > **Depends on:** F-003 (Child Profile — per-person consent/retention) · F-004 (Photo Upload) · F-005 (Character Bible — derived likenesses) · F-010 (GenerationJob — cancel on delete). Authoritative for F-021/22/23 deletion.
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -30,7 +31,7 @@ Not applicable — greenfield. The design risks are silent retention, scope cree
 
 ## 5. Desired UX
 
-During upload (F-004): "We use Ava's photos to draw Ava — never to train AI models, and never shared. Unfinished uploads are deleted in 48 hours." At checkout (spec §18): a short "Your child's data" panel — who processes it, how long it's kept, and a **Delete everything now** control. On the account page, "Data & privacy": per-child retention state, delete-now per child or for the whole account, plus a download-my-books before-deletion warning. Deleting shows a calm progress state ("We're removing Ava's photos everywhere — this takes a moment"), then a confirmation. Deleting is never hidden behind a legal page.
+During upload (F-004): "We use Ava's photos to draw Ava — never to train AI models, and never sold. Uploads you don't finish are deleted after a short while — see How we keep Ava's data safe." At checkout (spec §18): a short "Your child's data" panel — who processes it, how long it's kept, and a **Delete everything now** control. On the account page, "Data & privacy": per-child retention state, delete-now per child or for the whole account, plus a download-my-books before-deletion warning. Deleting shows a calm progress state ("We're removing Ava's photos everywhere — this takes a moment"), then a confirmation. Deleting is never hidden behind a legal page.
 
 ## 6. UI specification
 
@@ -60,7 +61,7 @@ Commands: `requestDeletion(scope)` (returns deletionId, idempotent), `cancelInFl
 
 ## 9. Background jobs
 
-- **Retention sweep job** (`GenerationJob` variant, internal): quarantines/evaluates expired uploads; expires unsaved uploads at 48h, saved photos per rule below; idempotent per artifact, resumable on worker restart.
+- **Retention sweep job** (`GenerationJob` variant, internal): quarantines/evaluates expired uploads; expires unsaved uploads per the PROPOSED window (§12, legal sign-off pending), saved photos per rule below; idempotent per artifact, resumable on worker restart.
 - **Deletion cascade job**: walks prototypes → storage objects → DB rows → queue messages (cancel pending) → provider delete calls (where a delete API exists; where not, documented fallback: rotate/isolate) → derived likenesses (thumbnails, editor snapshots, colouring line-art, duplicated copies) → backups mark-for-purge → audit completion.
 - Both jobs are retried with backoff; a crashed cascade resumes from its checked-off audit record — deletion never "forgets" a party.
 
@@ -84,7 +85,7 @@ Aggregated, anonymous: `delete_requested(child|account)`, `delete_completed`, `r
 
 - **Given** a parent requests delete-now while a book is `GENERATING`, **when** the cascade runs, **then** pending `GenerationJob` steps for that book/child are cancelled, provider payloads are deleted, and no partially generated likeness survives.
 - **Given** a delete-now on a profile used by two books (one duplicated), **when** the cascade completes, **then** storage, DB, queue and provider audit show zero residual artifacts for that profile — including the duplicate's likeness copy.
-- **Given** an unsaved upload, **when** 48h passes, **then** the retention sweep removes it and its provider payload.
+- **Given** an unsaved upload, **when** the PROPOSED retention window (48h) passes, **then** the retention sweep removes it and its provider payload.
 - **Recovery** **Given** a deletion cascade crashes mid-way, **when** the worker restarts, **then** the cascade resumes from the audit checkpoint and completes without resurrecting any data.
 - **Given** the checkout page renders, **when** a parent opens the data panel, **then** retention windows, processors list and the delete-now control are visible inline (not only on legal pages).
 - **Given** any provider contract, **when** it is reviewed, **then** it either provides a deletion path or the provider is rejected.
@@ -95,6 +96,6 @@ Landing with F-003 (consent/retention fields), F-004 (upload registration), F-00
 
 ## 16. Priority
 
-**P1 — our reason to exist / table-stakes trust.** Mission §26 ranks strong privacy controls under P1 differentiation; spec §18 makes trust part of the product experience; mission §33 filter: fewer support problems and protective of the core promise ("we can be trusted with your children"). Launching behind Diffrun's privacy clarity is not acceptable (spec §18).
+**P0 (core v0) — launch-critical trust/privacy core.** The platform ingests children's photos from the very first session, so the deletion cascade, retention rules and provider-payload discipline must exist at launch; a privacy core promised but not built here is a launch blocker regardless of the P1 mark. The *full* program (account privacy hub, per-child retention cards, download-my-books, per-provider delete-api inventory) is the **P1 differentiation** surface (mission §26) and lands in M6. Mission §33 filter: fewer support problems and protective of the core promise ("we can be trusted with your children"). Launching behind Diffrun's privacy clarity is not acceptable (spec §18).
 
 **Decision needed (legal/product sign-off required before the numbers go live):** the exact retention windows above; whether saved reference photos survive 30 days after account deletion during in-flight orders or are purged immediately on order completion; document, in one place, which providers have no delete API and the approved fallback.

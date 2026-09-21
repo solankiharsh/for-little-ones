@@ -1,6 +1,6 @@
 # 10_GENERATION_PROGRESS.md — Persistent, Observable Generation Progress
 
-> **Spec ID:** F-010 · **Priority:** P1 · **Status:** draft
+> **Spec ID:** F-010 · **Priority:** P0 (durability core) · **Status:** draft
 > **Depends on:** F-008 (story), F-009 (illustrations), F-028 (durability patterns) · **Consumed by:** F-011 (preview), F-012 (repair), F-016 (approval readiness)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -101,7 +101,7 @@ The canonical lifecycle (guide §4) holds the Book: this layer mirrors it — `D
 
 ## 9. Background jobs
 
-Queue substrate: **Postgres-backed persistent queue** (e.g. BullMQ with pg storage or a purpose-built pg job table — Decision needed: chosen after the F-028 spike; guide §5 explicitly says do NOT default to Temporal, evaluate the real requirement). Requirements the spike must satisfy:
+Queue substrate: two candidate classes, selected after the D014 spike — a **PostgreSQL-backed queue** (purpose-built pg job table) as the default candidate, or a **Redis-backed queue** (BullMQ-class). Prefer the simplest durable option; Temporal is considered only if the spike shows its guarantees are needed. In every case job + per-unit state must stay consistent with the Book in the same database (single transaction on every commit); a Redis-backed class additionally requires an outbox/reconciliation bridge. Requirements the spike must satisfy:
 - Durability: job + per-unit state in the same DB as the Book (single transaction on every commit).
 - Restart safety: on worker boot, re-claim units whose `leaseUntil` expired or whose process heartbeat is stale; crashed work returns to `PENDING` and re-runs against idempotency keys (guide §5: "worker restart must not lose book state", D010).
 - Idempotency: every unit keyed (e.g. `pageKey`, `planKey`); consumers no-op if the key already produced `READY` output at the same versions.
@@ -150,4 +150,4 @@ Given/When/Then, testable:
 
 ## 16. Priority
 
-**P1 — key differentiation.** Generation reliability and repair are squarely in the "reason to exist" set (spec §26 P1; D010 "reliability is product functionality"); P0 surfaces (preview, approval) depend on it, but the *incremental* build order keeps the P0 spine first (F-008/F-009 can run with a minimal stub queue) and hardens to this spec before launch. Priority rationale per the product filter: **fewer reliability/support problems + more confidence** (mission §33 filter, spec §27).
+**P0 — launch-critical durability core.** Generation reliability and repair are in the "reason to exist" set (spec §26; D010 "reliability is product functionality") and the P0 surfaces (preview, approval) depend on the durable job spine; an unreliable generate step is a launch blocker. The *incremental* build order still keeps the P0 spine first (F-008/F-009 with a stub queue) and hardens to this spec before launch. Priority rationale per the product filter: **fewer reliability/support problems + more confidence** (mission §33 filter, spec §27).

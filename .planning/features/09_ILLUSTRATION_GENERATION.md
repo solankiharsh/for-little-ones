@@ -1,7 +1,7 @@
 # 09_ILLUSTRATION_GENERATION.md — Illustration Generation Pipeline
 
 > **Spec ID:** F-009 · **Priority:** P0 · **Status:** draft
-> **Depends on:** F-005 (Character Bible), F-008 (page text + cues), F-010 (jobs), F-017 (print sizes) · **Consumed by:** F-011 (preview), F-015 (pre-print QA)
+> **Depends on:** F-005 (Character Bible), F-008 (page text + cues), F-010 (jobs), shared PrintSpec/PrintPreflightContract (D016 — print sizes; not the F-017 renderer) · **Consumed by:** F-011 (preview), F-015 (pre-print QA)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
@@ -40,7 +40,7 @@ Walkthrough (**Ava, 5**, book *"The Dino who Lost his Roar"*):
 1. Story `READY` (F-008). Progress screen (F-010) label **"Painting the illustrations…"**. Internal: derive plans for all pages → generate per page → identity QA → story QA → assemble. Pages appear (subtly, in reading order) as illustrated thumbnails on the progress screen — the parent sees the book *materialising*, not a single spinner.
 2. A page that fails renders its card red-softly: *"We had trouble creating page 12. The rest of the book is safe. [Try page 12 again]"* (exact copy; D010 per-page isolation). Retry regenerates **only** page 12 within the attempt budget.
 3. A page whose identity QA **fails detection** (score below threshold after auto-retry) is not hidden — it shows a calm note: *"This page doesn't quite look like Ava. Want me to try again?"* [Try again] consumes budget; if budget exhausts, the page stays `FAILED` and is flagged for **F-012 page-level repair** (the parent is never told "AI got it wrong" — product voice).
-4. Success → all pages `READY` → flow continues to preview (F-011). Every `READY` asset already satisfies print resolution (F-017), so there is no later "why is my book blurry" surprise.
+4. Success → all pages `READY` → flow continues to preview (F-011). Every `READY` asset already satisfies print resolution per the shared PrintSpec/PreflightContract (D016), so there is no later "why is my book blurry" surprise.
 
 States: loading (skeleton thumbnails), empty (not applicable — every page of a generated story has a plan), success (thumbnails + "Story complete — let's look inside" CTA), failure (per-page card above; whole-book full-failure state in F-010).
 
@@ -60,7 +60,7 @@ IllustrationPlan            // derived deterministically before any image call
   subjects[]                 // canonical character ids + pose/expression/position
                              //   (from illustrationCue, validated ⊆ Book.characters)
   setting, props[], styleNote// style tokens reference Character Bible palette
-  printConstraints           // { w, h, dpi, safeMargin } from printSpec (F-017)
+  printConstraints           // { w, h, dpi, safeMargin } from the shared PrintSpec/PreflightContract (D016)
   layoutHint                 // where text overlays (keeps faces clear)
   planKey                    // sha256(pageKey|bibleVersion|styleVersion)
 
@@ -75,7 +75,7 @@ Illustration
 IdentityQAReport
   pageId, characterQa[]      // per character present on the page
   identityScore              // 0–1, provider-calibrated (see §10)
-  passThreshold              // 0.75 draft (calibrate on launch set, §10)
+  passThreshold              // calibrated — see §10 methodology; never a shipping constant
   renderChecks               // resolution, aspect, single-child-count, duplicate-image
   verdict                    // PASS | FAIL | CONDITIONAL
 
@@ -110,17 +110,17 @@ Three provider interfaces behind adapters (D004):
 
 - **`IdentityReferenceModel`** — ingests the Character Bible's approved reference photos + `CharacterVisualFacts` and produces the **conditioning identity reference** (embedding/CLIP-style identity vector or provider-native reference payload). This is the *only* place raw photos go (§12). Output cache expires with the Bible version.
 - **`IllustrationModel`** — `generate(plan, identityReference, styleTokens) → image`. Prompt = canonical plan JSON + identity reference + Bible style tokens; interior seeds/temperatures never surfaced (D002). Total prompts are the plan fields — no free-text drift.
-- **`QualityModel`** — scores the result: `identityScore(identityReference, generatedImage)` per character present, plus render checks (resolution/aspect/duplicate). **Thresholds are calibrated, not guessed:** a launch calibration set of ~50 diverse faces prices expected score distributions for each age band; `passThreshold` (draft 0.75) is tuned so false-PASS of a visible likeness break is statistically rare, and false-FAIL is bounded so the repair UX isn't spammy. Recommended experiment: publish the calibration results in RESEARCH_LOG before launch.
+- **`QualityModel`** — scores the result: `identityScore(identityReference, generatedImage)` per character present, plus render checks (resolution/aspect/duplicate). **Thresholds are calibrated via a documented methodology, not guessed and not hard-coded into the design.** Per spec §10's honesty rule we do not ship a fixed magic number up front. The method: (1) build a launch calibration set of diverse faces across age bands using our own validation data; (2) run the scoring pipeline on it and record the score distributions per age band; (3) set `passThreshold` so false-PASS of a visible likeness break is statistically rare and false-FAIL stays low enough that repair UX isn't spammy; (4) **record the results in RESEARCH_LOG and version the threshold** alongside the model version so later calibration shifts are tracked, not silently changed. Calibration is a launch-blocking prerequisite (see D014 #5 and F-009 §16); the numbers are an experiment outcome, not a design constant.
 
 Style consistency: shared `styleNote`/palette tokens in every `IllustrationPlan` (spec §5A "global illustration style"); illustration plans list settings/props from the cue so e.g. "the same valley at dusk" stays the same valley.
 
 **Honest identity framing (spec §10):** we do not claim identity is guaranteed. The system (a) conditions generation on the identity reference, (b) measures identity per page, (c) flags sub-threshold pages for repair. Failure detection is a feature; the parent-facing copy in §5 states exactly what we can and cannot promise.
 
-**Resolution (print, spec §25 / F-017):** target ≥300 DPI at trim size (e.g. 8x8in → 2400×2400px). Generation-time gate: below 300 DPI → auto retry once; between 150–300 DPI → `CONDITIONAL` verdict + explicit "may look soft in print" flag surfaced before approval (F-016); <150 DPI → `FAILED` (never upscaled silently as accepted).
+**Resolution (print, spec §25 / shared contract D016):** target ≥300 DPI at trim size (e.g. 8x8in → 2400×2400px). Generation-time gate: below 300 DPI → auto retry once; between 150–300 DPI → `CONDITIONAL` verdict + explicit "may look soft in print" flag surfaced before approval (F-016); <150 DPI → `FAILED` (never upscaled silently as accepted).
 
 ## 11. QA
 
-Feeds the QA catalogue with measured, per-page items: identity consistency (score + threshold), wrong child count, sibling swap (subject identity confusion via per-character scores), duplicate/repeated illustration, resolution/dpi gate, aspect ratio, and print constraints (safe margins passed from the plan, full overlap check deferred to layout QA in F-015/F-017). A page failing any check is `REVISION_REQUIRED` or `FAILED` — never presented as `READY`.
+Feeds the QA catalogue with measured, per-page items: identity consistency (score + threshold), wrong child count, sibling swap (subject identity confusion via per-character scores), duplicate/repeated illustration, resolution/dpi gate, aspect ratio, and print constraints (safe margins passed from the plan; full overlap check deferred to layout QA in F-015 against the shared contract). A page failing any check is `REVISION_REQUIRED` or `FAILED` — never presented as `READY`.
 
 ## 12. Privacy/security
 
@@ -144,10 +144,10 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-005 (Character Bible: `CharacterVisualFacts`, approved references, style tokens), F-008 (`textBlocks` + `illustrationCue` contract), F-010 (job/queue substrate + attempt budget), F-017 print trim/dpi constants.
+- **Required first:** F-005 (Character Bible: `CharacterVisualFacts`, approved references, style tokens), F-008 (`textBlocks` + `illustrationCue` contract), F-010 (job/queue substrate + attempt budget), the shared PrintSpec/PreflightContract (D016) print trim/dpi constants.
 - **Consumed by:** F-011 (preview thumbnails/reading render), F-012 (page repair), F-015 (pre-print QA suite), F-013 (global corrections trigger full re-plan when the Bible changes).
-- **Parallel-safe:** F-008 text work proceeds independently; a `QualityModel` calibration spike (§10) can run before front-end work.
+- **Parallel-safe:** F-008 text work proceeds independently; the `QualityModel` calibration experiment (§10) can run before front-end work.
 
 ## 16. Priority
 
-**P0 — launch / category parity.** Photo likeness is P0 parity (spec §26) and no preview (P0), book or print pipeline exists without illustrations; the consistency layer is the difference against competitors (spec §2, §5). Calibration of identity thresholds (§10) is a launch-blocking prerequisite, assigned to the F-005/F-009 owner.
+**P0 — launch / category parity.** Photo likeness is P0 parity (spec §26) and no preview (P0), book or print pipeline exists without illustrations; the consistency layer is the difference against competitors (spec §2, §5). Calibration of identity thresholds (§10 methodology, results in RESEARCH_LOG) is a launch-blocking prerequisite, assigned to the F-005/F-009 owner.

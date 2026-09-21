@@ -39,7 +39,7 @@ Not applicable (greenfield). The design itself must avoid:
 
 Per-photo states: `Checking → Ready` (green check), `Check again` (amber, e.g. dark but salvageable), or `Choose another` (red, e.g. no face at all). For two faces the card asks "Which person is Ava?" with a tap-on-face affordance; tapping a face marks the subject; if the parent can't say, the photo is treated as `Not usable` but never blocked from being replaced.
 
-Empty/partial states: "Ava's face will appear in every story." with a count "2 of 5". The **Continue** CTA is disabled until ≥1 photo is `Ready`. The parent can reorder photos by drag/hold (first = primary), tap to replace, swipe to delete (with "Remove photo?" confirm). A persistent privacy line under the grid: "Your photos are only used to create Ava's book, never sold or used to train AI models" (spec §18) with a "See how we use and delete photos" link to F-025 settings.
+Empty/partial states: "Ava's face will appear in every story." with a count "2 of 5". The **Continue** CTA is disabled until ≥1 photo is `Ready`. The parent can reorder photos by drag/hold (first = primary), tap to replace, swipe to delete (with "Remove photo?" confirm). A persistent privacy line under the grid: "We use your photos only to create Ava's book — we never sell them and we don't use children's photos to train AI. See how we use and delete photos" (spec §18) with a link to F-025 settings.
 
 **Failure:** upload fails → the slot returns to `Picked, not sent` with "Try again" (idempotent retry, D010). App refreshes mid-upload → queued upload resumes from the last completed chunk or re-sends the whole file with the same `uploadToken`; any validated photos remain validated.
 
@@ -49,7 +49,7 @@ Empty/partial states: "Ava's face will appear in every story." with a count "2 o
 - **Primary badge:** star on the top-left of the first (primary) photo; a tooltip "We'll use this as Ava's main reference".
 - **Validation results:** inline chips — `Ready` (green), `Check again` (amber, always required action or dismiss-to-nonprimary), `Choose another` (red, photo still kept in local state until replaced).
 - **Two-face flow:** modal "Which person is Ava?" + candidate-face chips (crops of detected faces) + "Something else / tap the face". Reorders validate that the selected face stays consistent.
-- **Privacy lock-in:** a one-time consent banner "We keep photos only while you're making this book, or 30 days after, unless Avoter keeps the saved profile (see settings)" with confirm/settings links — copied verbatim policy from F-025, not re-drafted here.
+- **Privacy lock-in:** a one-time consent banner quoting F-025's current retention policy (the numbers are PROPOSED pending legal sign-off): "We use Ava's photos only to make her book, and we delete them on the schedule in our data policy (see how we use and delete photos)" with confirm/settings links — single source of truth lives in F-025, not re-drafted here.
 - **Dark-mode, low-light:** "Default" face-check runs a brightness gate; a "too dark" photo that otherwise passes face detection is demoted to `Check again` (usable), never to `Choose another` (graceful fallback rule).
 - **Loading:** full-slot skeleton shimmer; per-slot progress bar for transfer + "checking" pulse for validation.
 - **Accessibility:** every result chip has text content, not colour alone; drag reorder has alternate up/down buttons.
@@ -79,7 +79,7 @@ PhotoReference
 
 Proposed boundary (proposed subsystems `BookService` storage layer + dedicated photo pipeline; names shared for consistency):
 
-- `PresignPhotoUpload{ childProfileId, count, mime, size }` → returns a short-lived, scope-limited upload token + destination key. **Decision needed:** direct-to-storage (browser → S3 presigned, bypassing API) vs API relay (browser → API → storage). Direct-to-storage reduces bandwidth through the API but complicates the validation-then-scan contract; resolve in the security spike, default API relay for a single validation choke-point.
+- `PresignPhotoUpload{ childProfileId, count, mime, size }` → returns a short-lived, scope-limited upload token + destination key. **Open question (D017):** direct-to-storage (browser → signed private storage, bypassing API) vs API relay (browser → API → storage). Neither is defaulted. Requirements both must satisfy: private objects, content-type/size validation, malware/image validation, no permanent public URLs, ownership enforcement, retention/deletion per F-025. Resolve in the security/architecture spike before build.
 - `CompletePhotoUpload{ uploadToken, checksum }` → triggers processing job; idempotent (same token returns same PhotoReference).
 - `ValidatePhotoJobResult` (internal job callback; advances `uploadState`, stores validation + score).
 - `SetPhotoPrimary{ photoId }`, `DeletePhoto{ photoId }` (soft-delete; F-025 hard-delete + propagate to Bible likeness), `MarkSubject{ photoId, faceBoxIndex }`.
@@ -108,7 +108,7 @@ Checks this spec performs directly (catalogue refs): resolution within min bound
 
 - **Full trace recorded** per `traceHistory` (guide §7); providers documented in F-025 audit; no additional providers without documentation.
 - **No public URLs**, no photo logging, debug logs identify by `id` and hashed source IP only.
-- **Retention:** `retentionClass` from F-025 defaults — unsaved uploads deleted within 48h; saved/order-related retained per F-025 then purged (guide §7; spec §2 Diffrun already communicates 48h/30-day windows — parity floor).
+- **Retention:** `retentionClass` from F-025 defaults — unsaved uploads deleted on a short posted schedule (draft window 48h); saved/order-related retained per F-025 proposal then purged (guide §7). These windows are PROPOSED until legal/product sign-off (F-025 decision needed); the parity floor with the category is *published, enforceable windows*, not specific numbers (spec §2 Diffrun communicates 48h/30-day windows as a category norm to match, not to copy verbatim).
 - **Generated likenesses derived from photos are PII** (guide §7): deleting a photo must invalidate/re-generate derived likeness metadata per F-025.
 - Parent/guardian consent surfaces at the upload moment (spec §18) and is recorded with the first stored photo (`claimedAt`).
 - Minimal exposure: photo bytes reach storage and the documented model provider only; commerce, print, analytics never receive photo bytes.
@@ -119,7 +119,7 @@ Aggregated, no photo payloads or filenames: `photo_upload_started`, `photo_uploa
 
 ## 14. Acceptance criteria
 
-1. Given a parent uploads a front-facing, well-lit photo of Ava, When validation completes, Then `uploadState=Ready`, score ≥0.7 in `PhotoReference`, and Continue becomes enabled.
+1. Given a parent uploads a front-facing, well-lit photo of Ava, When validation completes, Then `uploadState=Ready`, the score clears the photo-quality floor (tuned per the F-004 validation spike — no arbitrary fixed threshold), and Continue becomes enabled.
 2. Given a photo contains two faces, When validation returns two faces, Then the "Which person is Ava?" modal appears; if the parent marks sub-subject B, the photo is stored as valid for B and later usable in a multi-person book (F-023).
 3. Given a dark but face-detectable photo, When validation runs, Then it is demoted to `Check again` with a "usable with caution" tier — never `Choose another` (graceful fallback).
 4. **Recovery:** Given an upload fails midway (network drop), When the client retries with the same `uploadToken`, Then the job resumes from the last completed step (D010), no duplicate PhotoReference is created, and validated photos remain validated after refresh.
