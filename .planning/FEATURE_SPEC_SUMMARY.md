@@ -14,7 +14,7 @@ Concise executive view of the full feature-spec set. Detail lives in `features/N
 | 04 | Photo upload | P0 | M2 | Upload 1–5, gentle validation, delete anytime | Photo pipeline + face/resolution QA; upload topology TBD (direct vs API-relay) — D017. M1 ships WITHOUT child photos (fixture/placeholder visuals) | 03 | Rejecting usable photos; provider for face-detection |
 | 05 | Character Bible | P1 | M2 | One canonical child look per book/cast | Provider-agnostic `CharacterBible`; versioning; consumes validated photo refs (M2 path) | 03, 04 | Vendor identity lock-in |
 | 06 | Personalisation | P0 | M1 | Layered questions; facts never mutate | Typed, locale-aware, immutable Fact model | 03 | Vocabulary pinning per locale |
-| 07 | Story concepts | P0 | M1 | 3 choices with titles/pitches | `StoryModel` structured JSON + moderation + human fallback | 02, 03, 06 | Fallback-concept content commitment |
+| 07 | Story concepts | P0 | M1 | 3 choices with titles/pitches | `StoryProvider` structured JSON + moderation + human fallback | 02, 03, 06 | Fallback-concept content commitment |
 | 08 | Story generation | P0 | M1 | Story ordered page-by-page, age-apt | Outline gate → per-page text; idempotent `pageKey` | 07, 06, 03 | Age word-counts uncalibrated |
 | 09 | Illustration generation | P0 | M2 | Consistent child in every illustration | Identity-conditioned images + plan; ≥300 DPI gate | 05, 08 | Identity threshold calibration |
 | 10 | Generation progress | P0 | M1→M2 | Emotional progress; refresh-safe; resumable | Durable execution substrate; step+page states; durability core (implements the `DurableExecutionContract` — D019) | 08/09 step units, DurableExecutionContract | Substrate choice (spike — D014) |

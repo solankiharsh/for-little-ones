@@ -25,7 +25,7 @@ None (Observed). No application code exists anywhere in the workspace.
 See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
 ```
 
-Proposed subsystems consumed: `CharacterBible` (identity refs), `GenerationJob` (per-page work), `BookService` (page revision commit), provider interfaces `IllustrationModel`, `StoryModel` (text intent), `IdentityReferenceModel` (likeness enforcement), `ModerationProvider` (child-content moderation per intent).
+Proposed subsystems consumed: `CharacterBible` (identity refs), `GenerationJob` (per-page work), `BookService` (page revision commit), provider interfaces `IllustrationProvider`, `StoryProvider` (text intent), `IdentityProvider` (likeness enforcement), `ModerationProvider` (child-content moderation per intent).
 
 ## 4. Problems with current implementation
 
@@ -82,6 +82,9 @@ PageRevision  (new canonical page state; guide §2 revisions[])
 ├── appliedIntent, params, providerRefs (model call ids, for ops only, §12)
 ├── textBlocks[] / illustrationRef (immutable snapshot of this revision)
 ├── sourceRevisionSeq (what this replaced)
+├── provenance   // GenerationProvenance for this revision (GENERATION_PROVENANCE §2);
+│                //   new immutable record per revision — the replaced revision's
+│                //   provenance is never rewritten
 ├── status: GENERATING | READY | FAILED
 └── createdBy: intent | editor | initial
 ```
@@ -99,12 +102,12 @@ Per-page state machine consumed from F-010: `PENDING · GENERATING · READY · F
 - **Idempotency:** `idempotencyKey` dedupes retries (same key → same revision; a retry after network failure does not double-generate). A new key always creates a new revision — this is how "Try another" repeatedly works.
 - **Read:** page scope via `GET /books/{id}/pages/{pageId}/revisions` (ops/support only, F-026).
 - Permissions: reader surface gets only its own `bookId`; cross-book access forbidden. Anonymous sessions supported pre-claim (F-001).
-- Event (not event sourcing): `PAGE_REVISION_CREATED` published to `QualityModel` for per-page recheck (F-015) and to F-011 manifest refresh.
+- Event (not event sourcing): `PAGE_REVISION_CREATED` published to `QualityProvider` for per-page recheck (F-015) and to F-011 manifest refresh.
 
 ## 9. Background jobs
 
 - Per-page correction runs as a `GenerationJob` scoped to **one page revision**. Trigger: correction request accepted. Inputs: `PageRevision` intent + params + immutable-facts block + `CharacterBible` refs + prior page snapshot (for diff/Qt stability) + target page's existing sibling context (neighbouring text) only where the intent needs continuity (e.g. `SHORTER` must not break the page's continuity with adjacent pages).
-- Outputs: new `textBlocks[]` or `illustrationRef` for the revision; writes revision, flips page state `GENERATING → READY | FAILED`.
+- Outputs: new `textBlocks[]` or `illustrationRef` for the revision; writes revision, flips page state `GENERATING → READY | FAILED`. **Re-entry is at the affected stage only** (GENERATION_ARCHITECTURE §8): a text intent re-enters the page-text stage (F-008), an image intent re-enters the illustration stage (F-009) — no earlier stage re-runs, sibling `READY` pages stay untouched, and each revision carries a fresh immutable `GenerationProvenance`.
 - Retry: 3 attempts, backoff; resumable across worker restart (D010); timeout per model call; **failure isolates to the page**: book state untouched, previous revision retained and served. An earlier revision stays the live page until the new one is `READY` (never a blank mid-generation page).
 - Cancellation: intent superseded by a newer intent on the same page → in-flight job may be flagged cancelled; its results are discarded if a newer revision already exists.
 - Substrate choice: durable execution substrate per F-028/D019 (candidate classes decided in the D014 spike — wording neutral until then, guide §5).
@@ -116,7 +119,7 @@ Per-page state machine consumed from F-010: `PENDING · GENERATING · READY · F
 | Intent | What changes | What it does NOT change (guaranteed) |
 | --- | --- | --- |
 | `TRY_ANOTHER` | Illustration only; new candidate from the existing plan (subject, setting, action, style) | Text, plan semantics, Character Bible, all other pages |
-| `MORE_LIKE_REFERENCE` | Likeness weight/identity conditioning for this illustration only, via `IdentityReferenceModel` using the current `CharacterBible` refs | Pose, setting, clothing plan, text, other pages |
+| `MORE_LIKE_REFERENCE` | Likeness weight/identity conditioning for this illustration only, via `IdentityProvider` using the current `CharacterBible` refs | Pose, setting, clothing plan, text, other pages |
 | `CHANGE_EXPRESSION` | `expression` attribute in the page's illustration plan | Everything else in the plan; text intact |
 | `CHANGE_POSE` | `pose` attribute | Everything else; text intact |
 | `CHANGE_CLOTHING` | `clothing` attribute (page-scoped unless promoted to F-013) | Everything else; text intact |
@@ -131,13 +134,13 @@ Per-page state machine consumed from F-010: `PENDING · GENERATING · READY · F
 | `DESCRIBE_TEXT` | free text parsed to tone/event delta, confirmed before generation | Facts, page count, illustration, other pages |
 
 - **Immutable-facts block:** the child's profile facts (spec §6, §13) and the approved `story` facts are injected as a hard constraint; any intent whose draft output contradicts them is retried once, then surfaced as a "We can't change that fact" advisory (never silently modified — spec §10 "facts must never silently mutate", QA `story contradiction`).
-- **Context box:** the model receives — target page text (full for text intents), sibling page first/last sentences (for tone/length intents), the illustration plan, Character Bible refs (`IdentityReferenceModel`), the immutable-facts block, reading age, locale. It never sees other users' data or other books.
+- **Context box:** the model receives — target page text (full for text intents), sibling page first/last sentences (for tone/length intents), the illustration plan, Character Bible refs (`IdentityProvider`), the immutable-facts block, reading age, locale. It never sees other users' data or other books.
 - `ModerationProvider` gates intent params and generated output (child-content safety); content flagged → the intent fails as `FAILED` with the user-facing friendly error, not a silent rebuild.
 - Structured output: text intents return `{text, charCount, factsUsed[], continuityFlags}` so `BookService` can validate before commit; image intents return `{illustrationRef, planDelta}`.
 
 ## 11. QA
 
-- Every correction **immediately re-runs the per-page QA subset** (F-015) scoped to this page: identity consistency (vs `CharacterBible`, using `QualityModel`), text overflow, print safe area (text respects print-safe box), missing assets, repeated illustration. HARD_BLOCK findings roll the revision back to `REVISION_REQUIRED` and show the parent a friendly explanation rather than committing a broken page; REVIEW_REQUIRED items ask for a decision before proceeding.
+- Every correction **immediately re-runs the per-page QA subset** (F-015) scoped to this page: identity consistency (vs `CharacterBible`, using `QualityProvider`), text overflow, print safe area (text respects print-safe box), missing assets, repeated illustration. HARD_BLOCK findings roll the revision back to `REVISION_REQUIRED` and show the parent a friendly explanation rather than committing a broken page; REVIEW_REQUIRED items ask for a decision before proceeding.
 - Post-commit: `story contradiction` and `duplicate paragraph` checks run against the adjacent two pages (text intents only) because tone/delta edits can collide with continuity.
 - The book-level QA state is unchanged by a failing page; only the page revision is affected (D010).
 

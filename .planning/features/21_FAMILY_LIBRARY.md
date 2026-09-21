@@ -68,7 +68,7 @@ Reading itself needs no job. Cover/thumbnail materialization is a short-lived jo
 
 ## 10. AI behaviour
 
-None for core library/reading — reading is deterministic rendering of the approved revision. Narration (future) uses `StoryModel`; deferred by spec §15 ("do not require for initial launch"). Colouring edition (future) is a derived line-art render of approved illustrations — P2/P3, not in this cut.
+None for core library/reading — reading is deterministic rendering of the approved revision. Narration (future) uses `StoryProvider`; deferred by spec §15 ("do not require for initial launch"). Colouring edition (future) is a derived line-art render of approved illustrations — P2/P3, not in this cut.
 
 ## 11. QA
 

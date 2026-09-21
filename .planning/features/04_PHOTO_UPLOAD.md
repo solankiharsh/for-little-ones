@@ -30,7 +30,7 @@ Not applicable (greenfield). The design itself must avoid:
 
 1. **Rejecting usable photos.** A photo with slight shadow or a phone-tilted face is still useful; validation must allow "pass with caution" tiers, never a binary that rejects 40% of family snaps.
 2. **Ambiguous subjects.** A photo with two faces must be disambiguated ("Which person is Ava?") or excluded — spec §10 QA catalogue: "wrong number of children", "sibling identities swap".
-3. **Orientation/compression corruption.** EXIF orientation must be normalised and client compression must not destroy face detail needed by `IdentityReferenceModel`.
+3. **Orientation/compression corruption.** EXIF orientation must be normalised and client compression must not destroy face detail needed by `IdentityProvider`.
 4. **Privacy-trace leakage** (guide §7): uncontrolled relay to additional providers, public asset URLs, or photo logging.
 
 ## 5. Desired UX
@@ -72,7 +72,7 @@ PhotoReference
 └── traceHistory: [{ hop: browser|api|storage|model-provider|output, at, providerId }]
 ```
 
-- **Trace (guide §7):** browser (client compression + EXIF pass-through in original) → API (validate multipart, checksum) → object storage (private bucket, no public URL) → model provider (only the model-processing job passes the normalized image to `IdentityReferenceModel`/`QualityModel`; provider documented in F-025 audit) → output (derived likeness stored back in same private bucket) → deletion (F-025 schedule + delete-now).
+- **Trace (guide §7):** browser (client compression + EXIF pass-through in original) → API (validate multipart, checksum) → object storage (private bucket, no public URL) → model provider (only the model-processing job passes the normalized image to `IdentityProvider`/`QualityProvider`; provider documented in F-025 audit) → output (derived likeness stored back in same private bucket) → deletion (F-025 schedule + delete-now).
 - **Scoring:** the validation job emits a 0–1 reference score (face clarity, sharpness, neutral lighting, single subject, no obstruction). The primary + top-scoring photos become `<referencePhotos>` in the Character Bible (F-005). Score is a fact about the photo, not about the child — it never feeds story text.
 
 ## 8. Backend/API requirements
@@ -89,14 +89,14 @@ Proposed boundary (proposed subsystems `BookService` storage layer + dedicated p
 
 ## 9. Background jobs
 
-**Job: PhotoProcessing** (`GenerationJob` family): input = raw upload (key, checksum, orientation); steps = decode → EXIF-orient → downscale-lossless master (≤ maxEdge for model) → client-uson-level thumb/web sizes → validation (QualityModel face/quality heuristics) → score → persist `PhotoReference` → emit `PHOTO_VALIDATED`. Retry policy: 3 attempts with backoff; resumable (a crash mid-step restarts at the last completed step — D010); timeout 120s; failure leaves `uploadState=uploading` and surfaces "Try again" in UI. Cancellation: delete action cancels a queued job. A job never leaves bytes in logs.
+**Job: PhotoProcessing** (`GenerationJob` family): input = raw upload (key, checksum, orientation); steps = decode → EXIF-orient → downscale-lossless master (≤ maxEdge for model) → client-uson-level thumb/web sizes → validation (QualityProvider face/quality heuristics) → score → persist `PhotoReference` → emit `PHOTO_VALIDATED`. Retry policy: 3 attempts with backoff; resumable (a crash mid-step restarts at the last completed step — D010); timeout 120s; failure leaves `uploadState=uploading` and surfaces "Try again" in UI. Cancellation: delete action cancels a queued job. A job never leaves bytes in logs.
 
 ## 10. AI behaviour
 
 No story text here. Two provider interfaces (guide §6):
 
-- **QualityModel** — the validation heuristics: face detection, face count, bounding boxes, eyes/face unobstructed, sharpness, brightness, resolution minimum. Output is a structured `validation` object + score; this model never sees or stores child identity, only the image it validates. **Decision needed:** which provider/vendor the `QualityModel` interface binds to for face detection; evaluate on-device-first (client-side) vs server-side.
-- **IdentityReferenceModel** (F-005) — later consumes primary + top-scoring `PhotoReference`s to build the stable identity representation and proposed appearance. This spec only guarantees the photo set quality it consumes.
+- **QualityProvider** — the validation heuristics: face detection, face count, bounding boxes, eyes/face unobstructed, sharpness, brightness, resolution minimum. Output is a structured `validation` object + score; this model never sees or stores child identity, only the image it validates. **Decision needed:** which provider/vendor the `QualityProvider` interface binds to for face detection; evaluate on-device-first (client-side) vs server-side.
+- **IdentityProvider** (F-005) — later consumes primary + top-scoring `PhotoReference`s to build the stable identity representation and proposed appearance. This spec only guarantees the photo set quality it consumes.
 
 Fallback rule: if the model throws or times out, the photo is not silently rejected — it falls back to a conservative boolean check (format, size, one image) and is marked `Ready` only if trivial checks pass, with a notice "we'll double-check later". Gratuitously rejecting usable photos is the failure mode we avoid (graceful fallback, §5).
 

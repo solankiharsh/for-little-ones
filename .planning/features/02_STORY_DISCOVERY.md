@@ -109,7 +109,7 @@ Not applicable to browsing itself. One operational job: **catalogue publish** (r
 
 No model call during the browse/select step. Two touchpoints:
 - **Ordering/personalisation:** rule-based ranking (age band overlap + knownOccasions vs profile + locale) computed in the query path; no LLM.
-- **Seed hand-off:** `Theme.conceptSeed` + persisted Book context is the *input contract* for F-007's `StoryModel` call — F-002 only stores and passes it through. Recommended experiment (later, P3): relevance-ranking the catalogue with a model; not needed for launch.
+- **Seed hand-off:** `Theme.conceptSeed` + persisted Book context is the *input contract* for F-007's `StoryProvider` call — F-002 only stores and passes it through. Recommended experiment (later, P3): relevance-ranking the catalogue with a model; not needed for launch.
 
 ## 11. QA
 

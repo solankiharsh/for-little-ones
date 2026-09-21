@@ -23,7 +23,7 @@ Child photos, names and family data are sensitive product data (guide §7). Comp
 
 None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
 
-Proposed subsystems enforcing this: `BookService`/`BookRepository` (audit + deletion cascade), `CharacterBible` (likeness provenance), `GenerationJob` (cancel-on-delete, retention sweep jobs), provider interfaces `StoryModel`, `IllustrationModel`, `IdentityReferenceModel`, `QualityModel`, `ModerationProvider` (each must declare payload handling), `PrintProvider` (print data).
+Proposed subsystems enforcing this: `BookService`/`BookRepository` (audit + deletion cascade), `CharacterBible` (likeness provenance), `GenerationJob` (cancel-on-delete, retention sweep jobs), provider interfaces `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider` (each must declare payload handling), `PrintProvider` (print data).
 
 ## 4. Problems with current implementation
 
@@ -67,7 +67,7 @@ Commands: `requestDeletion(scope)` (returns deletionId, idempotent), `cancelInFl
 
 ## 10. AI behaviour
 
-Provider contracts: `StoryModel`, `IllustrationModel`, `IdentityReferenceModel`, `QualityModel`, `ModerationProvider` must declare retention (payload held only for the duration of the call) and satisfy the data-retention/deletion lifecycle rule (§9 launch rule). **Requirement — not yet a customer-facing claim:** providers handling child data must not use it to train general/public models (spec §18). This is a product requirement confirmed via provider contracts/settings during the provider data-use audit; it becomes customer-facing copy **only through the chain: provider adoption → privacy/data-use audit → requirement verified → customer-facing claim enabled**. Evidence is recorded in the provider audit (§14). Provider payloads are restricted to the minimum needed (guide §7: "no additional providers without documentation").
+Provider contracts: `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider` must declare retention (payload held only for the duration of the call) and satisfy the data-retention/deletion lifecycle rule (§9 launch rule). **Requirement — not yet a customer-facing claim:** providers handling child data must not use it to train general/public models (spec §18). This is a product requirement confirmed via provider contracts/settings during the provider data-use audit; it becomes customer-facing copy **only through the chain: provider adoption → privacy/data-use audit → requirement verified → customer-facing claim enabled**. Evidence is recorded in the provider audit (§14). Provider payloads are restricted to the minimum needed (guide §7: "no additional providers without documentation").
 
 ## 11. QA
 

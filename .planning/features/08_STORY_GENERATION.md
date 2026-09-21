@@ -78,15 +78,17 @@ Page (per-page unit, text side)
   illustrationCue      // directional cue object (see schema below)
   pageKey              // deterministic idempotency key
   status               // PENDING | GENERATING | READY | FAILED | REVISION_REQUIRED
-  generationMetadata   // model/call ids, attempt count, cost cents
+  generationMetadata   // model/call ids, attempt count, cost cents + GenerationProvenance
+  provenance:          // GENERATION_PROVENANCE §2: schemaVersion, policySetVersion/policyHash
+                       //   (text.v1 set), provider/model version, jobId, attempt
 ```
 
-Structured JSON contracts (the `StoryModel` output, validated):
+Structured JSON contracts (the `StoryProvider` output: `StoryOutlineResult` from `generateOutline`, `PageTextResult` from `generatePageText` — named contracts per `product/GENERATION_ARCHITECTURE.md` §3; runtime-schema-validated, `schemaVersion` recorded in every result, provider-specific response types confined to adapters):
 
 ```jsonc
-// StoryModel.generateOutline → outline object (§7 above)
+// StoryProvider.generateOutline → outline object (§7 above)
 
-// StoryModel.generatePageText → per page:
+// StoryProvider.generatePageText → per page:
 {
   "pageNumber": 6,
   "textBlocks": [
@@ -129,18 +131,19 @@ Commands via `BookService`/`BookRepository`; orchestration via `GenerationJob` (
 
 Execution owned by F-010 runtime; the step units are **`GenerationStep` contract entries defined here** and consumed by F-010, two dependent steps: **`OUTLINE`** then **`PAGE_TEXT`** per page.
 - `OUTLINE`: input = concept + facts slice + locale + age band; output = validated outline; gate — if outline validation fails, the job stays `FAILED` at the outline step and nothing downstream runs (retry re-enters step, idempotent).
-- `PAGE_TEXT`: per-page; **`pageKey = sha256(bookId|conceptVersion|pageNumber|factsVersion|locale)`** — the same key always produces the same page intent, so a crashed worker or a duplicate request cannot double-generate or diverge; `POST …/pages/{n}/regenerate` reuses the same key (identical deterministic inputs) or a `revisionNonce` on REVISION_REQUIRED (different intent).
+- `PAGE_TEXT`: per-page; **`pageKey = sha256(bookId|conceptVersion|pageNumber|factsVersion|locale)`** — the same key always produces the same page intent, so a crashed worker or a duplicate request cannot double-generate or diverge; `POST …/pages/{n}/regenerate` reuses the same key (identical deterministic inputs) or a `revisionNonce` on REVISION_REQUIRED (different intent). Each regeneration writes a **new `GenerationProvenance`** (attempt bumped, `createdAt` refreshed — GENERATION_PROVENANCE §2); provenance is immutable, never overwritten in place.
 - Retry: up to 2 auto retries/page with exponential backoff, 45s timeout; a page `FAILED` after that never blocks other pages (D010).
 - Resume: worker restart loses no work — persisted per-page statuses; pages already `READY` are skipped (F-010 "worker restart safety", F-028).
 
 ## 10. AI behaviour
 
-Provider interface: **`StoryModel`** — proposed methods `generateOutline(context): Outline` and `generatePageText(continuityContext): PageText`.
+Provider interface: **`StoryProvider`** — proposed methods `generateOutline(context): Outline` and `generatePageText(continuityContext): PageText`.
 
 - **Outline context:** concept (title/pitch/emotionalGoal), canonical facts slice (displayName, pronoun, relationships incl. pet, favourites, locale, age band), `readingLevelBand`.
-- **Age-adjusted vocabulary/length (spec §25 age):** enforced at the **contract level** — per-band caps, e.g. draft `0-3`: ≤20 words/page, settable; `4-6`: ≤40 words/page, common short words; `7-9`: ≤70 words/page, multi-clause sentences. Impossible by prompt alone — enforced by post-checks (regen if exceeded, never silently trimmed mid-word).
+- **Age-adjusted vocabulary/length (spec §25 age):** enforced at the **contract level** — per-band caps from the **product policy** `policies/age/reading-age.md` (draft `0-3`: ≤20 words/page; `4-6`: ≤40 words/page, common short words; `7-9`: ≤70 words/page, multi-clause sentences), versioned + hashed with the stage's `policySetVersion`/`policyHash` (`/policies/MANIFEST.md`, GENERATION_PROVENANCE §3). Impossible by prompt alone — enforced by post-checks (regen if exceeded, never silently trimmed mid-word).
 - **Narrative continuity:** `continuityContext` = outline + prior page summaries (1 line/page) + character state notes; prevents contradiction across pages; a contradiction check runs against the outline at QA.
-- **Locale-aware vocabulary (spec §11):** `locale` is a hard key in context AND a **post-processing wordlist map** runs on generated text (en-GB: mum/pyjamas/colour/trousers/lift; en-US: mom/pajamas/color/pants/elevator; "football"→ association-football steer per §11 structured facts). The wordlist map is the source of truth for spelling — the model alone is unreliable (Adorabook lesson). F-024 extends the mapping table; the mechanism ships now.
+- **Locale-aware vocabulary (spec §11):** `locale` is a hard key in context AND a **post-processing wordlist map** runs on generated text (en-GB: mum/pyjamas/colour/trousers/lift; en-US: mom/pajamas/color/pants/elevator; "football"→ association-football steer per §11 structured facts). The wordlist map (`policies/localisation/en-gb-en-us.md`) is the source of truth for spelling — the model alone is unreliable (Adorabook lesson). F-024 extends the mapping table; the mechanism ships now.
+- **Tone/arc guidance:** story-tone policy (`policies/story/story-tone.md`) steers concept/outline goals; arc end-state is checked at QA (§11), never left to prompt persuasion.
 - **Immutable facts:** injected as keyed structured fields (name, pronoun, relationship names, pet species, structured interests); fact validation compares generated text against these keys; any written fact must match or the page regenerates once — no silent mutation (spec §25 facts).
 - **Structured output:** both methods return strict JSON (§7); schema validation with typed errors; unknown fields stripped; missing fields → retry then page-level `FAILED`.
 - **Moderation:** `ModerationProvider` on outline + every textBlock (profanity/inappropriateness) before `READY`.
@@ -160,7 +163,7 @@ QA results persist as `Story.qaReport`; failures are actionable per-page, not wh
 
 ## 12. Privacy/security
 
-No photos, no address, no payment data — the facts slice is the minimum needed for text. Facts are transmitted to the `StoryModel` provider as needed **per the documented provider contract (§7 trace: profile → provider → output → retention)**; no provider receives canonical profile data beyond this slice. Logged fields are field *names* only. Story rows live in the Book and are subject to profile retention/deletion (F-025, spec §18). `conceptSeed` and prompts are stored as structured inputs, never dumped to logs.
+No photos, no address, no payment data — the facts slice is the minimum needed for text. Facts are transmitted to the `StoryProvider` provider as needed **per the documented provider contract (§7 trace: profile → provider → output → retention)**; no provider receives canonical profile data beyond this slice. Logged fields are field *names* only. Story rows live in the Book and are subject to profile retention/deletion (F-025, spec §18). `conceptSeed` and prompts are stored as structured inputs, never dumped to logs.
 
 ## 13. Analytics
 
@@ -179,7 +182,7 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-007 (selected concept), F-006 facts + F-003 profile (canonical facts fields incl. `locale`), the `DurableExecutionContract` / `GenerationStepExecution` interface (foundational — D019; F-010 implements the runtime), `StoryModel` interface (architecture v2).
+- **Required first:** F-007 (selected concept), F-006 facts + F-003 profile (canonical facts fields incl. `locale`), the `DurableExecutionContract`/`GenerationStepExecution` interface (foundational — D019; F-010 implements the runtime), `StoryProvider` interface (architecture v2).
 - **Consumed by:** F-009 (illustration plans read `textBlocks` + `illustrationCue`), F-011 (reading preview), F-012 (page rewrite hooks), F-024 (wordlist mapping extension).
 - **Parallel-safe:** F-004/F-005 (photos/bible) run independently; F-009 consumes the page contract but does not block text QA.
 

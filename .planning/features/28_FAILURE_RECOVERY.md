@@ -69,7 +69,16 @@ Job state is **durable and the source of truth**; in-memory state is never autho
 
 ## 10. AI behaviour
 
-Covered by F-008/F-009/F-015; this spec governs *how* those steps run, not their prompts. `StoryModel`/`IllustrationModel` calls are wrapped as jobs with structured inputs/outputs pinned by `idempotencyKey` so retries never submit duplicate generations (bill-protection) and never reuse a half-written page.
+Covered by F-008/F-009/F-015; this spec governs *how* those steps run, not their prompts. `StoryProvider`/`IllustrationProvider` calls are wrapped as jobs with structured inputs/outputs pinned by `idempotencyKey` so retries never submit duplicate generations (bill-protection) and never reuse a half-written page.
+
+**Fail closed vs graceful degradation (GENERATION_ARCHITECTURE §10).** Every long-running capability is classified at definition into one of the two modes, and the mode is code, not vibes:
+
+- **Fail closed** (the path stops/blocked): invalid structured model output (schema failure), authorization uncertainty, missing approved revision, corrupt print asset, mandatory QA unavailable (`UNKNOWN`, never silent PASS — F-015), unsafe/invalid print geometry (D016 non-overridable), moderation `HARD_BLOCK` (F-015 catalogue), page/bible version incoherence (F-013 §7).
+- **Graceful degradation** (proceed without): nonessential recommendation unavailable, analytics unavailable, optional enrichment unavailable. Degraded paths never gate approval or order.
+
+Retry budgets (`maxAttempts`) are code-configured constants per step kind — **never a model output field**. A model output may carry cost/status metadata; it cannot change how many retries occur, whether a page is `READY`, or whether the book may be approved.
+
+The structured-contract treatment of model output (F-008 §10 / F-009 / F-015 × GENERATION_ARCHITECTURE §3) means an invalid model result is a **typed step failure** that fails closed — it is retried under the job policy, never coerced into a best-effort "good enough" artifact.
 
 ## 11. QA
 
@@ -96,10 +105,12 @@ Each is a stored Given/When/Then, implemented as an integration test:
 7. **Failed image regeneration:** Given an illustration step keeps failing (provider outage), when backoff completes and the provider recovers, then the page regenerates in place without regenerating siblings.
 8. **Order references approved revision:** Given a paid order, when any code path runs, then it references the immutable hashed revision — no generated content can silently replace it.
 9. **Mobile checkout interruption:** Given a phone call interrupts checkout, when the app reopens, then the cart and order resume via idempotency key — no duplicate charge when the user confirms again.
+10. **Invalid structured model output:** Given a `StoryProvider`/`IllustrationProvider` result that fails schema validation, when the step runs, then the step fails closed (`typed` FAILED), retries honour the job policy, and no coerced "good enough" artifact is written (GENERATION_ARCHITECTURE §3/§10).
+11. **Graceful degradation:** Given optional enrichment unavailable, when generation proceeds, then the happy path completes with the item absent and no gate (approval/order) is affected; a parallel scenario asserts a fail-closed capability (e.g. mandatory QA) in the same situation *does* block.
 
 ## 15. Dependencies
 
-Provides the principles F-010 implements (job entity + durable progress UI — the durable-job pair). Consumed by F-016 (approval lock), F-018/19 (payment/webhooks), F-022 (reorder idempotency), F-025 (cascade/retention jobs), F-027 (observability of retries/dead letters).
+Implements into F-010 (job entity + progress UI — these two are the durable-job pair, F-010 implementing F-028's patterns). Consumed by F-016 (approval lock), F-018/19 (payment/webhooks), F-022 (reorder idempotency), F-025 (cascade/retention jobs), F-027 (observability of retries/dead letters). Fail-closed vs graceful-degradation classification feeds `product/GENERATION_ARCHITECTURE.md` §10 and the approval/order gates (F-016/F-018).
 
 ## 16. Priority
 

@@ -22,7 +22,7 @@ Competitors paste multiple faces into pictures; we let a relationship tell a sto
 
 None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
 
-Proposed subsystems extended: `BookService` (cast assembly), `CharacterBible` (one identity per person), `GenerationJob` (per-page, per-person identity), provider interfaces `IdentityReferenceModel` (sibling-swap QA), `StoryModel` (relationship-aware narrative), `QualityModel` (count/presence checks).
+Proposed subsystems extended: `BookService` (cast assembly), `CharacterBible` (one identity per person), `GenerationJob` (per-page, per-person identity), provider interfaces `IdentityProvider` (sibling-swap QA), `StoryProvider` (relationship-aware narrative), `QualityProvider` (count/presence checks).
 
 ## 4. Problems with current implementation
 
@@ -68,9 +68,9 @@ Commands: `addPersonToBook(bookId, profileId, role)`, `removePersonFromBook(book
 
 ## 10. AI behaviour
 
-- `StoryModel`: gets typed relationships + per-person facts; a structured cast manifest is mandatory context; a prompt referencing an absent role is rejected (structured output + validation, spec §6 "preserve and validate facts").
-- `IllustrationModel`: receives each featured person's identity reference; decorative elements must not imply extra children (QA counts faces vs cast).
-- `IdentityReferenceModel`: pairwise comparison per person; outputs per-person swap/count verdicts for `QualityModel`.
+- `StoryProvider`: gets typed relationships + per-person facts; a structured cast manifest is mandatory context; a prompt referencing an absent role is rejected (structured output + validation, spec §6 "preserve and validate facts").
+- `IllustrationProvider`: receives each featured person's identity reference; decorative elements must not imply extra children (QA counts faces vs cast).
+- `IdentityProvider`: pairwise comparison per person; outputs per-person swap/count verdicts for `QualityProvider`.
 - Facts stay immutable (spec §6, §25); adding a person never mutates an existing profile.
 
 ## 11. QA

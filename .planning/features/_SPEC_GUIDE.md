@@ -141,7 +141,7 @@ Determinism: "deterministic generation outcome" means the same inputs produce th
 | Book editor | **OpenPolotno `@reyka/openpolotno` is a CANDIDATE IMPLEMENTATION — pending spike (D007):** low-level editing engine, wrapped behind our own editor boundary with a **custom simple UI**. Never expose generic Canva UX. Decide direct dep vs pinned version vs small fork after the spread spike. Editor JSON is a derived snapshot, never canonical. |
 | IMG.LY Photobook Starter | UX/architecture reference only: page navigation, thumbnails, asset management, selection model, provider separation. Not adopted by default (D008). |
 | Postiz | Architecture inspiration only (jobs, retries, observability). REJECTED as foundation (D009). |
-| Providers | Abstract as interfaces where switching is realistically useful: `StoryModel · IllustrationModel · IdentityReferenceModel · QualityModel · ModerationProvider`. No abstraction for its own sake. Never expose model/prompt/seeds to users (D002). |
+| Providers | Abstract as interfaces where switching is realistically useful: `StoryProvider · IllustrationProvider · IdentityProvider · QualityProvider · ModerationProvider`. No abstraction for its own sake. Never expose model/prompt/seeds to users (D002). |
 | Long jobs | A **durable execution substrate** with explicit job states (F-010/F-028/D019); candidate classes — PostgreSQL-backed, Redis-backed (BullMQ-class), a workflow engine only if the spike shows its guarantees are needed — are selected after the D014 spike; outbox/reconciliation required for a Redis-backed class; worker restart must not lose book state (D010). |
 
 ---

@@ -63,8 +63,8 @@ Greenfield foundation with an explicit **domain-separation** structure:
         v                        v               | v
 +------------+   +--------------+   +-----------+   +-----------------+
 | Postgres   |   | Object store |   | Queue /   |   | Provider layer   |
-| (canonical |   | (photos,     |   | workers   |   | StoryModel ·     |
-| book,      |   |  illus,      |   | (durable  |   | IllustrationModel·|
+| (canonical |   | (photos,     |   | workers   |   | StoryProvider ·     |
+| book,      |   |  illus,      |   | (durable  |   | IllustrationProvider·|
 | profiles,  |   |  artifacts)  |   | substr.)  |   | Identity · QA ·  |
 | orders)    |   +--------------+   +-----------+   | Moderation ·     |
 |            |                                     | PrintProvider ·   |
@@ -114,7 +114,7 @@ Book
 │   ├── illustrations[] (asset refs + placement + plan)
 │   ├── decorativeElements[]
 │   ├── layout          (canonical layout descriptor, page vs spread)
-│   └── generationMetadata (provider, params, qa results, revision)
+│   └── generationMetadata (provider, params, qa results, revision, GenerationProvenance)
 ├── revisions[]         (immutable snapshots; one = ApprovedBookRevision)
 ├── printSpec           (format, trim, bleed, safe areas, colour profile, binding, pages)
 ├── approval            (approver, timestamp, approvedRevisionId, lock)
@@ -142,7 +142,7 @@ CharacterBible
 ```
 
 - **Propagation (F-013):** a global change bumps the Bible version → computes affected pages → marks them `REVISION_REQUIRED` → user approves scope → regeneration → QA → new revision.
-- **Honesty rule (F-009/F-015):** we do not promise perfect identity; we promise **measured, repairable identity**. `QualityModel` scores likeness/consistency against calibrated thresholds; failures surface to the parent as repairable intents; sibling-swap and wrong-child-count are explicit checks (F-015).
+- **Honesty rule (F-009/F-015):** we do not promise perfect identity; we promise **measured, repairable identity**. `QualityProvider` scores likeness/consistency against calibrated thresholds; failures surface to the parent as repairable intents; sibling-swap and wrong-child-count are explicit checks (F-015).
 
 ## 9. Editor architecture
 
@@ -161,19 +161,30 @@ CharacterBible
 
 ## 11. Generation workflow
 
-State machine per book + per step, driven by durable jobs (F-010, F-028) on the **durable execution substrate** (D019). Candidate classes: a **PostgreSQL-backed** queue and a **Redis-backed** queue (BullMQ-class); the first is the simplest durable option, and the choice is made after the D014 spike (candidates stay candidates until then — never defaults). A full workflow engine is considered only if the spike shows its guarantees are actually needed. Wording stays neutral until then.
+**Structured, stage-based, independently evaluated generation is an accepted architectural invariant (D018).** The generation engine is decomposed into explicit stages with typed, schema-validated contracts and immutable provenance; control flow and invariants live in application code, never in a model (details: `product/GENERATION_ARCHITECTURE.md`, `product/GENERATION_PROVENANCE.md`).
+
+User-visible state machine per book + per step, driven by durable jobs (F-010, F-028) on the **durable execution substrate** (D019). Candidate classes: a **PostgreSQL-backed** queue and a **Redis-backed** queue (BullMQ-class); the first is the simplest durable option, and the choice is made after the D014 spike (candidates stay candidates until then — never defaults). A full workflow engine is considered only if the spike shows its guarantees are actually needed. Wording stays neutral until then.
 
 ```text
 CreateBook → validate inputs → validate photos → build/update Character Bible
-→ concepts (StoryModel) → select → outline → validate outline
+→ concepts (StoryProvider) → select → outline → validate outline
 → page text (per-page idempotent, pageKey) → illustration plans → illustrations
-→ identity QA → story QA → assemble book → layout/print QA → READY_FOR_REVIEW
+→ quality evaluation → assemble book → layout/print QA → READY_FOR_REVIEW
+     │                                              │
+     └─ fail closed (D018/F-028 §10): invalid structured model output, auth
+        uncertainty, missing approved revision, corrupt print asset, mandatory
+        QA unavailable, unsafe print geometry — each a typed step failure, retried
+        under the job policy, never coerced to "good enough".
      (any step can fail independently → page-level retry; book-level resume)
 ```
 
+- Stages and their owning feature specs are mapped in GENERATION_ARCHITECTURE §2; canonical stage entry points (new book, page rewrite, illustration regen, global character correction, re-run QA) re-enter the affected stage only — earlier `READY` stages never re-run (§8).
+- Provider boundaries are the generic interfaces `StoryProvider` · `IllustrationProvider` · `IdentityProvider` · `QualityProvider` · `ModerationProvider` (renamed from the earlier `XxxModel` interface names to match D018's provider vocabulary); canonical contracts (`StoryOutlineResult`, `PageTextResult`, `IllustrationPlan`/`IllustrationResult`, `QualityEvaluationRequest/Result`) are runtime-schema-validated with `schemaVersion` recorded.
 - Events: `BOOK_CREATED → CHARACTER_CREATED → CONCEPT_SELECTED → STORY_GENERATION_STARTED → STORY_GENERATED → ILLUSTRATION_GENERATION_STARTED → PAGE_RENDERED → QA_COMPLETED → BOOK_READY_FOR_REVIEW → PAGE_REVISION_CREATED → BOOK_APPROVED → PRINT_ARTIFACT_CREATED → ORDER_CREATED → FULFILMENT_SUBMITTED`.
 - Idempotency keys on every step; retries with backoff; heartbeats/leases so worker crash ≠ lost state; one-page failure isolated (D010).
+- **Provenance:** every artifact/revision carries an immutable `GenerationProvenance` (`policySetVersion` + content `policyHash` over the versioned `/policies` set, provider/model version, `characterVersion`, `storyRevision`, `jobId`, `attempt`); invalid output never becomes canonical state; approval gates fail closed on missing/`UNKNOWN` provenance.
 - Cost-aware: each image attempt and regeneration logs to the cost ledger (F-027).
+- Typography is deterministic rendering (D016/F-017) — the model never owns book text placement, fonts, line breaks or print export.
 - Progress UX = emotional labels mapped from real step states (F-010).
 
 ## 12. Storage architecture

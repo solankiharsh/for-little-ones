@@ -75,7 +75,7 @@ Reorder submits a `PrintProvider` fulfilment job for the pinned revision (idempo
 
 - Reorder: none. Zero model calls; content hash proves reversibility.
 - Duplicate: none (deterministic copy).
-- Sequel: `StoryModel` generates concepts + outline with existing Character Bible identities injected (not re-created — same `IdentityReferenceModel` handles); illustration generation (F-009) reuses stored identity refs so the child stays recognisable (spec §10). Validation: parent facts remain immutable (spec §6, §25).
+- Sequel: `StoryProvider` generates concepts + outline with existing Character Bible identities injected (not re-created — same `IdentityProvider` handles); illustration generation (F-009) reuses stored identity refs so the child stays recognisable (spec §10). Validation: parent facts remain immutable (spec §6, §25).
 
 ## 11. QA
 

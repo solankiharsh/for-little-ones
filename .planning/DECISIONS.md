@@ -274,7 +274,7 @@ Today's architecture + feature-specification work produced:
 2. OpenPolotno consumption (direct dep vs pinned vs fork) incl. spread support — feeds F-014.
 3. Medusa edition (self-hosted vs headless-cloud) + tax routing — feeds F-018.
 4. Print partner + PDF standard (PDF/X-1a vs PDF 1.7+embedded fonts) — feeds F-017/F-019.
-5. QualityModel identity-threshold calibration method + launch calibration run — feeds F-009/F-015.
+5. QualityProvider identity-threshold calibration method + launch calibration run — feeds F-009/F-015.
 
 ---
 
@@ -333,6 +333,29 @@ Direct-to-storage (browser → signed private object storage) vs API-relay (brow
 
 ---
 
+## D018 — Structured, Stage-Based, Independently Evaluated Generation Is an Accepted Architectural Invariant (2026-09-21)
+
+**Status:** Accepted
+
+Generation is decomposed into explicit stages with typed contracts; control flow and invariants live in application code, not models; generated output is independently evaluated before it is production-ready; every artifact is traceable to the exact policy/model/config versions that produced it.
+
+Stated natively for this product:
+
+- **Code owns control flow and invariants.** Models perform bounded judgement/generation tasks. Models never decide approval, order, permission, page-count, retention, print-geometry, retry-budget or payment state (owned by F-016/F-018/F-001/F-017–D016/F-025/F-028–F-009/F-018 respectively).
+- **Typed contracts at every structured stage.** Canonical contract set per `product/GENERATION_ARCHITECTURE.md` §3 (Concept, StoryOutline, PagePlan, PageText, IllustrationPlan, IllustrationResult, QualityEvaluation). Runtime schema validation; schema version recorded; provider-specific types stay in adapters.
+- **Independent quality evaluation.** Generation and acceptance are separate responsibilities (`IllustrationProvider` → asset → `QualityProvider` → structured findings). A quality evaluator never mutates canonical facts.
+- **Provenance.** Immutable `GenerationProvenance` per artifact/revision (`product/GENERATION_PROVENANCE.md`); version/hash the policy set used (`/policies`).
+- **Provider boundaries.** Generic interfaces `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider`; each documents payload, child-data use, retention/terms, idempotency, timeout, retry semantics, cost metadata, deletion capability.
+
+Consequences:
+
+- The pipeline in `_SPEC_GUIDE.md` §5 is the execution model; stage ownership is mapped in `GENERATION_ARCHITECTURE.md` §2.
+- Fail-closed vs graceful degradation is explicit (F-028 §9): invalid structured output, auth uncertainty, missing approved revision, corrupt print asset, mandatory-QA unavailable, unsafe geometry all fail closed.
+- Provider/model choices remain **replaceable implementation decisions**; a stage never couples canonical state to a vendor.
+- Any future deviation (collapsing stages, merging generation into acceptance, moving control flow into a model) requires a new decision entry + RESEARCH_LOG note first.
+
+---
+
 ## D019 — DurableExecutionContract Is a Foundational, Feature-Free Contract (2026-09-21)
 
 **Status:** Accepted as baseline
@@ -358,3 +381,5 @@ Consequences:
 - F-010 implements the contract's runtime and depends on the `GenerationStep` units F-008/F-009 expose.
 - F-028 provides the durability principles (lease, retry, idempotency, outbox, dead-letter) the contract encodes; F-028 has no feature dependency, and no feature may list F-028 as a dependency merely to use its rules.
 - Substrate wording stays neutral — "durable execution substrate" — until the D014 spike; candidate classes (PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed) remain candidates, never defaults. (2026-09-21 consistency pass: D014 #1 reworded accordingly.)
+
+---

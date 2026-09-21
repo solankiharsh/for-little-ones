@@ -64,6 +64,9 @@ Book.pages[]:
   page.state: PENDING|GENERATING|READY|FAILED|REVISION_REQUIRED (guide §4 per-page)
   page.generationMetadata.characterBibleVersion: 1 → 2 (affected) | 1 (untouched)
   page.illustrations[]: { assetRef (new, replacing old), generatedFromBibleVersion: 2 }
+  page.illustrations[].provenance: new GenerationProvenance (characterVersion: 2,
+                           storyRevision unchanged) — untouched pages keep their records
+                           (GENERATION_PROVENANCE §5: provenance is immutable per artifact)
 Story (outline + per-page textBlocks): UNCHANGED byte-identical
 Revision: new draft revision (v+1) linked to bible v2; prior revision preserved
            for rollback and for D011 approval/order reference
@@ -90,7 +93,7 @@ Proposed boundary (proposed shared subsystem `BookService`; reminder: proposed n
 
 **Job: PageReIllustration** (one per affected page; the F-013 shape of `GenerationJob`):
 - Inputs: bible snapshot (version = target), `identityRepresentation`, confirmed `appearance`, `bookOverrides.outfitForBook`, the page's scene/narrative context, prior illustration for reference continuity.
-- Outputs: new illustration asset(s) for the page; `generationMetadata` bumped to target version.
+- Outputs: new illustration asset(s) for the page; `generationMetadata` bumped to target version. **Re-entry:** the job re-enters the illustration stage only (GENERATION_ARCHITECTURE §8 "global character correction") — page text, outline and earlier stages never re-run; each output page carries a fresh immutable `GenerationProvenance` with `characterVersion = 2` (§7 above).
 - Retry: 3× with backoff per page (isolated); resumable; timeout e.g. 180s/image; failure leaves page `FAILED` (retry-able in UI, D010 — never whole-book restart).
 - Cancellation: removing the apply request before any page completes cancels remaining pages; completed pages stay (diff rollback available).
 
@@ -98,7 +101,7 @@ Proposed boundary (proposed shared subsystem `BookService`; reminder: proposed n
 
 ## 10. AI behaviour
 
-- **IllustrationModel** only. No `StoryModel` call: story text is byte-identical (spec §25, §9 scope).
+- **IllustrationProvider** only. No `StoryProvider` call: story text is byte-identical (spec §25, §9 scope).
 - Inputs per page: bible snapshot (reference photos + `identityRepresentation` + confirmed appearance + style) and the existing page narrative/context. Face-fix emphasises `identityRepresentation` matching; hair/clothes-fix pass `appearance` as the dominant control; reference-replacement regenerates identity first (`IdentityDerivation`, F-005 §9) before any page runs.
 - Loose coupling (D004): provider models receive compiled context, never free-form prompt text from the parent (D002). A provider change only affects `identityRepresentation` rederivation, not the correction flow.
 - Where sibling characters (F-023) share a page, the job passes per-character representation explicitly, so one fix to Ava never alters Leo (spec §10 identity swap guard).
@@ -117,7 +120,7 @@ Runs after each successful poly-phase apply (spec §10 catalogue):
 
 - New illustration assets are again PII-derived likenesses (guide §7) — stored privately, not logged, not publicly served.
 - Reference-replacement and delete-now (F-025) must remove the old likeness bytes and bible snapshots per F-025 retention after rollback windows; versioned snapshots are subject to the same retention as the profile.
-- The correction path passes images to the documented `IllustrationModel`/`IdentityReferenceModel` providers only (F-025 audit); provider logs never receive child names or facts.
+- The correction path passes images to the documented `IllustrationProvider`/`IdentityProvider` providers only (F-025 audit); provider logs never receive child names or facts.
 - `RollbackCharacterCorrection` and delete-now must race-lock (an in-flight regen job for that bible version is cancelled or orphaned-harmlessly by idempotency token `bookId+pageId+bibleVersion`).
 
 ## 13. Analytics

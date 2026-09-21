@@ -6,7 +6,7 @@
 
 ## Summary
 
-After discovery (F-002) and personalisation (F-003/F-006), the parent is shown **three story concepts** — title, short pitch, emotional goal, theme, reading level, approximate length — and picks one, asks for a different set, or lightly edits one (spec §7 "The customer chooses one and can optionally modify it"). This is the **first `StoryModel` (text-generation) call** in the pipeline: it must return strict structured JSON that is validated, moderated, and bounded for cost before the Book moves on to story generation (F-008).
+After discovery (F-002) and personalisation (F-003/F-006), the parent is shown **three story concepts** — title, short pitch, emotional goal, theme, reading level, approximate length — and picks one, asks for a different set, or lightly edits one (spec §7 "The customer chooses one and can optionally modify it"). This is the **first `StoryProvider` (text-generation) call** in the pipeline: it must return strict structured JSON that is validated, moderated, and bounded for cost before the Book moves on to story generation (F-008).
 
 ## 1. Goal
 
@@ -87,7 +87,7 @@ Book (extension)
   selectedConceptId         // commit point for F-008
 ```
 
-Structured model output contract (schema for the `StoryModel` call — validated, never trusted):
+Structured model output contract (schema for the `StoryProvider` call — validated, never trusted):
 
 ```jsonc
 {
@@ -111,7 +111,7 @@ Rules: exactly 3 concepts; `title`/`pitch` required non-empty; `readingLevel` de
 
 Command/query boundary via `BookService` + `BookRepository`; generation orchestrated by `GenerationJob` (F-010).
 
-- `POST /books/{id}/concepts` → body `{ regeneratedVersion? }` → creates a concept bundle (idempotent: reuse when one exists and is `PROPOSED`, unless explicit `regenerate`), enqueues the `StoryModel` call, returns the bundle when ready/queued.
+- `POST /books/{id}/concepts` → body `{ regeneratedVersion? }` → creates a concept bundle (idempotent: reuse when one exists and is `PROPOSED`, unless explicit `regenerate`), enqueues the `StoryProvider` call, returns the bundle when ready/queued.
 - `POST /books/{id}/concepts/{conceptId}/select` → sets `Book.selectedConceptId`, transitions Book.state to `CONCEPT_SELECTED`; idempotent re-select returns same result; only one concept can be SELECTED per book.
 - `PATCH /books/{id}/concepts/{conceptId}` body `{ title?, pitch? }` → light per-card edit; sets `source=edited`; re-runs moderation gate; rejects (422 with message) if edited copy fails moderation.
 - `POST /books/{id}/concepts/regenerate` → produces a *new bundle* (new ids, `conceptVersion+1`); old bundle `DISCARDED`; counted against the per-book budget (default 3; configurable per plan).
@@ -129,11 +129,11 @@ A single `GenerationJob` of kind `CONCEPT_BUNDLE` (F-010 step `GENERATE_CONCEPTS
 
 ## 10. AI behaviour
 
-Provider interface: **`StoryModel`** — method `generateConcepts(context): StoryConcept[]` (proposed signature; the interface lives behind the provider adapter boundary, D004).
+Provider interface: **`StoryProvider`** — method `generateConcepts(context): StoryConcept[]` (proposed signature; the interface lives behind the provider adapter boundary, D004).
 
 - Required context fields: `themeSeed` (from F-002, structured), child `displayName` + age band, pronouns, favourite things (top 3), relationships (names + relationship type), pet, `locale`, `readingLevel` band, requested `emotionalGoal` hints if the parent set one in F-006.
 - **Immutable facts** (spec §11): name, pronoun, family/pet names, locale, structured interests — injected verbatim as keyed fields; the model must not be allowed to restate them as free prose (they are validated after, §11). Never passes photos (privacy §12).
-- Output: JSON matching the §7 schema; the `StoryModel` impl is wrapped by a **schema validator** that strips unknown fields and rejects on missing `title`/`pitch` (degrading to retry, then fallback).
+- Output: JSON matching the §7 schema; the `StoryProvider` impl is wrapped by a **schema validator** that strips unknown fields and rejects on missing `title`/`pitch` (degrading to retry, then fallback).
 - Post-checks: uniqueness of titles, profanity gate via **`ModerationProvider`** on title+pitch, age-band sanity on `readingLevel`. Any failed concept is regenerated from a narrowed retry (or the whole bundle retried once).
 - Fallback: **catalogue-authored fallback concepts** stored on the theme (3 per theme, written by humans at content time, F-026) — served when the model path fails twice, keeping the journey alive.
 - Cost: budget the model call ~3 concepts in one request (≤ ~600 output tokens); bound regeneration via the per-book budget in §8. Track spend per concept bundle (feeds F-027).
@@ -144,7 +144,7 @@ Auto-checks at this step (feeds the QA catalogue): identity/name mismatch (conce
 
 ## 12. Privacy/security
 
-No photos, no address, no payment, no full profile — only the minimal facts named in §10 are assembled for the provider call and logged as a field-name list, never the values (applies §7 trace: facts → `StoryModel` provider → output → retention). Concept rows are retained with the Book for revision history, are not public, and are covered by the profile deletion contract (§18 of spec, F-025). Provider receives only what the canonical profile exports; no raw photo bytes.
+No photos, no address, no payment, no full profile — only the minimal facts named in §10 are assembled for the provider call and logged as a field-name list, never the values (applies §7 trace: facts → `StoryProvider` provider → output → retention). Concept rows are retained with the Book for revision history, are not public, and are covered by the profile deletion contract (§18 of spec, F-025). Provider receives only what the canonical profile exports; no raw photo bytes.
 
 ## 13. Analytics
 
@@ -157,13 +157,13 @@ Given/When/Then, testable:
 - **Happy path:** Given Ava's Book with theme+facts set, when `POST …/concepts` completes, then exactly 3 `PROPOSED` StoryConcepts persist, each with non-empty `title`/`pitch`, reading level `4-6`, and `charactersUsed ⊆ relationships`.
 - **Selection idempotent:** Given one concept SELECTED, when the select endpoint is called again, then Book state is unchanged and the response is identical.
 - **Moderation block:** Given an edited pitch that trips `ModerationProvider`, when the parent saves, then 422 with product copy, the pitch is not persisted, and no `concept_edit_applied` fires.
-- **Model failure recovery:** Given the `StoryModel` call fails twice, when the bundle is requested, then fallback concepts render with "starter ideas" copy, Book state remains navigable, and the flowing app never throws.
+- **Model failure recovery:** Given the `StoryProvider` call fails twice, when the bundle is requested, then fallback concepts render with "starter ideas" copy, Book state remains navigable, and the flowing app never throws.
 - **Regeneration isolation:** Given a regenerate call, when the new bundle persists, then the old bundle is `DISCARDED`, `conceptVersion` increments, and F-008 consumes only the new `selectedConceptId`.
 - **Fact immutability:** Given the profile says "Bruno — dog", when any pitch is generated, then the pitch never types Bruno as a cat (validated at QA, §11).
 
 ## 15. Dependencies
 
-- **Required first:** F-002 (theme + `conceptSeed`), F-003 (profile base), F-006 (facts), F-010 (durable execution substrate runtime), `StoryModel` provider interface agreed (architecture v2).
+- **Required first:** F-002 (theme + `conceptSeed`), F-003 (profile base), F-006 (facts), F-010 (durable execution substrate runtime), `StoryProvider` provider interface agreed (architecture v2).
 - **Consumed by:** F-008 (outline/page text) takes `selectedConceptId` as its narrative contract; F-011 preview and F-012 corrections build on the chosen concept later.
 - **Parallel-safe:** F-004/F-005 (photos/bible) run in parallel — concepts deliberately exclude photos.
 

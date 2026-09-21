@@ -25,7 +25,7 @@ None (Observed). No application code exists anywhere in the workspace.
 See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
 ```
 
-Proposed subsystems: `BookService` (approveBook command), `BookRepository` (revision freeze), `GenerationJob` (all work must settle before approval), `QualityModel` (approval gate, F-015). Print availability/format/cost come from the **shared print catalogue** (`PrintCapability`/`PrintQuote`, D016) — they do NOT come from the renderer (F-017) or its fulfilment adapter (`PrintProvider`, F-019). Approval never depends on the renderer existing.
+Proposed subsystems: `BookService` (approveBook command), `BookRepository` (revision freeze), `GenerationJob` (all work must settle before approval), `QualityProvider` (approval gate, F-015). Print availability/format/cost come from the **shared print catalogue** (`PrintCapability`/`PrintQuote`, D016) — they do NOT come from the renderer (F-017) or its fulfilment adapter (`PrintProvider`, F-019). Approval never depends on the renderer existing.
 
 ## 4. Problems with current implementation
 
