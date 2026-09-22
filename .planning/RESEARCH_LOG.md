@@ -6,6 +6,40 @@ Use newest entries first.
 
 ---
 
+### 2026-09-22 — Spike E (phase 1): Identity generation + visual QA — offline measurement methodology landed (decisions still OPEN)
+
+**Question**
+
+Can we build the *measurement machinery* for Spike E (identity generation + visual QA) before any image provider, API key, reference photo or human reviewer exists — so the real phase is a component swap, not a rebuild? And does that machinery correctly keep D020 items 5 and 6 (identity-generation approach, QA approach) honest about having no evidence yet?
+
+**How it was tested**
+
+- New isolated spike package `spike/identity-qa/` (under the research bubble, per the Spike E spec and PR #4) — fully offline, no Docker/services/network; `npm run typecheck` clean, `npm test` 29/29 passing (`test/{mock-identity-provider, evaluator, human-review, metrics, dataset, experiment}.spec.ts`).
+- Degradation axes from the Spike E spec are all represented (`canonical, pose, lighting, expression, occlusion, distance, composition`; severity 0.25…1.0) and exercised across a deterministic dataset (2 permitted reference identities × 7 pages).
+- Reference conditioning rides the canonical `IdentityProvider` boundary (`packages/providers/src/identity.ts`): `deriveReference(sourceRefs) → { reference, knownFacesCount }` with a **private-enduring-reference**; the mock rejects photo refs that are not local `mock-src::` tokens (the privacy path is structural, not advisory).
+- QA evaluation independent of generation: `SwappableLikenessEvaluator` emits canonical quality-check records (`identity.likeness`, `identity.character-swap`; `HARD_BLOCK`/`REVIEW_REQUIRED`/advisory severities) through `contracts` `summarizeQa`, fail-closed decision = `FAIL` on any hard block.
+- Blinded-review benchmark form (correct-identity 1–5, consistent-with-previous 1–5, visible-artifact, wrong-character-swap) with a **synthetic reviewer whose miss/artifact rates are tunable**, so the agreement metrics can be shown to be sensitive (swap recall drops to 0 with `swapMissRate: 1`).
+- Full `runExperiment()` → report: `status: "OFFLINE_DRY_RUN"`, `decision: "KEEP OPEN"`, `thresholdsInvented: false`, plus observed strengths/failures, operational cost, privacy implications and `realPhaseNeeds`. CLI `npm run experiment` writes `spike/identity-qa/tmp/offline-dry-run.json`.
+
+**Observed (measured 2026-09-22, dry-run)**
+
+- Deterministic end-to-end run: likenessKappa ≈ 0.51 (automated vs synthetic human), swap detection F1 1.0 (1 swap, both raters catch it), artifact agreement accuracy 1.0, mean predicted likeness ≈ 0.73, mean human identity-correct ≈ 3.2. **These are a plumbing ceiling** — every likeness value is the mock's own internal parameter.
+- Metric sensitivity verified by tests: noise-free run → likenessKappa ≥ 0.8; `swapMissRate: 1` → swap recall 0 vs perfect recall on the clean run; Cohens kappa and binary metrics have hand-checked unit cases (kappa = 1 perfect, −0.25 for independent uniform ratings).
+- No cost/latency/privacy numbers can exist yet: `operationalCostCents: 0`, latency 0, `assetRef`s are `mock://…`, no real assets, no real reviewers.
+
+**Conclusion / status**
+
+- **Methodology landed** behind the canonical quality vocabulary and the `IdentityProvider` seam; the real phase is a two-component swap (real provider behind `deriveReference`/`generatePage`, real independent visual evaluator behind `SwappableLikenessEvaluator`, real blinded reviewers behind the same review form) and a report recompute.
+- **No evidence about real identity-generation or real independent-detection reliability exists.** D020 items 5 and 6 stay **explicitly OPEN**; F-009/F-015 thresholds must NOT be calibrated from these numbers (any such threshold would be invented, not measured).
+
+**Follow-up**
+
+- Phase 2 (real): authorised image-provider key + permitted reference images (documented consent; no child data) through the same boundary; record cost/latency and the documented privacy path (GENERATION_ARCHITECTURE §12 / F-025).
+- Phase 3 (real): blinded human review of real pages; recompute likenessKappa / swap F1; calibrate launch thresholds only from phase-3 evidence.
+- Remaining Spike E sub-questions already scoped out: automated consistency-with-previous evaluation, artifact/occlusion visual QA details.
+
+---
+
 ### 2026-09-22 — Spike A: Durable Execution Substrate — Measured (pg-boss vs BullMQ)
 
 **Question**
