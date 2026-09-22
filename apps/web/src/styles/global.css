@@ -739,6 +739,8 @@ span.flo-block-caption {
 .flo-process-finished { z-index: 4; right: 0; bottom: 13px; width: min(195px, 35%); height: 237px; align-items: flex-start; padding: 29px 20px; border-radius: 5px 15px 15px 5px; color: #fff1d5; background: radial-gradient(circle at 70% 28%, #ffe3a9 0 9%, #f1ae58 10% 15%, transparent 16%), linear-gradient(145deg, #ce7431, #7f3515); font: 400 28px/.92 var(--font-family-heading); letter-spacing: -.04em; }
 .flo-process-finished::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 14px; border-radius: 5px 0 0 5px; background: linear-gradient(90deg, rgb(41 15 3 / .55), transparent); }.flo-process-finished i { position: absolute; right: 24px; bottom: 30px; width: 29px; height: 29px; border-radius: 50%; background: #ffe6ae; box-shadow: 0 0 19px 6px rgb(255 221 155 / .35); }.flo-process-spark { position: absolute; z-index: 5; color: #fff1c5; font-size: 26px; }.flo-process-spark-one { top: 14px; left: 48%; }
 
+.flo-worlds { padding-block: clamp(74px, 10vw, 132px); background: var(--flo-surface); }.flo-worlds-inner { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }.flo-worlds-head { display: flex; align-items: end; justify-content: space-between; gap: 48px; }.flo-worlds h2 { max-width: 12ch; margin: 0; font: 400 clamp(40px, 4.8vw, 65px)/.96 var(--font-family-heading); letter-spacing: -.05em; }.flo-worlds-head > p { max-width: 39ch; margin: 0 0 4px; color: var(--flo-ink-soft); font-size: 14px; line-height: 1.75; }.flo-world-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 50px; }.flo-world { position: relative; min-height: 370px; overflow: hidden; display: flex; flex-direction: column; justify-content: end; padding: 28px; border-radius: 11px; color: #fff7e8; box-shadow: 0 16px 27px -19px rgb(74 47 22 / .65); transition: transform 240ms ease, box-shadow 240ms ease; }.flo-world:hover { transform: translateY(-7px) rotate(-.5deg); box-shadow: 0 24px 33px -19px rgb(74 47 22 / .7); }.flo-world::before { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgb(19 14 13 / .81), rgb(19 14 13 / 0) 64%); }.flo-world > * { position: relative; z-index: 1; }.flo-world-kicker { margin-bottom: auto; color: #fff0c8; font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }.flo-world h3 { max-width: 9ch; margin: 0; font: 400 35px/.96 var(--font-family-heading); letter-spacing: -.045em; }.flo-world p { max-width: 30ch; margin: 14px 0 0; color: rgb(255 247 232 / .8); font-size: 12px; line-height: 1.65; }.flo-world-night { background: radial-gradient(circle at 66% 27%, #fff0b8 0 8%, #f7c66c 9% 15%, transparent 16%), radial-gradient(ellipse at 30% 82%, #7f4e79 0 17%, transparent 18%), linear-gradient(145deg, #11152d, #362049 63%, #8d4a52); }.flo-world-garden { background: radial-gradient(circle at 68% 24%, #ffe5a1 0 5%, transparent 6%), radial-gradient(ellipse at 30% 56%, #f9bc5a 0 10%, transparent 11%), linear-gradient(145deg, #23534a, #5f8651 56%, #d38145); }.flo-world-sea { background: radial-gradient(circle at 65% 25%, #fff1bf 0 8%, transparent 9%), radial-gradient(ellipse at 72% 66%, #d37752 0 13%, transparent 14%), linear-gradient(145deg, #245b73, #478ca1 49%, #e4aa73); }.flo-world-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 37px; }
+
 .flo-reader-wrap { padding-block: clamp(75px, 10vw, 130px); color: #f8eedb; background: #211810; }
 .flo-reader-wrap .flo-kicker { color: #e8ad67; }
 .flo-reader-title { color: #fff6e7; }
@@ -825,7 +827,8 @@ span.flo-block-caption {
   .flo-reader .flo-spread { overflow: hidden; }
   .flo-reader .flo-page-num { display: none; }
   .flo-process-inner,
-  .flo-stories-inner { width: min(100% - 36px, 1180px); }
+  .flo-stories-inner,
+  .flo-worlds-inner { width: min(100% - 36px, 1180px); }
   .flo-process-inner,
   .flo-stories-inner { grid-template-columns: 1fr; }
   .flo-process-film { min-height: 290px; }
@@ -833,6 +836,7 @@ span.flo-block-caption {
   .flo-process-page { left: 31%; }
   .flo-memory-grid { grid-template-columns: 1fr; }
   .flo-memory { min-height: 235px; }
+  .flo-worlds-head { display: grid; gap: 22px; }.flo-world-grid { grid-template-columns: 1fr; margin-top: 36px; }.flo-world { min-height: 290px; }
   .flo-about-facts { grid-template-columns: repeat(2, 1fr); }
   .flo-fact:nth-child(2) { border-right: 0; }
   .flo-fact:nth-child(n + 3) { padding-top: 22px; border-top: 1px solid var(--flo-line); }
