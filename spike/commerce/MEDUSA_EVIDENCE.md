@@ -70,3 +70,47 @@ conclusion, not yet verified). Sources are the URL fragments; full URLs in `docs
 2. Multi-region tax/payment/shipping beyond one country, or a marketplace/3rd-party sellers.
 3. Existing fulfilment/inventory provider network we must plug into that offers a Medusa integration.
 4. Team no longer wants to own a payment-provider adapter + idempotent webhook layer (the self-build core).
+
+---
+
+## 2026-09-22 re-verification (D006 re-opening — appended; original digest above unchanged)
+
+D006 was re-opened because the product constraint changed (operational complexity now accepted
+in exchange for mature commerce primitives), not because the original findings were wrong.
+Re-verified against current official sources on 2026-09-22:
+
+- **Documented:** current stable is **v2.21.0** (`@medusajs/medusa` npm `latest`; docs `/learn/update`
+  "Medusa's current version is v2.21"). All `@medusajs/*` still version together; minors can carry
+  breaking changes; `medusa db:migrate` / `db:rollback`. Original update-process claims hold.
+- **Documented:** **MIT license** (`LICENSE` on `medusajs/medusa` master). No licensing blocker for
+  the components we use. Medusa Cloud remains a separate commercial service — we self-host.
+- **Documented:** self-host footprint unchanged: Postgres + Redis (sessions required; event/cache/
+  workflow/locking modules in production) + `workerMode: server|worker`; ≥2 GB RAM; Node
+  v20.19+/v22.12+ (`/learn/deployment/general`, `/learn/production/worker-mode`).
+- **Documented:** first-party Stripe provider ships in core (`@medusajs/medusa/payment-stripe`:
+  `apiKey`, `webhookSecret`, `capture`, `automatic_payment_methods`); inbound webhooks at
+  `{server_url}/hooks/payment/{identifier}_{id}` (e.g. `/hooks/payment/stripe_stripe`).
+- **Documented:** regions (currency+countries+settings per region), tax regions/rates/rules with
+  pluggable providers, promotions (rules/campaigns/budgets), fulfilment (providers+shipping options),
+  orders (returns/exchanges/claims/refunds) are all first-class modules — heading-level claims above
+  re-confirmed at module-page depth.
+- **Documented:** personalisation recipe = line-item `metadata` for pointer data; custom module +
+  module link for richer data; `completeCartWorkflow` `orderCreated` hook — matches our opaque-
+  reference boundary.
+- **Documented:** events → in-process subscribers (`src/subscribers`) over Local (dev) / Redis
+  (production) Event Module; `order.placed`, `payment.captured`, `order.fulfillment_created`,
+  `shipment.created` emitted.
+- **Citation correction (conclusion unchanged):** the `/cloud/webhooks/reference` source cited above
+  for "no OSS outbound webhooks" is the Cloud *platform* webhooks page (build/deploy events), not
+  commerce outbound delivery. There is still **no documented outbound-webhook delivery for
+  self-hosted OSS** — commerce integration goes through subscribers; payment webhooks come *in* via
+  `/hooks/payment/*`. Spike conclusion stands; citation fixed here.
+
+**Outcome:** no newly discovered architectural, licensing or blocking issue → **D006 ADOPTED**
+(see `DECISIONS.md` D006 and the `RESEARCH_LOG.md` re-opening entry). Honest gap retained: Medusa
+runtime still not measured (docs-grounded); live `medusa dev` remains optional alongside the
+implementation PR.
+
+## Revisit triggers — status after adoption (2026-09-22)
+All four triggers are now pre-emptively exercised by choice (self-host Medusa now) rather than
+waited for; they no longer gate a re-evaluation — they document what drove the re-opening.

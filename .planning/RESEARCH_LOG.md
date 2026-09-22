@@ -6,6 +6,62 @@ Use newest entries first.
 
 ---
 
+### 2026-09-22 — D006 re-opening: Medusa re-verification — previous defer superseded, Medusa ADOPTED
+
+**Question**
+
+Spike C deferred Medusa primarily on operational-complexity grounds at one-format scale. The product constraint has explicitly changed: we now accept the additional infrastructure in exchange for mature, extensible commerce primitives and to avoid progressively rebuilding cart/order/payment/promotion/tax/shipping/customer/refund functionality ourselves. Does current (2026-09-22) Medusa verification reveal any architectural, licensing or other blocking issue that should prevent adopting Medusa as the commerce foundation?
+
+**Observed (what Spike C actually demonstrated — unchanged, still valid)**
+
+- The headless demo path (`spike/commerce/`, 4/4 tests) proved the cart → payment → order path against the canonical `Book` and the hard invariant: the order payload carries only `approvedBookRevisionId` + `revisionHash` and never any canonical token (child id, character name, story text, asset ref).
+- Duplicate webhook re-delivery is a no-op; capture is single-shot; only `APPROVED` books reach checkout (`DRAFT`/`EDITING` rejected).
+- The self-built core is small and invariant-clean. Nothing in this re-opening disputes any of that.
+
+**Observed (re-verification against current official sources, 2026-09-22)**
+
+- Current stable is **Medusa v2.21.0** (`@medusajs/medusa` npm `latest`; docs "Update Medusa" page: "Medusa's current version is v2.21"). All `@medusajs/*` packages version together; **minor releases can carry breaking changes**; migrations via `npx medusa db:migrate` (rollback via `db:rollback` per module) — spike claim re-confirmed.
+- **License: MIT** (`LICENSE` on `medusajs/medusa` master). No licensing blocker for the components we intend to use. (Medusa Cloud is a separate commercial service — we are self-hosting.)
+- Self-hosted production architecture (docs `/learn/deployment/general`, `/learn/production/worker-mode`): **PostgreSQL required; Redis required** (server sessions; plus Redis caching/event-bus/workflow-engine/locking modules in production) and **two application instances** — `workerMode: server` (API + admin) and `workerMode: worker` (jobs, subscribers); `shared` is dev-default. ≥2 GB RAM recommended; Node v20.19+/v22.12+ (LTS).
+- **Storefront is headless**: Store API + publishable key; the Next.js starter is optional. Our own `apps/web` remains the customer UX — re-confirmed.
+- **Payments:** first-party Stripe provider ships in core (`@medusajs/medusa/payment-stripe`; `apiKey`, `webhookSecret`, `capture`, `automatic_payment_methods` for Apple/Google Pay); inbound provider webhooks at `{server_url}/hooks/payment/{provider_id}` (e.g. `/hooks/payment/stripe_stripe`) with documented event list.
+- **Regions/currencies/tax/promotions/fulfilment/orders** are all first-class commerce modules (Region: currency+countries+settings per region; Tax: tax regions, rates/rules, pluggable tax providers; Promotion: rules, campaigns, budgets; Fulfilment: providers + shipping options; Order: returns/exchanges/claims/refunds).
+- **Personalisation:** documented recipe — line-item `metadata` for pointer data; custom module + module link for richer data; `completeCartWorkflow` `orderCreated` hook to attach data to order line items. This matches the opaque-reference boundary we require.
+- **Events:** in-process subscribers (`src/subscribers`) over the Local (dev) / Redis (production) Event Module; emitted events include `order.placed`, `payment.captured`, `order.fulfillment_created`, `shipment.created`. **No outbound-webhook (third-party delivery) documentation exists for self-hosted OSS** — the spike's "no OSS outbound webhooks" claim still holds; the `docs.medusajs.com/cloud/webhooks/*` pages cover Cloud *platform* events (builds/deployments), not commerce events. (The spike's original citation pointed at those Cloud pages; the conclusion is unchanged but the citation is now corrected below in `MEDUSA_EVIDENCE.md`.)
+- **Custom modules, module links, workflows** (with compensation, hooks, idempotency), scheduled jobs and custom API routes are first-class framework features — the extension surface we need for `CommerceEventAdapter`-style integration exists inside Medusa itself.
+
+**Previous inference (why Medusa was deferred — recorded honestly, not retracted)**
+
+- Spike C's conclusion was a trade-off judgment, not a factual error: a Postgres + Redis + server + worker + admin + storefront footprint with breaking-minor release discipline buys marketplace-grade primitives (multi-region tax engines, inventory, returns/exchanges, promotions) that were unused at one-format scale; the self-built core was already small and invariant-clean; and self-hosted Medusa still requires a custom idempotent job for the book→print handoff (no OSS outbound webhooks). AGENTS.md: "do not migrate purely for architectural neatness" supported the defer.
+
+**New constraint**
+
+- Operational complexity is **accepted**. We prefer a mature, extensible commerce foundation over progressively rebuilding commerce primitives ourselves; engineering effort stays on personalised storytelling, character consistency, corrections, printing quality and the family experience. The revisit triggers in `MEDUSA_EVIDENCE.md` (multi-SKU, multi-region tax, marketplace, not wanting to own the payment adapter) are now pre-emptively exercised by choice, not waited for.
+
+**New decision**
+
+- **No newly discovered architectural, licensing or blocking issue.** MIT licensing, documented self-host path, first-party Stripe provider, mature region/tax/promotion/fulfilment/order modules, metadata + custom-module extension surface, and subscriber-based event integration all hold at v2.21.0.
+- **D006 → ADOPTED: Medusa is the commerce foundation for For Little One**, self-hosted in-repo (`apps/commerce`), behind the hard boundary (Medusa owns commerce state; canonical Book/ApprovedBookRevision/Character/Story/generation/print content stay in the For Little One domain; commerce references personalised content only via opaque immutable identifiers). See `DECISIONS.md` D006 for the full decision text.
+
+**Honest gaps (carried forward, not hidden)**
+
+- The Medusa **runtime was still not measured** (docs/npm-grounded only, as in Spike C). A live `medusa dev` run against local Postgres remains optional-but-recommended alongside the implementation PR; nothing here claims measured performance or operational cost.
+- Stripe 3DS/SCA and real capture flows remain provider-adapter scope (unchanged from Spike C).
+
+**Impact**
+
+- Decision: D006 ADOPTED; D014 item 3 (edition) resolved → self-hosted; D020 commerce bullet superseded.
+- Architecture: hard domain boundary, product/variant mapping, cart invariants, pricing vs print-quote separation, payment/region/promotion/fulfilment/event/admin/storefront posture recorded in `PRODUCT_ARCHITECTURE_V2.md` + F-018/F-019/F-020/F-026.
+- Domain correction: `BookStatus` must not carry commerce/fulfilment states (one approved revision → N orders); book/order/fulfilment lifecycles separated in `packages/domain` + `_SPEC_GUIDE.md` §4 + affected specs.
+- Implementation: next PR `feat: establish Medusa commerce foundation` (scaffold, one product/variant, cart, approved-only opaque line item, sandbox checkout → order, idempotent duplicate events, `packages/commerce` boundary). This PR is architecture + contract definition only.
+
+**Follow-up**
+
+- Spike C invariant tests remain the semantic minimum we require of the Medusa integration; port them onto `packages/commerce` in the implementation PR.
+- Book/Order/Fulfilment state split lands in this PR (code + specs); implementation wiring lands with F-018.
+
+---
+
 ### 2026-09-22 — Spike D (print provider + contract): first provider Mixam, generic PrintSpec, deterministic sample PDF (decisions RESOLVED)
 
 **Question**

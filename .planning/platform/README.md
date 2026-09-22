@@ -10,11 +10,13 @@ Determine which mature primitives should be reused rather than rebuilt.
 
 ### Medusa
 
-Possible role:
+Role:
 
-Commerce foundation.
-
-Evaluate against current implementation.
+Commerce foundation. **ADOPTED — D006 (2026-09-22, re-opened on a constraint change); self-hosted at
+`apps/commerce`.** Verified current: v2.21.0, MIT, Postgres + Redis + server + worker, first-party
+Stripe provider, no OSS outbound webhooks (subscribers + our `CommerceEventAdapter` instead). Hard
+boundary: commerce state only — never the Book model; line items carry opaque approved-revision
+refs (`DECISIONS.md` D006, `spike/commerce/MEDUSA_EVIDENCE.md`).
 
 ---
 

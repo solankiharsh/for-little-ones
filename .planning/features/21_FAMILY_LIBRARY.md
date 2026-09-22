@@ -88,7 +88,7 @@ Book content contains generated likenesses of children → handled like the sour
 
 - **Given** a book with an approved revision and a completed order, **when** purchase completes, **then** exactly one LibraryEntry appears in "Our Stories" with the approved cover.
 - **Given** a delivery webhook is redelivered twice, **when** `createLibraryEntry` runs again, **then** only one entry exists (idempotent on `sourceOrderId`).
-- **Given** a book still `IN_PRODUCTION`, **when** it renders in the library, **then** it shows the status chip and links to F-020, and its reader warns "your printed book is on its way".
+- **Given** an order still `IN_PRODUCTION` (fulfilment projection, guide §4 — the Book itself stays `APPROVED`), **when** it renders in the library, **then** it shows the status chip and links to F-020, and its reader warns "your printed book is on its way".
 - **Recovery** **Given** the reader loads while an image asset is missing from storage, **when** the page fails, **then** it shows a friendly inline retry and logs an admin alert — it never shows a broken book or falls back to a draft.
 - **Given** a parent requests delete-now, **when** the job completes, **then** the library entry, thumbnails, reader cache and stored book are gone and unrecoverable.
 

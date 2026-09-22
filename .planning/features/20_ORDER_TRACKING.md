@@ -6,7 +6,7 @@
 
 ## Summary
 
-Customer-facing order tracking: a single lifecycle timeline — `ORDERED → IN_PRODUCTION → SHIPPED → DELIVERED` (guide §4), with `PAYMENT_FAILED`/`FULFILMENT_FAILED`/`CANCELLED` shown as recoverable states — driven by fulfilment events (F-019) and provider tracking numbers. Status is visible in-app with pull-to-refresh and via email; tracking payloads never contain sensitive child data.
+Customer-facing order tracking: a single lifecycle timeline — `ORDERED → IN_PRODUCTION → SHIPPED → DELIVERED` (guide §4 order/fulfilment machines — these states ride the **order projection**, sourced from Medusa order/fulfilment events + F-019 provider events; they are never `BookStatus`, D006 state split), with payment-failure/`FULFILMENT_FAILED`/`CANCELLED` shown as recoverable states — driven by fulfilment events (F-019) and provider tracking numbers. Status is visible in-app with pull-to-refresh and via email; tracking payloads never contain sensitive child data.
 
 ## 1. Goal
 
@@ -33,7 +33,7 @@ After checkout, the order confirmation and the order's tracking page both show a
 
 ## 6. UI specification
 
-Single timeline component (order page + email): nodes/steps, earliest→latest, each with date + friendly label + optional carrier tracking link; current step emphasised, future steps dimmed. Pull-to-refresh re-fetches; retry table on refresh combines F-019 events with provider data. Failure states align with the guide's exceptional states (`PAYMENT_FAILED`, `FULFILMENT_FAILED`, `CANCELLED`) rendered as recoverable, agent-named alternatives — never raw provider status text. No child photos on this screen; cover thumbnails only.
+Single timeline component (order page + email): nodes/steps, earliest→latest, each with date + friendly label + optional carrier tracking link; current step emphasised, future steps dimmed. Pull-to-refresh re-fetches; retry table on refresh combines F-019 events with provider data. Failure states align with the guide's exceptional **order/fulfilment** states (payment failure, `FULFILMENT_FAILED`, `CANCELLED`) rendered as recoverable, agent-named alternatives — never raw provider status text, never written onto the Book. No child photos on this screen; cover thumbnails only.
 
 ## 7. Domain model
 
@@ -59,7 +59,7 @@ None. All stage labels are fixed, human-approved copy; no model-generated status
 
 ## 11. QA
 
-Stage transitions obey guide §4 (no `DELIVERED` before `SHIPPED`, no backward jumps); timeline consistency with F-019 events; tracking URL belongs to the carrier domain only (no injection); ETA window (F-018) matches delivery stage; email renders correctly and carries no child PII.
+Stage transitions obey guide §4's order/fulfilment machines (no `DELIVERED` before `SHIPPED`, no backward jumps; states on the order projection, never the Book); timeline consistency with F-019 events; tracking URL belongs to the carrier domain only (no injection); ETA window (F-018) matches delivery stage; email renders correctly and carries no child PII.
 
 ## 12. Privacy/security
 

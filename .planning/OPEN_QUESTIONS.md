@@ -59,11 +59,11 @@ Repository inspection concluded: **no application code exists**. The workspace i
 
 ## Commerce
 
-- What commerce functionality already exists?
-- What would Medusa replace?
-- Can migration be incremental?
-- Can a Medusa line item reference an immutable approved book revision?
-- How should personalised-product configuration be represented?
+- What commerce functionality already exists? — *answered: none; greenfield (D013).*
+- What would Medusa replace? — *answered: nothing existing; it is a build decision, not a migration (D006 ADOPTED, self-hosted).*
+- Can migration be incremental? — *n/a; adoption is incremental by design (cart→checkout→order first, regions/tax/promotions later).*
+- Can a Medusa line item reference an immutable approved book revision? — *answered: yes — opaque `approvedBookRevisionId` + `contentHash` metadata, proven 4/4 in Spike C and matching Medusa's documented personalisation recipe.*
+- How should personalised-product configuration be represented? — *answered: line-item `metadata` pointers + our ops projection for lineage; Medusa never receives child/story/page data (guide §6).*
 
 ---
 

@@ -66,7 +66,7 @@ Greenfield foundation with an explicit **domain-separation** structure:
 | (canonical |   | (photos,     |   | workers   |   | StoryProvider ·     |
 | book,      |   |  illus,      |   | (durable  |   | IllustrationProvider·|
 | profiles,  |   |  artifacts)  |   | substr.)  |   | Identity · QA ·  |
-| orders)    |   +--------------+   +-----------+   | Moderation ·     |
+| artifacts) |   +--------------+   +-----------+   | Moderation ·     |
 |            |                                     | PrintProvider ·   |
 +------------+                                     | CommerceModule    |
                                                    +---------+---------+
@@ -79,23 +79,62 @@ Greenfield foundation with an explicit **domain-separation** structure:
                           (all behind interfaces, all documented)
 ```
 
+(Medusa = self-hosted in `apps/commerce`, D006: it owns cart/order/payment/region state only; orders and payments live in Medusa's commerce tables, never in the canonical Book store.)
+
 Key properties:
 
 - **API owns the domain.** No client writes attend to canonical Book/children data directly.
-- **Canonical stores in Postgres;** photos/illustrations/print artifacts in object storage referenced by IDs, not public URLs at rest.
+- **Canonical stores in Postgres;** photos/illustrations/print artifacts in object storage referenced by IDs, not public URLs at rest. Orders/payments are Medusa's (§6).
 - **Queue workers** run generation steps; state lives in DB; jobs idempotent/resumable (F-010, F-028).
 - **Provider adapters** isolate every external dependency (see §8 below).
 - **Event-style state recording** (not event sourcing): approved in D-series/guide §5: `BOOK_CREATED · CHARACTER_CREATED · CONCEPT_SELECTED · … · FULFILMENT_SUBMITTED`.
 
 ## 6. Commerce approach
 
-**Medusa is the candidate commerce module (D006, F-018) — pending spike (edition/hosting/tax), not selected.** Since we are greenfield, adoption would be a build decision, not a migration:
+**Medusa is ADOPTED as the commerce foundation (D006, re-opened and adopted 2026-09-22 — constraint change; see `RESEARCH_LOG.md` "D006 re-opening").** Self-hosted in-repo at `apps/commerce` (Postgres + Redis + server + worker; MIT; v2.21.0 verified) — not Medusa Cloud (D014 item 3). Since we are greenfield, adoption is a build decision, not a migration: no rewrite of any kind happens merely because Medusa exists.
 
-- **In scope (if adopted):** carts, customers, products (stock keeping units for book editions), pricing, promotions, payments, orders, regions, currencies, shipping.
-- **Out of scope (stays OURS):** Book model, approval, print pipeline, generation, digital library. Medusa would sit behind a `CommerceModule` in the API, never as the domain center.
-- **Personalised-order fidelity:** each `OrderItem` carries `approvedBookRevisionId` + `contentHash` references so an order points at an immutable revision (D011, F-016/F-018). No silent regeneration after purchase.
-- **Incremental adoption dog-food:** implement cart→checkout→(payment)→order first; promotions/shipping/regions add later. Decide self-hosted vs headless-cloud Medusa in the spike before build (D014).
-- **Why not rebuild:** carts, tax, PSP integrations, refunds, and multi-region shipping are well-trodden; our edge is identity+story+print, not payment plumbing. The spike must still show a meaningful improvement over a purpose-built module for our scale before the candidate is adopted.
+**Domain boundary (hard line):**
+
+- **Medusa owns commerce state only:** cart, payment, order, customer, promotion application, shipping/fulfilment state, region/currency/tax application, refunds — all first-class commerce-module state inside Medusa.
+- **Stays OURS (never given to Medusa):** canonical Book model, BookRevision/ApprovedBookRevision, approval, generation pipeline, Character Bible, story, print pipeline (`PrintSpec`/`PrintArtifact`/`PrintProvider` submissions), digital library, privacy lineage. Medusa sits behind the API's commerce adapter, never as the domain centre.
+- **Opaque references, hard invariant (Spike C proven 4/4, retained as the integration's semantic minimum):** every personalised cart line / order line carries exactly `approvedBookRevisionId` + `contentHash` (`revisionHash`) + `productFormatId` + `printSpecId` + `displayTitle` + `quantity` (+ non-sensitive ops metadata such as `recipientLabel`). Medusa **never** receives child profile/photos, story, page text, prompts, character bible, generated image URLs or sensitive personalisation facts. Direction: `order line → opaque ApprovedBookRevision → domain resolves the book`; the reverse (line item → book JSON) never exists. One approved revision may back **N** orders (reorders/gifts).
+- **Personalisation recipe (documented Medusa pattern):** pointer data rides line-item `metadata`; richer commerce-side links use a custom module + module link if ever needed — never duplicated canonical content.
+
+**State separation (Book vs commerce):** `BookStatus` is content/generation/approval lifecycle only — it carries no `ORDERED`/`IN_PRODUCTION`/`SHIPPED`/`DELIVERED`/`PAYMENT_FAILED`/`FULFILMENT_FAILED` states (one approved revision → N orders makes a single Book-level "ordered" state meaningless; `_SPEC_GUIDE.md` §4 defines the three machines — book/order/fulfilment). Order lifecycle lives in Medusa; fulfilment timeline (`FULFILMENT_SUBMITTED → IN_PRODUCTION → SHIPPED → DELIVERED`, exceptional failures) lives on the order/fulfilment projection sourced from Medusa + print-handoff events — never on the Book.
+
+**Product modelling:** one catalogue Product ("Personalised Children's Book"); Variants = format/binding/size; a Line Item = one specific approved revision + format. Never one Product per generated book.
+
+**Pricing vs print quote (§9/D016):** book content generation ≠ physical price. Customer price = Medusa product/region configuration; printer cost = our `PrintQuote` via the print catalogue; margin policy (F-027) maps cost → price offline. A live printer quote is never canonical Book state and never feeds Medusa pricing logic.
+
+**Payment:** Medusa payment abstraction + first-party Stripe provider (inbound `/hooks/payment/{provider}_{id}` webhooks, validated; Apple/Google Pay via `automatic_payment_methods`). Capture is business-effect idempotent (§14); payment failure preserves the approved Book; retry never regenerates; no parallel payment state machine outside Medusa.
+
+**Regions/tax (§11/§15):** architected now via Medusa Region + Tax modules (multi-currency, per-country tax regions/rates/rules, pluggable tax providers); **configured for the launch market only**; no custom tax engine ever.
+
+**Promotions (§12):** Medusa promotion module only (rules/campaigns/budgets); the Book domain never knows about coupons; no custom coupon logic.
+
+**Fulfilment split (§15):** Medusa owns commercial fulfilment state (shipping options, order fulfilled, tracking numbers); our `PrintProvider` adapter owns the printer handoff and receives only `PrintArtifact` + shipping payload + qty + provider options. Medusa OSS has no outbound webhooks → the book→print handoff is our own idempotent subscriber-side job (Spike C pattern, now by design); submission failure surfaces as fulfilment-failure ops alert (F-026), never as Book state.
+
+**Events (§5):** commerce events (`ORDER_CREATED`, `PAYMENT_CAPTURED`, `FULFILMENT_SUBMITTED`, `SHIPMENT_CREATED`, …) are produced by Medusa subscribers (in-process; Local dev / Redis in production) and consumed behind our `CommerceEventAdapter` onto the API's commands + pg-boss job spine (D022). Duplicate delivery is expected: handlers are idempotent business-effect style (never exactly-once claims).
+
+**Admin (F-026):** Medusa Admin (bundled, admin disabled on the worker instance) owns commerce ops — orders, payments, refunds, customers, promotions, products, regions, shipping. Our ops console owns Book/generation/QA/approved-revision/print-artifact/printer/privacy lineage. Cross-links by order id ↔ `approvedBookRevisionId`. No duplicate commerce screens in our console.
+
+**Storefront (§10):** stays our headless `apps/web` against Medusa's Store API with a publishable key; the generic Next.js storefront starter is scaffolding, never the customer experience.
+
+**Repository layout (D021 + this decision):**
+
+```text
+apps/commerce            — self-hosted Medusa backend (workspace member; own tsconfig/scripts,
+                           excluded from root typecheck/test strictness; server + worker modes)
+apps/web                 — customer storefront (headless, Store API)
+apps/api · apps/worker   — For Little One domain API + generation workers
+packages/commerce        — OUR boundary types only: CommerceGateway, ApprovedRevisionLineItemReference,
+                           CommerceEventAdapter + ported Spike C invariant tests
+                           (package created in the implementation PR, not this architecture PR)
+```
+
+**Incremental adoption (unchanged from the original plan, now the build plan):** land cart→checkout→payment→order first; regions/tax/promotions/advanced fulfilment configure later as markets open. Implementation starts in the follow-up PR `feat: establish Medusa commerce foundation` — scaffold, one product/one variant, cart, APPROVED-only opaque line item, sandbox checkout → order, idempotent duplicate-event tests; no production fulfilment in that PR.
+
+**Why not rebuild (still true):** carts, tax, PSP integrations, refunds, multi-region shipping are well-trodden; our edge is identity+story+print, not payment plumbing. Spike C's self-built demo remains the honest comparison baseline — small and invariant-clean — but the constraint changed: we now choose the mature platform up front rather than growing into it.
 
 ## 7. Canonical book model
 
@@ -118,7 +157,8 @@ Book
 ├── revisions[]         (immutable snapshots; one = ApprovedBookRevision)
 ├── printSpec           (format, trim, bleed, safe areas, colour profile, binding, pages)
 ├── approval            (approver, timestamp, approvedRevisionId, lock)
-└── status              (DRAFT … DELIVERED + exceptional)
+└── status              (DRAFT … APPROVED + exceptional — content lifecycle only;
+                         commerce/fulfilment states live on the order, never here — §6)
 ```
 
 **Adapters** translate this into: editor snapshot (OpenPolotno JSON, per version), reader payload (pre-rendered images + text), print payload (PDF/PDF-X artifacts per printer), digital version.
@@ -191,11 +231,12 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 
 | Data | Store | Notes |
 | --- | --- | --- |
-| Users, profiles, books, orders, jobs, events | Postgres | JSONB for book domain docs; FKs for profiles/orders; migration tooling from day 1 |
+| Books, profiles, jobs, events, print artifacts (refs), generation/provenance (ours) | Postgres (app DB) | JSONB for book domain docs; FKs for profiles; migration tooling from day 1 |
+| Orders, payments, customers, carts, promotions, regions, shipping (commerce) | Medusa's commerce tables (Postgres — same managed cluster or dedicated DB, separate schema owned by `apps/commerce`) | Never joined into Book queries as canonical state; our side keeps only opaque order links (`orderId`, `approvedBookRevisionId`, `contentHash`) on the approval/order-link record |
 | Photos, illustrations, print artifacts, PDFs | Object storage (S3-compatible) | Private; IDs in DB; short-lived signed URLs; lifecycle rules for retention |
 | Prompt/model payloads? | none retained | Log only minimal metadata (no photo PII in logs) |
-| Queues | durable execution substrate; simplest-durable PostgreSQL-backed schema is the first candidate | Redis-backed (BullMQ-class) is the second candidate class; spike decides (D014). Book state and substrate must stay consistent: an outbox/reconciliation bridge is mandatory for any Redis-backed class |
-| Cache (later) | optional; not in v1 | skip until needed |
+| Queues | pg-boss on the app's Postgres (D022 — ADOPTED; durable execution substrate) | Medusa's own jobs ride its worker process (Redis-backed event/cache modules in production). Book state and substrate must stay consistent via app-level idempotency; no exactly-once claims |
+| Cache (later) | optional; not in v1 | skip until needed; Medusa's Redis is required infrastructure, not this cache row |
 
 - Single region first; photo handling per provider data-processing terms documented (F-025).
 
@@ -208,17 +249,18 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 
 ## 14. Payment/order flow
 
-1. Checkout (commerce module — Medusa candidate per D006): cart contains items each referencing `approvedBookRevisionId`.
+1. Checkout on **Medusa** (ADOPTED, D006): cart items each carry the opaque `approvedBookRevisionId` + `contentHash` (+ format/display/qty metadata) — Spike C invariant; server-side validation that the referenced revision exists and is `APPROVED` runs before any price is shown (F-018).
 2. Estimate arrival before payment (quote from the shared print catalogue — D016).
-3. Payment capture **business-effect idempotent**: PSP idempotency key + idempotent consumer → the capture/order effects happen at most once per attempt; duplicate webhooks replay the stored result (never claim exactly-once delivery — at-least-once + idempotent handling). Provider-crash uncertain-outcome cases go through reconciliation, not "exactly-once".
-4. Success → `ORDER_CREATED`; failure → `PAYMENT_FAILED` with clean retry; no print pre-payment.
-5. Order → fulfilment (below). Refunds/cancellations only via approved-revision-aware rules (F-026).
+3. Payment via Medusa's payment abstraction + Stripe provider; capture **business-effect idempotent**: Medusa workflow guards + our subscriber-side idempotent consumer → capture/order effects happen at most once per attempt; duplicate provider webhooks replay the stored result (at-least-once + idempotent handling — never claim exactly-once). Provider-crash uncertain-outcome cases go through reconciliation, not blind replay.
+4. Success → Medusa order created → `ORDER_CREATED` emitted to our `CommerceEventAdapter` (book stays `APPROVED`); failure → payment failure state on the Medusa payment/order with clean retry; the approved Book is never mutated; no print pre-payment.
+5. Order → fulfilment (below). Refunds/cancellations only via approved-revision-aware rules (F-026), executed in Medusa with our ops UI deep-linking.
 
 ## 15. Fulfilment
 
-- On paid order: submit approved artifact via `PrintProvider.submitOrder` (idempotent key = order+item+revision hash) → `FULFILMENT_SUBMITTED` → status polls/callbacks → `IN_PRODUCTION → SHIPPED → DELIVERED`.
+- On paid order (Medusa order state): submit approved artifact via `PrintProvider.submitOrder` (idempotent key = order+item+revision hash) → `FULFILMENT_SUBMITTED` → our subscriber marks the Medusa order fulfilled → status polls/callbacks → fulfilment timeline `IN_PRODUCTION → SHIPPED → DELIVERED` (states live on the **order/fulfilment projection**, never on the Book — §6).
+- Medusa owns commercial fulfilment state (shipping options, carrier/tracking, order fulfilled); our adapter owns the printer handoff (artifact + shipping payload + qty + provider options only — no child/profile data).
 - Digital copy disposition if purchased (deliver signed reader link).
-- `FULFILMENT_FAILED` → ops alert (F-026) + customer comms; no double-ship (idempotency).
+- Fulfilment failure (print submission rejected/failed) → ops alert (F-026) + customer comms; recorded against the order/fulfilment projection, not as `BookStatus`; no double-ship (idempotency).
 
 ## 16. Privacy/deletion
 
@@ -236,17 +278,18 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 
 ## 18. Deployment implications
 
-- Monorepo recommended to start: `api` (domain + workers + adapters), `web` (customer app), `admin` (ops console), `shared` (canonical types/schemas). One deployable API service + worker service + web; later split on real load.
-- Postgres managed; object storage managed; queue = durable execution substrate per the D014 spike (simplest-durable PostgreSQL-backed first candidate; Redis-backed/BullMQ-class second; workflow engine only if the spike justifies it — D019).
-- CI: typecheck, lint, unit + integration, workflow E2E, visual regression for editor/reader, print-validation fixture tests.
-- Env/config: strict secrets hygiene (AGENTS.md), provider keys in secrets manager, no keys in repo.
-- Environments: staging mirrors production providers (rate-limited) + emulator/mock adapters for tests.
+- Monorepo (D021): `apps/api` (domain commands/queries), `apps/worker` (generation workers on pg-boss), `apps/web` (customer storefront — headless against Medusa Store API), `apps/commerce` (self-hosted Medusa: `workerMode: server` for API+admin, `workerMode: worker` for jobs/subscribers; admin disabled on the worker instance), plus `packages/*`. Ops console rides the API's role-gated admin surface. Split further only on real load.
+- Medusa adds operational surface by decision (D006): **Postgres + Redis required** (Redis for Medusa sessions + production event/cache/workflow/locking modules), two Medusa processes, all `@medusajs/*` bumped together with `medusa db:migrate` on release (minors can carry breaking changes). `apps/commerce` is isolated from the root typecheck/test strictness (own tsconfig/scripts) so the framework's conventions don't leak into our packages.
+- Postgres managed; object storage managed; generation queue = pg-boss (D022).
+- CI: typecheck, lint, unit + integration, workflow E2E, visual regression for editor/reader, print-validation fixture tests; commerce integration tests live with `apps/commerce`/`packages/commerce` (Spike C invariants ported).
+- Env/config: strict secrets hygiene (AGENTS.md), provider keys (incl. Stripe `apiKey`/`webhookSecret`) in secrets manager, no keys in repo.
+- Environments: staging mirrors production providers (rate-limited) + emulator/mock adapters for tests; Medusa sandbox mode for checkout E2E.
 
 ## 19. Migration strategy
 
 - Greenfield: introduce stack incrementally along roadmap milestones (see `IMPLEMENTATION_ROADMAP.md`) — no data migration exists.
 - **Do-first infrastructure (Milestone 0g, hidden):** git init, monorepo scaffold, Postgres schema + migration tooling, object storage, CI, provider-adapter skeleton, PF/store configs — so features land as vertical slices on working rails.
-- Re-evaluate this document at each milestone with a decision-log entry (D-series) — especially Medusa adoption (self-hosted vs cloud), durable-execution substrate (spike), OpenPolotno wrapper, and print partner.
+- Re-evaluate this document at each milestone with a decision-log entry (D-series) — durable-execution substrate (decided: D022 pg-boss), Medusa (decided: D006 ADOPTED, self-hosted), OpenPolotno wrapper (decided: D007 pin+wrap), print partner (Spike D: Mixam first, contract generic), quality-threshold calibration (still open).
 
 ---
 

@@ -107,9 +107,12 @@ Do not make the browser editing canvas the print-production system.
 
 ## D006 — Medusa
 
-**Status:** REJECTED as foundation now — **defer; adopt a thin self-built commerce surface** (2026-09-22, Spike C evidence)
+**Status:** ADOPTED — **Medusa is the commerce foundation, self-hosted in-repo** (2026-09-22,
+re-opened — constraint change; supersedes the earlier 2026-09-22 defer recorded in Spike C; see
+`RESEARCH_LOG.md` "D006 re-opening" for the full Observed/Previous inference/New constraint/New
+decision record)
 
-Purpose (if adopted):
+Purpose (now adopted for):
 
 - commerce;
 - cart;
@@ -120,22 +123,76 @@ Purpose (if adopted):
 - shipping;
 - fulfilment.
 
-Spike C (`spike/commerce/`, 2026-09-22) validated the cart → payment → order path and the hard
-invariant (order items reference an APPROVED revision by opaque id + hash only; commerce never
-receives child/story/page data and never owns/mutates the Book). The self-built core is small and
-already invariant-clean (4/4 tests, idempotent-at-least-once webhook handling proven). Medusa's
-documented self-host footprint (Postgres + Redis + server + worker + admin + storefront, breaking
-minor releases) buys marketplace-grade primitives we don't need at one-format scale, and OSS Medusa
-has no outbound webhooks (Cloud-only) — the book→print handoff is a custom idempotent job either way.
-Revisit triggers (multi-SKU/variants, multi-region tax, marketplace, or not wanting to own the payment
-adapter + idempotent webhook layer) are recorded in `spike/commerce/MEDUSA_EVIDENCE.md`.
+**Why reopened:** the original defer was a trade-off judgment (ops footprint outweighed value at
+one-format scale), not a factual error. The product constraint has explicitly changed: we now
+**accept** the operational complexity (Postgres + Redis + server + worker, breaking-minor release
+discipline) in exchange for mature, extensible commerce primitives and to avoid progressively
+rebuilding cart/order/payment/promotion/tax/shipping/customer/refund functionality ourselves.
+Re-verification on 2026-09-22 against current official sources (v2.21.0, MIT license, documented
+self-host path, first-party Stripe provider, regions/tax/promotion/fulfilment/order modules,
+line-item `metadata` + custom-module personalisation recipe, subscriber-based events) found **no
+architectural, licensing or blocking issue** (`spike/commerce/MEDUSA_EVIDENCE.md` re-verification
+appendix).
 
-No rewrite of any kind happens purely because Medusa exists. Progress flags:
+**Residence:** self-hosted in-repo at **`apps/commerce`** (workspace member, isolated from root
+typecheck/tests with its own scripts); our boundary types live in **`packages/commerce`**
+(`CommerceGateway`, `ApprovedRevisionLineItemReference`, `CommerceEventAdapter` — created in the
+implementation PR `feat: establish Medusa commerce foundation`, not this architecture PR). Not
+Medusa Cloud (D014 item 3 closed → self-hosted).
 
-- `greenfield` → adoption is a build decision, not a migration;
-- if a real codebase appears later, re-run the comparison against *it* before adopting;
-- the open purchase decision now is the real payment-provider adapter (Stripe-class) + idempotent
-  webhook ingestion, landing with the commerce feature.
+**Domain boundary (hard line, not a preference):**
+
+- **Medusa owns commerce state:** cart, payment collection/payment, order, customer, promotion
+  application, shipping option/fulfilment state, region/currency/tax application, refunds — all
+  as documented commerce-module state inside Medusa.
+- **The For Little One domain owns:** canonical `Book`, `BookRevision`, `ApprovedBookRevision`,
+  `Character`, `Story`, generation state, approval state, `PrintSpec`/`PrintArtifact`/print
+  submissions, privacy/deletion lineage. Medusa **never** receives child profile/photos, story,
+  page text, prompts, character bible, generated image URLs or sensitive personalisation facts.
+- **Commerce references personalised content only via opaque immutable identifiers.** A Medusa
+  line item carries exactly: `approvedBookRevisionId`, `contentHash` (`revisionHash`),
+  `productFormatId`, `printSpecId`, `displayTitle`, `quantity` — plus non-sensitive operational
+  metadata (e.g. `recipientLabel` for the packing slip). The hard invariant proven by Spike C
+  (4/4) stands: `Medusa order line → opaque ApprovedBookRevision → domain resolves book`; the
+  reverse direction (line item → full book JSON) never exists. One approved revision may back
+  **N** orders (reorders/gifts); orders are not canonical Book state.
+- **State split:** `BookStatus` is content/generation/approval lifecycle only — it carries no
+  commerce or fulfilment states (`ORDERED`, `IN_PRODUCTION`, `SHIPPED`, `DELIVERED`,
+  `PAYMENT_FAILED`, `FULFILMENT_FAILED` are removed; see `_SPEC_GUIDE.md` §4 for the two-machine
+  model). One approved revision → N orders → each order has its own fulfilment timeline sourced
+  from Medusa order/fulfilment events.
+- **Pricing vs print quote:** book content generation is not physical book price. Customer price
+  comes from Medusa product/region configuration; printer cost comes from our `PrintProvider`
+  adapter (`PrintQuote`); margin policy (F-027) maps cost → price offline; a live printer quote
+  is never canonical Book state.
+- **Payment:** Medusa's payment abstraction + first-party Stripe provider (inbound
+  `/hooks/payment/*` webhooks, validated, idempotent business effects — never double order or
+  double capture). Payment failure preserves the approved Book; retry never regenerates.
+- **Regions/tax:** architected via Medusa Region + Tax modules, configured for the launch market
+  only; no custom tax engine.
+- **Promotions:** Medusa promotion module only; the Book domain never knows about coupons.
+- **Fulfilment split:** Medusa owns commercial fulfilment state (order → fulfilled, shipping);
+  our `PrintProvider` adapter owns the printer handoff and receives only `PrintArtifact` +
+  shipping payload + qty + provider options — never child/profile data. Medusa OSS has no
+  outbound webhooks → the book→print handoff is our own idempotent subscriber-side job
+  (proven pattern from Spike C); `CommerceEventAdapter` maps Medusa subscribers/events onto our
+  commands and the pg-boss job spine.
+- **Admin split:** Medusa Admin owns commerce ops (orders, payments, refunds, customers,
+  promotions, products, regions, shipping); our ops UI owns Book/generation/QA/approved-revision/
+  print-artifact/printer/privacy lineage; each side deep-links to the other by order id /
+  `approvedBookRevisionId`.
+- **Storefront:** stays our headless `apps/web` against Medusa's Store API (publishable key);
+  the generic Next.js starter is never the customer experience.
+
+**Progress flags (unchanged discipline):**
+
+- adoption is a build decision (greenfield), not a migration — no rewrite of any kind happens
+  purely because Medusa exists;
+- Spike C's invariant tests remain the semantic minimum the integration must satisfy — ported
+  onto `packages/commerce` in the implementation PR;
+- implementation does **not** start in this PR: next PR is
+  `feat: establish Medusa commerce foundation` (scaffold, one product + one variant, cart,
+  APPROVED-only opaque line item, sandbox checkout → order, idempotent duplicate-event tests).
 
 ---
 
@@ -277,7 +334,9 @@ Today's architecture + feature-specification work produced:
 **Next step before implementation:** agreement pass — promote specs `proposed → agreed` and run the blocking spikes, deciding in this log:
 1. Durable execution substrate (candidate classes: PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed — wording stays neutral until then, see D019; **RESOLVED 2026-09-22: ADOPT pg-boss**, see D020) — feeds F-010/F-028.
 2. OpenPolotno consumption (direct dep vs pinned vs fork) incl. spread support — feeds F-014.
-3. Medusa edition (self-hosted vs headless-cloud) + tax routing — feeds F-018.
+3. Medusa edition (self-hosted vs headless-cloud) + tax routing — feeds F-018. (**RESOLVED
+   2026-09-22 with D006 ADOPTED: self-hosted in-repo** at `apps/commerce`; tax routing via Medusa
+   Region + Tax modules, launch market only — architected, not custom-engineered.)
 4. Print partner + PDF standard (PDF/X-1a vs PDF 1.7+embedded fonts) — feeds F-017/F-019.
 5. QualityProvider identity-threshold calibration method + launch calibration run — feeds F-009/F-015.
 
@@ -398,7 +457,18 @@ Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`
 
 - **Durable job substrate.** **ADOPT — PostgreSQL-backed pg-boss** (2026-09-22): Spike A ran the identical crash/recovery + retry-exhaustion + cancellation scenario through pg-boss 12.33.3 (PostgreSQL-only) and BullMQ 6.3.8 + ioredis on the shared `SpikeBackend` harness (`spike/durable-execution/`), 3× consecutive green runs of 8/8. Both recover a real worker SIGKILL at the provider boundary with zero duplicate provider spend (stable `providerRequestId`, `cached: true`), both visibly terminal the always-fail page (pg-boss native dead-letter queue `generation-bad` vs BullMQ `failed` set — BullMQ has no built-in DLQ), both cancel enqueued work. pg-boss reclaimed in 8.9 s vs 15.2 s (lease design), needs **no second store** (the app is already Postgres; a review-required path is a query over the `job` table), and has a native DLQ. pg-boss's README "exactly-once delivery" is **vendor wording only** — recovery is guaranteed by app-level provider idempotency, not by the substrate; no exactly-once claim is adopted. BullMQ is documented as a passable alternative (Redis-native) if a dedicated Redis for jobs is ever provisioned. Evidence: `research/validate-durable-execution-substrate` (README + `RESEARCH_LOG.md` 2026-09-22 entry).
 - **Editor implementation posture.** **RESOLVED — ADOPT pin + wrap** (2026-09-22). Spike B phase 1 landed the headless validation (`spike/editor-primitive/`, 26/26 tests, acceptance path PASS for both `openpolotno@1.0.2` and `@reyka/openpolotno@1.5.0`) and **phase 2 landed the real-browser render + interaction pass** (36/36 tests incl. `test/browser.spec.ts`; system Chrome via `playwright-core`, 390×844 @ dsf 3, `npm run phase2` → `tmp/editor-primitive/phase2.json`, all 9 checks PASS): the `@reyka/openpolotno@1.5.0` editor mounts, exports an exact 1224×1224 raster at pixelRatio 2, loads Google Nunito through the engine's own loader (`document.fonts.check` true, 90 px span +72.4 px), registers a self-hosted data-URI font via `store.addFont` (FontFaceSet check true), pointer-drags the text element with ~2 ms avg input-to-paint rAF samples, and does transaction/undo/redo ≈ 2/1/0.5 ms. Both packages ship zero `.d.ts` (type shim + pinned deep subpath required regardless of posture); `createStore` is not in the package main; sub-path imports take no `.js` suffix; the main entry is not Node-importable (extensionless `@meronex/icons`) so the browser seam needs a bundler; crop is a numeric surface that recrops the source and stretches it to element bounds. **Closed:** `@reyka/openpolotno@1.5.0` is pinned exact in `packages/editor` (the wrapper — single Book→engine translation boundary, `src/adapt-book.ts`, shim `src/vendor.d.ts`), with 10 in-package tests incl. the round-trip acceptance path and the dependency-direction guard (`boundary.spec.ts`: no other package may reference the engine). F-014 promoted to agreed (page→spread mapping resolved: one canonical page → one engine page). Sponsor ticket `.planning/EDITOR_SPONSOR_TICKET.md` acceptance criteria 1,2,4,5 met; criterion 3's app-level bundle guard lands with F-011.
-- **Commerce adoption/rejection.** **RESOLVED — REJECT (defer) Medusa now; adopt a thin self-built commerce surface** (Spike C, 2026-09-22). The cart → payment → order path + the hard invariant (commerce references an approved revision by opaque id + hash only, never owns/mutates the Book) are proven headlessly 4/4 (`spike/commerce/`), incl. idempotent at-least-once webhook handling and rejection of any non-APPROVED book at checkout. Medusa's documented footprint (Postgres+Redis+server+worker+admin+storefront) buys unused marketplace-grade primitives; OSS has no outbound webhooks, so the print handoff is custom either way. Revisit triggers in `spike/commerce/MEDUSA_EVIDENCE.md`; real payment-provider adapter is the remaining open purchase decision (lands with the commerce feature).
+- **Commerce adoption/rejection.** **RESOLVED — SUPERSEDED: originally REJECT (defer) Medusa
+  (Spike C, 2026-09-22); re-opened the same day on a constraint change → D006 ADOPTED (Medusa is
+  the commerce foundation, self-hosted, `apps/commerce`).** Spike C's evidence stands unchanged:
+  the cart → payment → order path + the hard invariant (commerce references an approved revision
+  by opaque id + hash only, never owns/mutates the Book) are proven headlessly 4/4
+  (`spike/commerce/`), incl. idempotent at-least-once webhook handling and rejection of any
+  non-APPROVED book at checkout — this is now the semantic minimum the Medusa integration must
+  satisfy. What changed: the product constraint (ops complexity accepted for mature primitives);
+  re-verification at v2.21.0 found no licensing/architectural blocker
+  (`MEDUSA_EVIDENCE.md` re-verification appendix). Medusa OSS still has no outbound webhooks, so
+  the book→print handoff remains our custom idempotent subscriber-side job (now by design, not by
+  fallback). Payment rails: Medusa's first-party Stripe provider (D014 item 3 closed).
 - **First print provider + print contract.** **RESOLVED — first provider Mixam (hardcover, art-book square); contract stays generic** (Spike D, 2026-09-22). `spike/print-pipeline/` produces a deterministic 24-page sample PDF from fixture Book + generic `PrintSpec` (D016) — byte-identical across runs, text inside safe area, embedded font, editor-independent (no editor/engine import; `packages/domain` has no editor dep). Mixam's live specs recorded in `spike/print-pipeline/MIXAM_EVIDENCE.md`; provider deltas (3 mm bleed, 5 mm general / 12 mm hinge quiet area, offered trims, 300 dpi, CMYK GRACoL2006_Coated1v2, no crop marks, fonts embedded, interiors in multiples of 2) are pinned in the Mixam adapter. One documented finding: our uniform 8 mm safe margin is below Mixam's 12 mm hardcover binding edge — the canonical print spec must either raise it or treat binding edge specially. Geometry decision for F-014/F-017: canonical trim must be an offered Mixam trim (210/148/120/300 mm) or a quoted custom — 215.9 mm is not offered.
 - **Identity-generation approach.** OPEN — Spike E tests provider identity/reference-conditioning capabilities (multi-photo, provider-native reference conditioning, reusable private reference, retention/data-use) before any approach or threshold is chosen. **Update (2026-09-22):** Spike E phase 1 landed the offline measurement methodology (`spike/identity-qa/`, 29/29 tests, `RESEARCH_LOG.md` entry) — reference conditioning rides the canonical `IdentityProvider` seam and the QA vocabulary is wired to `contracts` quality checks — but **no real-provider evidence exists yet**; this item stays OPEN, any threshold from dry-run numbers would be invented.
 - **QA approach.** OPEN — Spike E's vision-evaluator feasibility check (does an independent evaluator agree with human review often enough to be useful) must run before a QA threshold/methodology is fixed. **Update (2026-09-22):** the blinded-review benchmark form, kappa/confusion agreement metrics and a sensitivity-checked synthetic reviewer are now in place behind the canonical quality vocabulary (`identity.likeness`, `identity.character-swap`, HARD_BLOCK/REVIEW_REQUIRED); the feasibility check itself (real evaluator vs real humans) is still OPEN pending the real phase.
@@ -411,7 +481,7 @@ Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`
 
 The recommended path to "run the D014-blocking spikes and start some real code immediately" converges here: a parallel PR (`feat/` branch) boots the monorepo so M1 vertical slices can build on real packages, without depending on any spike outcome.
 
-**Layout (committed):**
+**Layout (committed):** `apps/commerce` is *planned* (D006 — Medusa foundation PR), not yet scaffolded here.
 
 ```text
 apps/{web, api, worker}            — application shells (stubs commit the direction only)
@@ -427,6 +497,9 @@ packages/testing                   — shared fakes (InMemoryDurableRuntime re-e
 spike/ .planning/                  — spike programme + planning (unchanged)
 ```
 
+(2026-09-22: **D006 ADOPTED** adds `apps/commerce` (self-hosted Medusa) + `packages/commerce`
+(boundary types) to the layout with the Medusa foundation PR — see the D006 entry.)
+
 **Dependency direction (load-bearing, typecheck-enforced):**
 
 ```text
@@ -441,7 +514,7 @@ execution / provenance / policies / storage are foundational: no feature depende
 **Scope boundaries (this decision):**
 
 - The `DurableExecutionContract` is implemented as an interface plus an **in-memory semantics runtime** for tests/staging only. It is NOT a durable substrate and must never be used as one in production. Substrate wording stays neutral (D019, D014 spike); no exactly-once claim; the spike still chooses PostgreSQL-backed vs Redis-backed.
-- No platform candidate was promoted. Editor (D007 candidate), commerce (D006 candidate), quality threshold, print partner all remain OPEN pending spike evidence.
+- At bootstrap time no platform candidate was promoted: Editor (D007 candidate), commerce (D006 candidate), quality threshold, print partner all remained OPEN pending spike evidence. **(Update 2026-09-22:** editor → D007 ADOPTED pin+wrap; commerce → D006 ADOPTED (Medusa, self-hosted, `apps/commerce`) — superseding this note for those two items; quality threshold and print-partner contract decisions still open per D020.)**
 - Provider interfaces carry a structured `ProviderCard` (child-data path, retention, idempotency, timeout, retry, cost, deletion) so the privacy rule (GENERATION_ARCHITECTURE §12, F-025) is enforced structurally, not by convention.
 - Print geometry gates (`validateGeometry`) are canonical from M1 (D016); the F-017 print renderer is not a prerequisite of QA/approval/editor.
 - CI (typecheck, lint, unit+integration), Postgres schema tooling, secrets management, object storage and provider mock adapters are roadmap-M0 items deliberately deferred to later bootstrap PRs, not forgotten.

@@ -49,7 +49,7 @@ DigitalDelivery { entitlementId, orderItemId, artifactId (digital render),
   issuedAt, accessUrl, accessExpiry, revokedByDeletion? }        (F-021/F-025)
 ```
 
-`PrintArtifact` comes from F-017 keyed to the approved revision; the submission mirror is a snapshot (shipTo, printSpec, quote), so a later edit of a book never affects an in-flight job (D011). `PrintProvider` is ours (an adapter around the partner API); the commerce module's fulfilment step (Medusa candidate — D006) marks the order fulfilled once submission succeeds.
+`PrintArtifact` comes from F-017 keyed to the approved revision; the submission mirror is a snapshot (shipTo, printSpec, quote), so a later edit of a book never affects an in-flight job (D011). `PrintProvider` is ours (an adapter around the partner API); the commerce module's fulfilment step (**Medusa — ADOPTED, D006, self-hosted `apps/commerce`**) marks the order fulfilled once submission succeeds.
 
 ## 8. Backend/API requirements
 
@@ -68,7 +68,7 @@ None. Ill-designed generation output is never shipped: the artifact submitted is
 
 ## 11. QA
 
-Artifact `contentHash` matches the approved revision before submit; quantity/binding/format match the order lines; ETA window within provider-supported range; digital entitlement links resolve only for the owner (authz check); fulfilment status transitions strictly follow the guide §4 state machine (`ORDERED → IN_PRODUCTION → SHIPPED → DELIVERED`).
+Artifact `contentHash` matches the approved revision before submit; quantity/binding/format match the order lines; ETA window within provider-supported range; digital entitlement links resolve only for the owner (authz check); fulfilment status transitions strictly follow the guide §4 fulfilment machine (`FULFILMENT_SUBMITTED → IN_PRODUCTION → SHIPPED → DELIVERED`, recorded against the **order**/fulfilment projection — never as `BookStatus`, D006 state split).
 
 ## 12. Privacy/security
 
