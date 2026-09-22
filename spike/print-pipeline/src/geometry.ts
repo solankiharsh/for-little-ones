@@ -21,16 +21,17 @@ export function mmToPt(mm: number): number {
 }
 
 /** page size = trim + 2×bleed on every edge (pt). */
-export function pageSizePt(trimMm: number, bleedMm: number): { w: number; h: number } {
-  const t = mmToPt(trimMm);
+export function pageSizePt(trimWidthMm: number, bleedMm: number, trimHeightMm = trimWidthMm): { w: number; h: number } {
+  const w = mmToPt(trimWidthMm);
+  const h = mmToPt(trimHeightMm);
   const b = mmToPt(bleedMm);
-  return { w: t + 2 * b, h: t + 2 * b };
+  return { w: w + 2 * b, h: h + 2 * b };
 }
 
 /** Safe-area rect (pt) inside the full-bleed page: bleed..trim, inset by safeMargin from trim edges. */
-export function safeRectPt(trimMm: number, bleedMm: number, safeMm: number): { x: number; y: number; w: number; h: number } {
+export function safeRectPt(trimWidthMm: number, bleedMm: number, safeMm: number, trimHeightMm = trimWidthMm): { x: number; y: number; w: number; h: number } {
   const b = mmToPt(bleedMm);
   const s = mmToPt(safeMm);
-  const { w, h } = pageSizePt(trimMm, bleedMm);
+  const { w, h } = pageSizePt(trimWidthMm, bleedMm, trimHeightMm);
   return { x: b + s, y: b + s, w: w - 2 * (b + s), h: h - 2 * (b + s) };
 }

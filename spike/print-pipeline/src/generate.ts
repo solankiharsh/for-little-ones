@@ -42,8 +42,8 @@ function wrap(text: string, maxWidthPt: number, fontSize: number, widthOf: (t: s
 export async function renderBook(input: RenderInput): Promise<RenderResult> {
   const { book, spec, ttfPath } = input;
   const { trimWidthMm, trimHeightMm, bleedMm, safeMarginMm } = spec.sheet;
-  const { w, h } = pageSizePt(trimWidthMm, bleedMm);
-  const safe = safeRectPt(trimWidthMm, bleedMm, safeMarginMm);
+  const { w, h } = pageSizePt(trimWidthMm, bleedMm, trimHeightMm);
+  const safe = safeRectPt(trimWidthMm, bleedMm, safeMarginMm, trimHeightMm);
 
   const fontBytes = fs.readFileSync(ttfPath);
   const doc = await PDFDocument.create();
@@ -71,6 +71,9 @@ export async function renderBook(input: RenderInput): Promise<RenderResult> {
     for (const block of page.textBlocks) {
       const lines = wrap(block.text, safe.w, fontSize, fontWidthOf);
       for (const line of lines) {
+        if (y < safe.y) {
+          throw new Error(`Text exceeds the page safe area on page ${page.pageNumber}`);
+        }
         pdfPage.drawText(line, { x: safe.x, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) });
         report.textBlocks.push({ xPt: safe.x, yPt: y, fontSize, text: line });
         y -= lineHeight;

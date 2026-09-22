@@ -112,4 +112,15 @@ describe("Spike C — commerce demo path + hard invariant (minimal self-built su
     expect(pay.state(auth.paymentId)).toBe("captured");
     expect(pay.deliver({ eventId: "never-seen", kind: "payment.captured", paymentId: auth.paymentId, deliveredAt: "x" }).deduped).toBe(false);
   });
+
+  it("does not capture a second payment when an event id was already delivered", () => {
+    const pay = new SandboxPayment();
+    const first = pay.authorize({ amountMinor: 2499, providerId: "sandbox" });
+    const second = pay.authorize({ amountMinor: 2499, providerId: "sandbox" });
+    pay.capture({ amountMinor: 2499, providerId: "sandbox" }, first.paymentId, "evt-reused");
+
+    const hook = pay.capture({ amountMinor: 2499, providerId: "sandbox" }, second.paymentId, "evt-reused");
+    expect(hook.kind).toBe("payment.failed");
+    expect(pay.state(second.paymentId)).toBe("requires_capture");
+  });
 });
