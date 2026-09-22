@@ -5,9 +5,9 @@
  * lease/reclaim semantics · retry · cancellation · idempotency / business-operation
  * key · progress observation.
  *
- * The substrate wording stays neutral — "durable execution substrate" — until the
- * D014 spike picks between PostgreSQL-backed and Redis-backed classes. This file
- * imports nothing; it is the contract, not an implementation.
+ * The surface is asynchronous so database- and queue-backed implementations do
+ * not leak a synchronous test-runtime assumption. This file imports nothing; it
+ * is the contract, not an implementation.
  */
 
 export const JOB_STATUS_VALUES = ["QUEUED", "SUCCEEDED", "FAILED", "CANCELLED", "DEAD"] as const;
@@ -99,10 +99,10 @@ export interface LeaseRefusedResult {
  * expired-lease reclaim (F-028 lease semantics).
  */
 export interface DurableExecutionRuntime {
-  enqueue(request: EnqueueRequest): JobView;
-  claim(request: ClaimRequest): ClaimedUnit[];
-  complete(workerId: WorkerId, unitId: UnitId, output: unknown): LeaseHeldResult | LeaseRefusedResult;
-  fail(workerId: WorkerId, unitId: UnitId, failure: UnitFailure): LeaseHeldResult | LeaseRefusedResult;
-  cancel(operationKey: BusinessOperationKey): { ok: boolean };
-  job(operationKey: BusinessOperationKey): JobView | undefined;
+  enqueue(request: EnqueueRequest): Promise<JobView>;
+  claim(request: ClaimRequest): Promise<ClaimedUnit[]>;
+  complete(workerId: WorkerId, unitId: UnitId, output: unknown): Promise<LeaseHeldResult | LeaseRefusedResult>;
+  fail(workerId: WorkerId, unitId: UnitId, failure: UnitFailure): Promise<LeaseHeldResult | LeaseRefusedResult>;
+  cancel(operationKey: BusinessOperationKey): Promise<{ ok: boolean }>;
+  job(operationKey: BusinessOperationKey): Promise<JobView | undefined>;
 }

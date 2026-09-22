@@ -30,11 +30,11 @@ describe("FeatureRegressionEvaluator", () => {
     expect(a).toEqual(b);
   });
 
-  it("blocks identity.character-swap hard when a swap was injected", () => {
+  it("requires review when an uncalibrated swap signal was injected", () => {
     const { evaluator, page } = setup({ swapChance: 1, dim: "composition", severity: 0.7 });
     const ev = evaluator.evaluate(page);
-    expect(ev.checks.some((c) => c.dimension === "identity.character-swap" && c.severity === "HARD_BLOCK")).toBe(true);
-    expect(ev.decision).toBe("FAIL");
+    expect(ev.checks.some((c) => c.dimension === "identity.character-swap" && c.severity === "REVIEW_REQUIRED")).toBe(true);
+    expect(ev.decision).toBe("REVIEW_REQUIRED");
   });
 
   it("clears a canonical page with a strong likeness readout", () => {
@@ -53,6 +53,6 @@ describe("FeatureRegressionEvaluator", () => {
 
   it("carries the required privacy card", () => {
     const evaluator = makeFeatureRegressionEvaluator();
-    expect(evaluator.card.childDataSent.sent).toBe(false);
+    expect(evaluator.card.dataPolicy.childDataSent).toBe(false);
   });
 });

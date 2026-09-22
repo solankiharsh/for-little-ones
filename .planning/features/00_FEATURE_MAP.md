@@ -109,5 +109,5 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 - Editor primitive OpenPolotno: **CANDIDATE IMPLEMENTATION — pending spike** (D007) — proof-of-concept for spread support and wrap-vs-fork before F-014 approval.
 - Durable execution substrate: candidate classes PostgreSQL-backed and Redis-backed (BullMQ-class); a workflow engine only if the D014 spike shows its guarantees are needed — wording stays neutral until the spike (D019).
 - Print contract (D016): PrintSpec/PrintPreflightContract is a shared landing decision — already agreed as the cycle-break for F-015/F-016/F-017.
-- Upload topology (D017): direct-to-storage vs API-relay — open question, resolved in the security/architecture spike.
+- Upload topology (D017): browser direct signed upload to private storage, followed by server-side completion and validation; qualify the storage/provider details before M2.
 - Bilingual (F-024): P2, but keep locale on profile facts from day one.

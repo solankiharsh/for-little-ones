@@ -156,11 +156,11 @@ Medusa Cloud (D014 item 3 closed → self-hosted).
   (4/4) stands: `Medusa order line → opaque ApprovedBookRevision → domain resolves book`; the
   reverse direction (line item → full book JSON) never exists. One approved revision may back
   **N** orders (reorders/gifts); orders are not canonical Book state.
-- **State split:** `BookStatus` is content/generation/approval lifecycle only — it carries no
-  commerce or fulfilment states (`ORDERED`, `IN_PRODUCTION`, `SHIPPED`, `DELIVERED`,
-  `PAYMENT_FAILED`, `FULFILMENT_FAILED` are removed; see `_SPEC_GUIDE.md` §4 for the two-machine
-  model). One approved revision → N orders → each order has its own fulfilment timeline sourced
-  from Medusa order/fulfilment events.
+- **State split:** `BookStatus` is only the stable container lifecycle (`DRAFT`/`ARCHIVED`); the
+  content/generation/approval lifecycle belongs to `BookRevision`. Neither carries commerce or
+  fulfilment states (`ORDERED`, `IN_PRODUCTION`, `SHIPPED`, `DELIVERED`, `PAYMENT_FAILED`,
+  `FULFILMENT_FAILED`; see `_SPEC_GUIDE.md` §4). One approved revision → N orders → each order has
+  its own fulfilment timeline sourced from Medusa order/fulfilment events.
 - **Pricing vs print quote:** book content generation is not physical book price. Customer price
   comes from Medusa product/region configuration; printer cost comes from our `PrintProvider`
   adapter (`PrintQuote`); margin policy (F-027) maps cost → price offline; a live printer quote
@@ -198,7 +198,7 @@ Medusa Cloud (D014 item 3 closed → self-hosted).
 
 ## D007 — OpenPolotno
 
-**Status:** ADOPTED — **pinned dependency + wrapper** (2026-09-22, Spike B evidence; closes the D020 OPEN item)
+**Status:** ADOPTED — **pinned tactical editing engine + wrapper** (2026-09-22, Spike B evidence; closes the D020 OPEN item)
 
 Purpose:
 
@@ -209,6 +209,8 @@ Do not expose the complete generic design-editor UX.
 Do not make its data format canonical.
 
 Residence: `@reyka/openpolotno@1.5.0` (exact pin, no caret) declared only in `packages/editor`; the wrapper `packages/editor/src/adapt-book.ts` is the single Book→engine translation boundary (D004). The engine main entry (full editor + Konva) is never imported by the wrapper (headless model subpath only); the browser seam that imports the main entry is an editor-app layer, deferred to F-014 implementation. Spread mapping: one canonical page → one engine page (rendering a spread side-by-side is a view concern). 36/36 spike tests + 10 in-package tests; `boundary.spec.ts` enforces that no other package references the engine (D005). Reader/print bundles must never load the editor package (D005, F-011).
+
+Risk classification: this is replaceable tactical machinery, not strategic product infrastructure. Before M3, retain the exact package tarball in the approved internal artifact mirror and add wrapper-boundary compatibility tests. The root lockfile already records the exact tarball integrity; do not fork or maintain the package until evidence requires it. A replacement must not change `Book`, `Page`, `PrintSpec`, or `BookRevision`.
 
 ---
 
@@ -370,8 +372,8 @@ Canonical Book/Layout → PrintSpec/PrintPreflightContract → Core QA (F-015)
 
 Consequences:
 
-- The contract fixes format feasibility (trim/bleed/safe areas/DPI/fonts/page rules) and **print capability/quote** (producibility, pricing, delivery estimate) and lives in the canonical model (`_SPEC_GUIDE.md` §2/§3).
-- **Print capabilities and quotes are foundation-level, not renderer-owned:** the shared print catalogue exposes `PrintCapability` + `PrintQuote` (format feasibility `validateFormat`, pricing/delivery `quote`, `estimate`). Approval (F-016) consumes these without depending on the renderer; the renderer (F-017) only renders frozen revisions; fulfilment (`PrintProvider`, F-019) only submits artifacts. The renderer is never the source of approval-facing quotes.
+- The canonical domain contract fixes stable product configuration and feasibility only: `PrintSpec` and `PrintPreflightContract` define trim/bleed/safe areas/DPI/fonts/page rules. An approved revision freezes its chosen `PrintSpec`.
+- **Capabilities and quotes are transient, not canonical Book state:** `PrintCapability` belongs to the printing integration; `PrintQuote` belongs to the commerce application boundary. Quotes contain provider, cost, delivery estimate and expiry, and checkout snapshots the purchased quote onto the order. Approval can consume a live quote without persisting it onto `Book` or `BookRevision`; the renderer only renders frozen revisions.
 - F-015 (core QA) validates geometry against the contract only — no dependency on the renderer existing.
 - F-016 (approval) consumes the contract for format feasibility + delivery estimate — no dependency on the renderer existing.
 - F-014 (editor) validates against the same contract (fonts/DPI/safe-area); F-017 is a parallel surface, not a prerequisite.
@@ -383,11 +385,18 @@ The renderer may ship later (M4) than the QA/approval core it unblocks (M2).
 
 ---
 
-## D017 — Photo Upload Topology Is an Open Question (2026-09-21)
+## D017 — Direct Private Storage Uploads Are the M2 Default (2026-09-22)
 
-**Status:** Question — no default; resolve in the security/architecture spike before build
+**Status:** Accepted for M2; M1 has no child-photo uploads
 
-Direct-to-storage (browser → signed private object storage) vs API-relay (browser → API → storage) is **not decided**. Both must satisfy, regardless of choice:
+Original photo bytes use browser → short-lived, scope-limited signed upload → private object storage →
+server-side completion event → validation worker → approved `PhotoReference`. This keeps large uploads
+out of the API-server data path while preserving server-side ownership validation, image decode,
+metadata stripping, resizing, face checks, retention and deletion. API relay is permitted only for a
+specific derived-copy or policy reason; it is not the default for originals. Resolve provider/storage
+implementation details before M2, not before M1.
+
+The flow must satisfy:
 
 - private objects (no permanent public URLs);
 - content-type and size validation;
@@ -409,7 +418,7 @@ Stated natively for this product:
 - **Typed contracts at every structured stage.** Canonical contract set per `product/GENERATION_ARCHITECTURE.md` §3 (Concept, StoryOutline, PagePlan, PageText, IllustrationPlan, IllustrationResult, QualityEvaluation). Runtime schema validation; schema version recorded; provider-specific types stay in adapters.
 - **Independent quality evaluation.** Generation and acceptance are separate responsibilities (`IllustrationProvider` → asset → `QualityProvider` → structured findings). A quality evaluator never mutates canonical facts.
 - **Provenance.** Immutable `GenerationProvenance` per artifact/revision (`product/GENERATION_PROVENANCE.md`); version/hash the policy set used (`/policies`).
-- **Provider boundaries.** Generic interfaces `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider`; each documents payload, child-data use, retention/terms, idempotency, timeout, retry semantics, cost metadata, deletion capability.
+- **Provider boundaries.** Generic interfaces `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider`; each declares evidence-oriented `ProviderDataPolicy` fields (verification date/version, child-data use, retention mode, training use, deletion mechanism, region and evidence reference) alongside idempotency, timeout, retry and cost metadata. A provider with `NOT_SUPPORTED` deletion or non-prohibited/unknown training use cannot receive child photos.
 
 Consequences:
 
@@ -437,7 +446,7 @@ F-008/F-009 generation step implementations
    (expose their GenerationStep units; consume the contract — never the F-010 feature)
 ```
 
-The contract covers **only**: enqueue work · durable state · per-unit (per-page/per-step) state · lease/reclaim semantics · retry · cancellation · idempotency / business-operation key · progress observation.
+The contract covers **only**: enqueue work · durable state · per-unit (per-page/per-step) state · lease/reclaim semantics · retry · cancellation · idempotency / business-operation key · progress observation. Its public operations are asynchronous so a pg-boss/Postgres implementation does not inherit the in-memory runtime's synchronous shape.
 
 Consequences:
 
@@ -469,10 +478,10 @@ Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`
   (`MEDUSA_EVIDENCE.md` re-verification appendix). Medusa OSS still has no outbound webhooks, so
   the book→print handoff remains our custom idempotent subscriber-side job (now by design, not by
   fallback). Payment rails: Medusa's first-party Stripe provider (D014 item 3 closed).
-- **First print provider + print contract.** **RESOLVED — first provider Mixam (hardcover, art-book square); contract stays generic** (Spike D, 2026-09-22). `spike/print-pipeline/` produces a deterministic 24-page sample PDF from fixture Book + generic `PrintSpec` (D016) — byte-identical across runs, text inside safe area, embedded font, editor-independent (no editor/engine import; `packages/domain` has no editor dep). Mixam's live specs recorded in `spike/print-pipeline/MIXAM_EVIDENCE.md`; provider deltas (3 mm bleed, 5 mm general / 12 mm hinge quiet area, offered trims, 300 dpi, CMYK GRACoL2006_Coated1v2, no crop marks, fonts embedded, interiors in multiples of 2) are pinned in the Mixam adapter. One documented finding: our uniform 8 mm safe margin is below Mixam's 12 mm hardcover binding edge — the canonical print spec must either raise it or treat binding edge specially. Geometry decision for F-014/F-017: canonical trim must be an offered Mixam trim (210/148/120/300 mm) or a quoted custom — 215.9 mm is not offered.
+- **First print provider + print contract.** **PROVISIONALLY SELECTED — Mixam is the preferred first production candidate and print-spec reference; contract stays generic** (Spike D, 2026-09-22). `spike/print-pipeline/` proves a deterministic visible 24-page sample from an immutable approved revision + generic `PrintSpec`, with text inside safe area, embedded font, and editor independence. Mixam's format evidence is in `spike/print-pipeline/MIXAM_EVIDENCE.md`; provider deltas (3 mm bleed, 5 mm general / 12 mm hinge quiet area, offered trims, 300 dpi, CMYK GRACoL2006_Coated1v2, no crop marks, fonts embedded, interiors in multiples of 2) remain in the adapter. Do not ADOPT Mixam for fulfilment until API credentials, quote/upload/order/status/tracking/cancellation/error/rate-limit behaviour, sandbox/physical orders, regional availability, commercial terms and child-data processing are qualified. The canonical trim must be an offered Mixam trim (210/148/120/300 mm) or a quoted custom; 215.9 mm is not offered.
 - **Identity-generation approach.** OPEN — Spike E tests provider identity/reference-conditioning capabilities (multi-photo, provider-native reference conditioning, reusable private reference, retention/data-use) before any approach or threshold is chosen. **Update (2026-09-22):** Spike E phase 1 landed the offline measurement methodology (`spike/identity-qa/`, 29/29 tests, `RESEARCH_LOG.md` entry) — reference conditioning rides the canonical `IdentityProvider` seam and the QA vocabulary is wired to `contracts` quality checks — but **no real-provider evidence exists yet**; this item stays OPEN, any threshold from dry-run numbers would be invented.
-- **QA approach.** OPEN — Spike E's vision-evaluator feasibility check (does an independent evaluator agree with human review often enough to be useful) must run before a QA threshold/methodology is fixed. **Update (2026-09-22):** the blinded-review benchmark form, kappa/confusion agreement metrics and a sensitivity-checked synthetic reviewer are now in place behind the canonical quality vocabulary (`identity.likeness`, `identity.character-swap`, HARD_BLOCK/REVIEW_REQUIRED); the feasibility check itself (real evaluator vs real humans) is still OPEN pending the real phase.
-- **Storage upload topology.** OPEN — D017 (direct-to-storage vs API-relay) is resolved by the same evidence discipline; unchanged pending spike evidence.
+- **QA approach.** OPEN — Spike E's vision-evaluator feasibility check (does an independent evaluator agree with human review often enough to be useful) must run before a likeness threshold/methodology is fixed. Until calibration, deterministic wrong/missing required character and immutable-fact contradictions are `HARD_BLOCK`; automated likeness or LLM judgement is `REVIEW_REQUIRED`. Only calibrated high-confidence evaluator mismatches may later become `HARD_BLOCK`. **Update (2026-09-22):** the blinded-review benchmark form, kappa/confusion agreement metrics and a sensitivity-checked synthetic reviewer are now in place behind the canonical quality vocabulary; the feasibility check itself (real evaluator vs real humans) is still OPEN pending the real phase.
+- **Storage upload topology.** RESOLVED for M2 by D017: direct signed upload to private storage, followed by server-side completion and validation. M1 has no child-photo uploads.
 
 ---
 ## D021 — Monorepo Bootstrap: First Production Code and Dependency Direction (2026-09-21)
@@ -558,8 +567,10 @@ execution / provenance / policies / storage are foundational: no feature depende
 
 - Both meet the D019 contract obligations. pg-boss wins on: no second
   infrastructure, native dead-lettering, per-job Postgres rows (observation,
-  supervision, review queries, dashboard in @pg-boss/dashboard), and reclaim
-  latency for short lease windows. BullMQ is Redis-native (workable, faster
+  supervision, review queries, dashboard in @pg-boss/dashboard). The reclaim
+  timings are configuration-dependent because the spike deliberately used
+  different lease/stall settings; they are evidence that recovery works, not a
+  durable performance advantage. BullMQ is Redis-native (workable, faster
   ops-level throughput) and is retained as the documented fallback if a
   dedicated Redis for jobs is ever provisioned.
 - pg-boss's README "exactly-once delivery" is **vendor wording, not adopted**.

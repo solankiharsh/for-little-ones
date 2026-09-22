@@ -33,13 +33,13 @@ Proposed subsystem: `QualityProvider` (provider interface for content QA) consum
 Not applicable (greenfield). Risks the **design itself** must avoid:
 
 - **Silent gates:** checks running invisibly erode trust; results must surface.
-- **Model-dependent flakiness:** identity/likeness checks use a model — they must be probabilistic with a threshold, re-runnable, and non-blocking unless a *hard* mismatch (see catalogue) tripps.
+- **Model-dependent flakiness:** uncalibrated identity/likeness and LLM judgement are `REVIEW_REQUIRED`, never automatic hard gates. Only deterministic mismatches are `HARD_BLOCK` until real evaluator-to-human calibration supports a high-confidence hard gate.
 - **False positives scaring parents:** severity classification must keep ADVISORY noise away from the approval gate (REVIEW_REQUIRED items surface only when a real decision exists).
 - **Running on live mutable state:** QA results must be tied to a specific revision, not a moving book.
 
 ## 5. Desired UX
 
-After generation completes, Emma sees a soft confirmation in preview: "We checked Ava's book — 41 pages, all good." If something needs a look: "We found 2 things worth a quick look" opening a summary card (HARD_BLOCK items enumerated by page; REVIEW_REQUIRED items listed for her decision; ADVISORY items tucked away). The repeated-illustration item (REVIEW_REQUIRED) lets her choose: "This drawing appears twice — want us to try another? [Try another] [Keep anyway]" — routed through F-012, never leaving QA bare error text. A HARD_BLOCK (e.g. a page that doesn't resemble Ava) shows only a fix path — no "keep anyway" unless print-geometry rules allow an explicit recorded override. Ops (F-026) sees every item with check name, page, revision, severity, and asset refs for triage.
+After generation completes, Emma sees a soft confirmation in preview: "We checked Ava's book — 41 pages, all good." If something needs a look: "We found 2 things worth a quick look" opening a summary card (HARD_BLOCK items enumerated by page; REVIEW_REQUIRED items listed for her decision; ADVISORY items tucked away). The repeated-illustration item (REVIEW_REQUIRED) lets her choose: "This drawing appears twice — want us to try another? [Try another] [Keep anyway]" — routed through F-012, never leaving QA bare error text. A HARD_BLOCK (e.g. a required character missing from a page) shows only a fix path. Ops (F-026) sees every item with check name, page, revision, severity, and asset refs for triage.
 
 ## 6. UI specification
 
@@ -71,11 +71,12 @@ Check catalogue (title — what it inspects, severity when FAIL):
 
 | Check | Inspects | Severity when FAIL |
 | --- | --- | --- |
-| Identity consistency | page likeness vs `CharacterBible` (per character) | HARD_BLOCK |
-| Wrong child count | children in illustrations vs `childProfiles` | HARD_BLOCK |
+| Identity consistency | automated page likeness vs `CharacterBible` (per character) | REVIEW_REQUIRED until calibrated; calibrated high-confidence mismatch may become HARD_BLOCK |
+| Wrong/missing required character | deterministic required-character presence/count | HARD_BLOCK |
 | Name mismatch | name strings in text vs child profile (including spelling) | HARD_BLOCK |
 | Pronoun mismatch | pronouns vs profile pronouns | HARD_BLOCK |
-| Story contradiction | fact conflict between text blocks (immutable-facts block) | HARD_BLOCK |
+| Story contradiction | deterministic conflict with parent-supplied immutable facts | HARD_BLOCK |
+| Model-detected story concern | LLM-suggested inconsistency | REVIEW_REQUIRED |
 | Duplicate paragraph | repeated normalized paragraphs across pages | HARD_BLOCK |
 | Duplicate page | identical page content while content differs elsewhere | HARD_BLOCK |
 | Text overflow | text extent vs print-safe box (PrintSpec/PreflightContract geometry) | HARD_BLOCK (print-geometry, non-overridable) |
@@ -104,7 +105,7 @@ Check catalogue (title — what it inspects, severity when FAIL):
 ## 10. AI behaviour
 
 - `QualityProvider` interface (proposed): `run(ctx: QualityEvaluationRequest) → QualityEvaluationResult`; deterministic check **policies** (exact strings, geometry, count, asset existence, moderation per `policies/safety/content-rules.md` — the `qa.v1` set) run first and are binary; model-assisted checks (likeness, artifacts, contradiction) run second and return a confidence score vs threshold. Every result carries `schemaVersion`; the run's provenance uses the `qa.v1` `policySetVersion`/`policyHash` (GENERATION_PROVENANCE §3).
-- Identity likeness uses `IdentityProvider` embeddings of the `CharacterBible` vs page illustration — threshold set by the calibration methodology (F-009 §10); below-threshold = FAIL (HARD_BLOCK), near-threshold = REVIEW_REQUIRED.
+- Identity likeness uses `IdentityProvider` embeddings of the `CharacterBible` vs page illustration. Before real evaluator-to-human calibration, any automated concern is `REVIEW_REQUIRED`; only a calibration-backed high-confidence mismatch may become `HARD_BLOCK`. Deterministic required-character and immutable-fact checks remain binary.
 - No provider prompt/seed surfaces; structured output only. Facts are immutable — contradiction checks reference the facts block, never let the model "decide" a fact changed.
 
 **Generation and acceptance are separate responsibilities** (GENERATION_ARCHITECTURE §5): the QA evaluator returns structured findings only — it never mutates canonical facts; correction is a separate command path (F-012/F-013).
@@ -115,7 +116,7 @@ The suite is itself the QA feature: checks are deterministic where possible, pro
 
 ## 12. Privacy/security
 
-- Likeness scoring uses the source photos' embeddings and generated likenesses — PII-tier; results stored under the same retention/deletion as the book (F-025). No external provider receives raw photos; if a likeness model is external, it is a documented provider under §7 invariants (photos trace: browser → API → storage → model provider → output → deletion).
+- Likeness scoring uses the source photos' embeddings and generated likenesses — PII-tier; results stored under the same retention/deletion as the book (F-025). No external provider receives raw photos; if a likeness model is external, it is a documented provider under §7 invariants (photos trace: browser → signed private storage upload → server-side completion/validation → model provider → output → deletion).
 - QA results never include raw images in analytics; alert payloads carry refs only, ops view restricted to staff.
 
 ## 13. Analytics
@@ -124,7 +125,7 @@ The suite is itself the QA feature: checks are deterministic where possible, pro
 
 ## 14. Acceptance criteria
 
-1. Given a book with a face that drifts from the `CharacterBible`, when the full QA run executes, then identity-consistency check FAILs at HARD_BLOCK and F-016 refuses approval until it is fixed (or, for a content-level identity matter, explicitly recorded as overridden — never silently waived).
+1. Given a book with a face that appears to drift from the `CharacterBible`, when the full QA run executes before evaluator calibration, then identity consistency is `REVIEW_REQUIRED` and the parent records a repair or keep decision. A `HARD_BLOCK` is allowed only after the calibrated high-confidence threshold is adopted.
 2. Given a `SHORTER` text correction (F-012) on page 12, when the page's QA scoped run executes, then only page 12 + its two adjacent pages are rechecked; the rest of the run's prior PASS results for other pages remain valid for that revision.
 3. Given a print-geometry violation (text outside safe area via F-014 edit), when QA runs, then the edit is refused at save (F-014 blocks it) and the run still marks it HARD_BLOCK (print-geometry) non-overridable.
 4. Given a mid-run revision supersession, when a newer revision lands, then the in-flight run is cancelled and its results are never published as "latest" (fails closed to `UNKNOWN` for approval).

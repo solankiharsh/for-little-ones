@@ -1,7 +1,17 @@
 export { ExampleVendorStoryAdapter } from "./story";
 export type { StoryProvider, StoryAdapter } from "./story";
 export type { IllustrationProvider } from "./illustration";
-export type { IdentityProvider, IdentityReference } from "./identity";
+export { deriveIdentityReference } from "./identity";
+export type { ChildPhotoInputs, IdentityProvider, IdentityReference } from "./identity";
 export type { QualityProvider } from "./quality";
 export type { ModerationProvider, ModerationInput, ModerationResult } from "./moderation";
-export type { ProviderCard, ProviderBoundary, StyleTokens } from "./shared";
+export { assertEligibleForChildPhotos, isEligibleForChildPhotos } from "./shared";
+export type {
+  ProviderCard,
+  ProviderBoundary,
+  ProviderDataPolicy,
+  RetentionMode,
+  TrainingUse,
+  DeletionMechanism,
+  StyleTokens
+} from "./shared";

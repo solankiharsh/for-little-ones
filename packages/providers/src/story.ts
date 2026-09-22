@@ -34,14 +34,20 @@ export interface StoryAdapter extends ProviderBoundary {
 }
 
 const VENDOR_CARD: ProviderCard = {
-  childDataSent: { sent: false },
-  retention: "none (stateless HTTP mapping adapter)",
-  dataUseTerms: "none",
+  dataPolicy: {
+    verifiedAt: "2026-09-22",
+    policyVersion: "example-adapter-v1",
+    childDataSent: false,
+    retentionMode: "NONE",
+    trainingUse: "PROHIBITED",
+    deletionMechanism: "CONTRACTUAL_ZERO_RETENTION",
+    region: "not-applicable",
+    evidenceRef: "internal://example-adapter/no-child-data"
+  },
   idempotency: "per-request idempotency key echoed by vendor; see adapter impl",
   timeoutMs: 15_000,
   retryPolicy: "5xx + network: retryable with backoff; 4xx: non-retryable",
-  costMetadata: "surfaced as costCents in generationMetadata when the vendor reports it",
-  deletion: "not applicable (no stored child data)"
+  costMetadata: "surfaced as costCents in generationMetadata when the vendor reports it"
 };
 
 /**
