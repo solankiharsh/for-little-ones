@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
 import BookReader from "./reader/BookReader";
 
 const STUDIO = "For Little One";
+const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
 
 function Logo() {
   return (
@@ -31,6 +32,7 @@ function Logo() {
 export default function App() {
   const reduced = useReducedMotion();
   const [phase, setPhase] = useState<"shelf" | "opening" | "reader">("shelf");
+  const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
 
   const open = useCallback(() => {
     if (reduced) {
@@ -43,6 +45,23 @@ export default function App() {
   const close = useCallback(() => {
     setPhase("shelf");
   }, []);
+
+  const previewStory = useCallback((title: string) => {
+    setPreviewTitle(title);
+    setPhase("reader");
+    window.setTimeout(() => document.getElementById("reader")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, []);
+
+  const previewBook = useMemo(
+    () => ({
+      ...sampleBook,
+      metadata: { ...sampleBook.metadata, title: previewTitle },
+      pages: sampleBook.pages.map((page) => page.pageNumber === 1
+        ? { ...page, textBlocks: page.textBlocks.map((block) => block.kind === "cover-title" ? { ...block, text: previewTitle } : block) }
+        : page),
+    }),
+    [previewTitle],
+  );
 
   return (
     <div className="flo-site">
@@ -235,24 +254,27 @@ export default function App() {
               </p>
             </div>
             <div className="flo-world-grid">
-              <article className="flo-world flo-world-night">
+              <button type="button" className="flo-world flo-world-night" onClick={() => previewStory("The Moon That Followed Home")}>
                 <span className="flo-world-kicker">Bedtime wonder</span>
                 <h3>The moon that followed home</h3>
                 <p>For the child who always has one more question about the sky.</p>
-              </article>
-              <article className="flo-world flo-world-garden">
+                <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
+              </button>
+              <button type="button" className="flo-world flo-world-garden" onClick={() => previewStory("The Secret Garden Map")}>
                 <span className="flo-world-kicker">Small adventures</span>
                 <h3>The secret garden map</h3>
                 <p>A rainy-day expedition with a brave companion and a pocketful of clues.</p>
-              </article>
-              <article className="flo-world flo-world-sea">
+                <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
+              </button>
+              <button type="button" className="flo-world flo-world-sea" onClick={() => previewStory("The Lighthouse That Sang")}>
                 <span className="flo-world-kicker">Big imagination</span>
                 <h3>The lighthouse that sang</h3>
                 <p>A sea-swept story for a little explorer who never misses a wave.</p>
-              </article>
+                <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
+              </button>
             </div>
             <div className="flo-world-actions">
-              <a href="#reader" className="flo-btn flo-btn-ghost">See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></a>
+              <button type="button" className="flo-btn flo-btn-ghost" onClick={() => previewStory(SAMPLE_TITLE)}>See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
               <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
             </div>
           </div>
@@ -262,7 +284,7 @@ export default function App() {
         <section className="flo-reader-wrap" id="reader" aria-label="Your book, open">
           <div className="flo-reader-inner">
             <p className="flo-kicker">Your book</p>
-            <h2 className="flo-reader-title">The Fox Who Lost the Moon</h2>
+            <h2 className="flo-reader-title">{previewTitle}</h2>
             <p className="flo-reader-sub">
               A working reader — the real spreads from your book, open on the
               desk. Use your keyboard to turn the pages.
@@ -302,7 +324,7 @@ export default function App() {
               </motion.button>
             ) : (
               <BookReader
-                book={sampleBook}
+                book={previewBook}
                 child={sampleChild}
                 printSpec={samplePrintSpec}
                 onExit={close}
