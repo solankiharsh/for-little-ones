@@ -31,25 +31,20 @@ function Logo() {
 
 export default function App() {
   const reduced = useReducedMotion();
-  const [phase, setPhase] = useState<"shelf" | "opening" | "reader">("shelf");
+  const [phase, setPhase] = useState<"idle" | "reader">("idle");
   const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
 
   const open = useCallback(() => {
-    if (reduced) {
-      setPhase("reader");
-      return;
-    }
-    setPhase("opening");
+    document.getElementById("story-worlds")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
   }, [reduced]);
 
   const close = useCallback(() => {
-    setPhase("shelf");
+    setPhase("idle");
   }, []);
 
   const previewStory = useCallback((title: string) => {
     setPreviewTitle(title);
     setPhase("reader");
-    window.setTimeout(() => document.getElementById("reader")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }, []);
 
   const previewBook = useMemo(
@@ -142,13 +137,19 @@ export default function App() {
                 >
                   <video
                     autoPlay
-                    loop
                     muted
                     playsInline
                     preload="metadata"
                     aria-label="A personalised colouring book transforming into a finished book"
+                    onLoadedMetadata={({ currentTarget }) => {
+                      currentTarget.currentTime = 15;
+                    }}
+                    onEnded={({ currentTarget }) => {
+                      currentTarget.currentTime = 15;
+                      void currentTarget.play();
+                    }}
                   >
-                    <source src="/demo/personalised-colouring-book-transformation.mp4" type="video/mp4" />
+                    <source src="/demo/story-worlds-hero.mp4#t=15" type="video/mp4" />
                   </video>
                 </motion.div>
               )}
@@ -280,59 +281,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* ============ the reader — product first ============ */}
-        <section className="flo-reader-wrap" id="reader" aria-label="Your book, open">
-          <div className="flo-reader-inner">
-            <p className="flo-kicker">Your book</p>
-            <h2 className="flo-reader-title">{previewTitle}</h2>
-            <p className="flo-reader-sub">
-              A working reader — the real spreads from your book, open on the
-              desk. Use your keyboard to turn the pages.
-            </p>
-            {phase !== "reader" ? (
-              <motion.button
-                type="button"
-                className="flo-reader-book"
-                aria-label="Open The Fox Who Lost the Moon"
-                onClick={open}
-                initial={false}
-                animate={
-                  phase === "opening"
-                    ? { rotateY: -122, rotateZ: 0, y: -8, scale: 1.03, opacity: 0 }
-                    : { rotateY: -9, rotateZ: -3, y: 0, scale: 1, opacity: 1 }
-                }
-                transition={{ duration: 0.72, ease: [0.32, 0.72, 0, 1] }}
-                onAnimationComplete={() => {
-                  if (phase === "opening") setPhase("reader");
-                }}
-                {...(reduced || phase === "opening"
-                  ? {}
-                  : {
-                      whileHover: { y: -8, rotateZ: 0, scale: 1.02 },
-                      whileTap: { scale: 0.98 },
-                    })}
-              >
-                <span className="flo-reader-book-spine" aria-hidden="true" />
-                <span className="flo-reader-book-cover">
-                  <span className="flo-reader-book-moon" aria-hidden="true" />
-                  <span className="flo-reader-book-title">The Fox Who Lost the Moon</span>
-                  <span className="flo-reader-book-byline">A story for Mira</span>
-                </span>
-                <span className="flo-reader-book-prompt">
-                  {phase === "opening" ? "Opening your book..." : "Tap the cover to open"}
-                </span>
-              </motion.button>
-            ) : (
-              <BookReader
-                book={previewBook}
-                child={sampleChild}
-                printSpec={samplePrintSpec}
-                onExit={close}
-              />
-            )}
-          </div>
-        </section>
-
         {/* ============ studio / trust ============ */}
         <section className="flo-about" id="about" aria-label="The studio">
           <div className="flo-about-inner">
@@ -386,6 +334,20 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      {phase === "reader" && (
+        <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`}>
+          <div className="flo-preview-modal">
+            <p className="flo-preview-kicker">Preview: {previewTitle}</p>
+            <BookReader
+              book={previewBook}
+              child={sampleChild}
+              printSpec={samplePrintSpec}
+              onExit={close}
+            />
+          </div>
+        </div>
+      )}
 
       <footer className="flo-foot" id="foot">
         <div className="flo-foot-inner">
