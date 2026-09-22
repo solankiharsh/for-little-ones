@@ -1,6 +1,6 @@
 # Editor Engine Sponsor Ticket — close D007 with a pinned, wrapped engine
 
-> **Status:** OPEN · **Owner:** a sponsor who lands feature work · **Closes:** DECISIONS.md D020 "editor implementation posture" (currently OPEN with evidence)
+> **Status:** CLOSED (2026-09-22) · D007 resolved as **pin + wrap** in `packages/editor`; see `RESEARCH_LOG.md` phase-2 follow-up entry and `DECISIONS.md` D007/D020. Acceptance criteria 1, 2, 4, 5 met and tested in-package; criterion 3's reader/print bundle guard lands with F-011 (apps build).
 > Evidence: `spike/editor-primitive/` (phase 1 + 2), `RESEARCH_LOG.md` 2026-09-22 entries, `tmp/editor-primitive/report.json` + `phase2.json`
 
 ## Goal

@@ -1,6 +1,6 @@
 # Spike B — Editor Primitive (OpenPolotno validation)
 
-Status: **KEEP OPEN** (D007) — phase 1 (headless) + phase 2 (real browser render/interaction) evidence captured; a sponsor depends/pins the wrap candidate before asset work.
+Status: **CLOSED — ADOPT pin + wrap** (D007, 2026-09-22) — phase 1 (headless) + phase 2 (real browser render/interaction) evidence captured; the posture landed as `@reyka/openpolotno@1.5.0` (exact pin) + wrapper in `packages/editor` (see `../../.planning/RESEARCH_LOG.md` D007-closure entry). This spike package remains the repeatable evidence generator (`npm run phase2`).
 
 ## Question
 
