@@ -6,6 +6,81 @@ Use newest entries first.
 
 ---
 
+### 2026-09-22 — Spike A: Durable Execution Substrate — Measured (pg-boss vs BullMQ)
+
+**Question**
+
+Which substrate class should the durable-execution contract (D019) ride on for
+the reliability backbone (F-028) and generation orchestration (F-010): a
+PostgreSQL-backed queue (pg-boss) or a Redis-backed queue (BullMQ)?
+
+**How it was tested**
+
+- One scenario, two identical harnesses: `runCrashRecoveryScenario` +
+  `runCancellationScenario` in `spike/durable-execution/src/harness.ts`, driven
+  over a shared `SpikeBackend` (`spike/durable-execution/src/backend.ts`) and
+  the **same** assertions (`spike/durable-execution/test/shared.ts`).
+- Crash = SIGKILL of a **real worker subprocess** (`node --import tsx
+  src/run-worker.ts`) while page 5 holds after a provider accept — nothing
+  locally committed. The substrate alone must reclaim the abandoned lease.
+- Provider idempotency is the recovery mechanism: a stable `providerRequestId`
+  must be replayed as `cached: true` (no duplicate spend).
+- Infra: real PostgreSQL 18.4 beta binaries via `embedded-postgres` and real
+  Redis via `redis-memory-server` (no Docker/colima/brew available on this
+  machine — see README). Disk was at 100% during earlier runs, which crashed
+  Postgres with `ENOSPC` and falsified several "worker" failures; freeing 4.5 GB
+  of caches resolved it. **Documented so nobody re-debugs ghosts.**
+- Test-isolation fixes (fixed bookIds collided with retained jobs across runs;
+  1 h retention): unique bookId per run + `queueSnapshot(bookId)`.
+
+**Observed (measured 2026-09-22, 3× consecutive green runs of 8/8; latest)**
+
+| Axis | pg-boss 12.33.3 | BullMQ 6.3.8 + ioredis |
+|---|---|---|
+| reclaim latency (kill → page-5 re-claimed) | 8,890 ms | 15,199 ms |
+| kill → page-5 committed | 8,922 ms | 15,245 ms |
+| page-5 provider request ids | identical, 2nd `cached=true` | identical, 2nd `cached=true` |
+| provider spend total (7 units) | 7 | 7 |
+| page-7 attempts → terminal | 3 → DEAD in DLQ | 3 → DEAD in failed set |
+| reclaimed page-5 substrate attempts | 2 | 1 (stalled→waiting does not bump attempts) |
+| cancellation | jobs `cancelled` (rows remain) | `job.remove()` deletes the job (no record) |
+| terminal visibility | dead-letter queue `generation-bad` row, `sourceId` preserved | `failed` set entry; no built-in DLQ |
+| extra services | none (app Postgres only) | Redis required alongside Postgres |
+
+Reclaim delay is lease design: pg-boss `expireInSeconds:6` + monitor ~2 s;
+BullMQ `lockDuration:10000` + `stalledInterval:5000`.
+
+**Inferred**
+
+- Both substrates provide the D019 obligations (enqueue, durable state, claim,
+  reclaim, retry+delay, per-unit state, progress observation) and both recover a
+  hard process kill without a custom queue.
+- pg-boss reclaims sooner, needs no extra store, and has a native DLQ (a
+  "review-required" path is just a query over the Postgres `job` table). BullMQ
+  is Redis-native (fast, tiny latency) but adds a second infra dependency and
+  needs app-side dead-letter handling.
+- pg-boss's README "exactly-once delivery" claim is **vendor wording only**;
+  crash recovery in practice was guaranteed by our provider idempotency key,
+  not by the substrate. No exactly-once claim is made here.
+
+**Conclusion / status**
+
+- Exit criterion **durable job substrate** (D020): EVIDENCE RECORDED → the
+  decision is closed as **ADOPT PostgreSQL-backed pg-boss** (see DECISIONS D014
+  #1 / D020 update) on the evidence: equal recovery + retry semantics, native
+  dead-lettering, no second infrastructure, Postgres-job-row supervision (the
+  app is already Postgres). BullMQ remains a documented, passable alternative
+  if a dedicated Redis is ever provisioned for jobs.
+- The rest of D020 items remain OPEN pending their own spikes.
+
+**Follow-up**
+
+- Feature work that consumes the substrate (F-010 orchestrator) still needs the
+  contract to sit on the chosen substrate; extract a `DurableRuntime` behind the
+  D019 surface. Keep everything in the `spike/durable-execution/` bubble.
+
+---
+
 ### 2026-09-21 — Platform-Foundation Spikes: Plan Only (No Evidence Yet)
 
 **Question**

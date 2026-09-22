@@ -1,0 +1,31 @@
+{
+  "name": "@for-little-ones/spike-durable-execution",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spike A — durable execution substrate comparison (PostgreSQL-backed vs Redis-backed). Isolated, throwaway. Not part of the production workspaces.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "infra:up": "docker compose -f infra/compose.yaml up -d",
+    "infra:down": "docker compose -f infra/compose.yaml down",
+    "infra:reset": "docker compose -f infra/compose.yaml down -v",
+    "infra:local": "tsx scripts/infra-local.ts"
+  },
+  "dependencies": {
+    "pg-boss": "12.33.3"
+  },
+  "devDependencies": {
+    "@for-little-ones/execution": "file:../../packages/execution",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "bullmq": "6.3.8",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "ioredis": "6.0.0",
+    "redis-memory-server": "^0.17.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

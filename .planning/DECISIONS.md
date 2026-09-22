@@ -270,7 +270,7 @@ Today's architecture + feature-specification work produced:
 - `product/DESIGN_SYSTEM.md` — design-system contract.
 
 **Next step before implementation:** agreement pass — promote specs `proposed → agreed` and run the blocking spikes, deciding in this log:
-1. Durable execution substrate (candidate classes: PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed — wording stays neutral until then, see D019) — feeds F-010/F-028.
+1. Durable execution substrate (candidate classes: PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed — wording stays neutral until then, see D019; **RESOLVED 2026-09-22: ADOPT pg-boss**, see D020) — feeds F-010/F-028.
 2. OpenPolotno consumption (direct dep vs pinned vs fork) incl. spread support — feeds F-014.
 3. Medusa edition (self-hosted vs headless-cloud) + tax routing — feeds F-018.
 4. Print partner + PDF standard (PDF/X-1a vs PDF 1.7+embedded fonts) — feeds F-017/F-019.
@@ -380,17 +380,18 @@ Consequences:
 - F-008 and F-009 depend on the `DurableExecutionContract`, **not** on F-010 (the feature) — depending on the feature would recreate the F-008⇄F-010 / F-009⇄F-010 cycles.
 - F-010 implements the contract's runtime and depends on the `GenerationStep` units F-008/F-009 expose.
 - F-028 provides the durability principles (lease, retry, idempotency, outbox, dead-letter) the contract encodes; F-028 has no feature dependency, and no feature may list F-028 as a dependency merely to use its rules.
-- Substrate wording stays neutral — "durable execution substrate" — until the D014 spike; candidate classes (PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed) remain candidates, never defaults. (2026-09-21 consistency pass: D014 #1 reworded accordingly.)
+- Substrate wording stays neutral until the D014 spike; candidate classes (PostgreSQL-backed; Redis-backed; a workflow engine only if the spike shows its guarantees are needed) remain candidates, never defaults. (2026-09-21 consistency pass: D014 #1 reworded accordingly.)
+- **Update (2026-09-22):** the D014 substrate spike has landed — **ADOPT PostgreSQL-backed pg-boss** (Spike A, 3× green, `RESEARCH_LOG.md`). Wording may now be concrete: the durable execution substrate is pg-boss on the app's Postgres; BullMQ stays a documented Redis-backed alternative only if a dedicated Redis for jobs is provisioned. The neutral "durable execution substrate" phrase remains the correct product-level abstraction either way (D014's wording now reads "per D020's closed substrate decision").
 
 ---
 
 ## D020 — Platform-Foundation Spikes: All Exit Criteria Explicitly OPEN Pending Evidence (2026-09-21)
 
-**Status:** OPEN — no evidence yet; experiments planned (Spike A–E per `PROJECT_SPIKES.md`), none executed. `OPEN` is recorded deliberately: insufficient evidence must never become a fake decision.
+**Status:** OPEN for the remaining spikes; **SUPERSEDED for the durable job substrate**, which Spike A resolved to **ADOPT pg-boss** on 2026-09-22 (measured evidence in `RESEARCH_LOG.md`; `spike/durable-execution/`). `OPEN` is recorded deliberately: insufficient evidence must never become a fake decision.
 
 Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`), each exit-criterion item remains explicitly open:
 
-- **Durable job substrate.** OPEN — Spike A compares a PostgreSQL-backed job approach vs a Redis-backed queue approach (lease semantics, retries, concurrency, cancellation, idempotency, restart recovery). Neutral "durable execution substrate" wording (D014/D019) stays until then; candidates stay candidates, never defaults. No exactly-once claim.
+- **Durable job substrate.** **ADOPT — PostgreSQL-backed pg-boss** (2026-09-22): Spike A ran the identical crash/recovery + retry-exhaustion + cancellation scenario through pg-boss 12.33.3 (PostgreSQL-only) and BullMQ 6.3.8 + ioredis on the shared `SpikeBackend` harness (`spike/durable-execution/`), 3× consecutive green runs of 8/8. Both recover a real worker SIGKILL at the provider boundary with zero duplicate provider spend (stable `providerRequestId`, `cached: true`), both visibly terminal the always-fail page (pg-boss native dead-letter queue `generation-bad` vs BullMQ `failed` set — BullMQ has no built-in DLQ), both cancel enqueued work. pg-boss reclaimed in 8.9 s vs 15.2 s (lease design), needs **no second store** (the app is already Postgres; a review-required path is a query over the `job` table), and has a native DLQ. pg-boss's README "exactly-once delivery" is **vendor wording only** — recovery is guaranteed by app-level provider idempotency, not by the substrate; no exactly-once claim is adopted. BullMQ is documented as a passable alternative (Redis-native) if a dedicated Redis for jobs is ever provisioned. Evidence: `research/validate-durable-execution-substrate` (README + `RESEARCH_LOG.md` 2026-09-22 entry).
 - **Editor implementation posture.** OPEN — Spike B tests the candidate editor against an actual children's-book spread (dimensions, multipage, serialization/restoration, undo/redo, bundle size, canonical-model adapter). Decide: depend directly / pin / wrap / maintain an internal fork / reject. The editor snapshot must never become canonical.
 - **Commerce adoption/rejection.** OPEN — Spike C validates the candidate against the cart → payment → order path while preserving the invariant: commerce may reference an approved revision but may never own or mutate the Book.
 - **First print provider + print contract.** OPEN — Spike D determines actual print requirements (trim, bleed, safe area, page count, binding, cover, spine, fonts, colour, PDF profile, resolution) against one realistic partner or a faithful local fixture, and verifies the print-domain contract is editor-independent.
@@ -446,3 +447,51 @@ execution / provenance / policies / storage are foundational: no feature depende
 - Contract dependencies are checked by the typecheck gate; a future violation (a contract depending on an adapter, a provider leak past the boundary, the in-memory runtime used in production) is a defect.
  (feat: bootstrap domain and generation contracts (M0 monorepo rails))
  (feat: bootstrap domain and generation contracts (M0 monorepo rails))
+
+---
+
+## D022 — Durable Execution Substrate: ADOPT PostgreSQL-Backed pg-boss (2026-09-22)
+
+**Status:** ADOPT (Spike A evidence; supersedes D020's OPEN for this item)
+
+**Observed (measured, spike/durable-execution/, 3× consecutive green 8/8 runs)**
+
+- pg-boss 12.33.3 and BullMQ 6.3.8 + ioredis both ran the identical
+  crash/recovery + retry-exhaustion + cancellation scenario on the shared
+  `SpikeBackend` harness with identical assertions.
+- Real-process SIGKILL of the worker mid-provider-accept is recovered by both:
+  page 5 re-runs via lease reclaim, provider replays `cached: true` with the
+  same `providerRequestId` (provider spend 7/7, zero duplicate).
+- Reclaim latency: pg-boss 8,890 ms (expireInSeconds 6 + monitor 2 s) vs
+  BullMQ 15,199 ms (lockDuration 10 s + stalledInterval 5 s). Both configs are
+  spike-shortened; production defaults are slower by design.
+- Terminal visibility after retry exhaustion (3 attempts): pg-boss moves the job
+  to a **native dead-letter queue** (`generation-bad`, `sourceId` preserved — a
+  review-required path is just a query over the Postgres `job` table); BullMQ
+  leaves it in the Redis `failed` set (**no built-in DLQ** — needs an app-side
+  drainer/recover job + ledger).
+- Cancellation: pg-boss marks jobs `cancelled` (rows persist); BullMQ
+  `job.remove()` deletes the job key (no record — weaker traceability).
+- Stores: pg-boss uses the existing application Postgres only; BullMQ adds Redis
+  as a second mandatory store.
+
+**Inferred**
+
+- Both meet the D019 contract obligations. pg-boss wins on: no second
+  infrastructure, native dead-lettering, per-job Postgres rows (observation,
+  supervision, review queries, dashboard in @pg-boss/dashboard), and reclaim
+  latency for short lease windows. BullMQ is Redis-native (workable, faster
+  ops-level throughput) and is retained as the documented fallback if a
+  dedicated Redis for jobs is ever provisioned.
+- pg-boss's README "exactly-once delivery" is **vendor wording, not adopted**.
+  Crash safety comes from app-level provider idempotency (stable
+  `providerRequestId`), not from any substrate guarantee.
+
+**Consequences**
+
+- F-028 durability principles and F-010 orchestration runtime target pg-boss on
+  the app's Postgres; the app-level `DurableExecutionContract` surface (D019)
+  stays substrate-neutral so BullMQ remains an interchangeable runtime.
+- No exactly-once claim anywhere in our documentation; recovery = idempotency.
+- "review-required" work surfaces in the DLQ row (bookId, pageNumber,
+  sourceRetryCount) for the F-028 rules.
