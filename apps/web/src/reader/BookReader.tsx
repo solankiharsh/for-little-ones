@@ -25,8 +25,10 @@ export default function BookReader({
   const spreads = useMemo(() => (maybeBook ? spreadPages(maybeBook.pages) : []), [maybeBook]);
   const layout: PageLayout | null = useMemo(() => {
     if (!maybeSpec || typeof window === "undefined") return null;
-    // Width is per page: a spread contains two pages side by side.
-    return pageLayout(maybeSpec, Math.round(window.innerHeight * 0.72), Math.round(window.innerWidth * 0.44));
+    // The preview modal is capped at 1180px, so calculate width per page from
+    // its content area rather than letting a full spread overflow the frame.
+    const modalContentWidth = Math.min(1180, window.innerWidth - 48) - 42;
+    return pageLayout(maybeSpec, Math.round(window.innerHeight * 0.62), Math.floor(modalContentWidth / 2));
   }, [maybeSpec]);
   const geometry = useMemo(() => {
     if (!maybeSpec) return null;
