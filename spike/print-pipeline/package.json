@@ -1,0 +1,24 @@
+{
+  "name": "@for-little-ones/spike-print-pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spike D — deterministic print pipeline against generic PrintSpec (D016) + Mixam provider adapter. Isolated, throwaway. Not part of the production workspaces.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sample": "tsx scripts/make-sample.ts"
+  },
+  "dependencies": {
+    "@for-little-ones/domain": "file:../../packages/domain",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}
