@@ -5,17 +5,7 @@
  * silently.
  */
 export interface ProviderCard {
-  childDataSent: {
-    sent: boolean;
-    /** What is sent, e.g. "reference photo downscale" — only when `sent` is true. */
-    what?: string;
-    why?: string;
-    form?: string;
-  };
-  /** Provider retention terms; "none" when the provider stores nothing. */
-  retention: string;
-  /** Data-use/training terms; "none" when the provider does not train. */
-  dataUseTerms: string;
+  dataPolicy: ProviderDataPolicy;
   /** Supported idempotency / request IDs. */
   idempotency: string;
   timeoutMs: number;
@@ -23,8 +13,33 @@ export interface ProviderCard {
   retryPolicy: string;
   /** Cost metadata surfaced (costCents/units) and how it is returned. */
   costMetadata: string;
-  /** Deletion capability, or the documented fallback if no delete API exists. */
-  deletion: string;
+}
+
+export type RetentionMode = "NONE" | "EPHEMERAL" | "FIXED_TERM" | "CONTRACTUAL" | "UNKNOWN";
+export type TrainingUse = "PROHIBITED" | "PERMITTED" | "UNKNOWN";
+export type DeletionMechanism = "API_DELETE" | "AUTOMATIC_EXPIRY" | "CONTRACTUAL_ZERO_RETENTION" | "NOT_SUPPORTED";
+
+/** Verified evidence for a provider's handling of child data. */
+export interface ProviderDataPolicy {
+  verifiedAt: string;
+  policyVersion: string;
+  childDataSent: boolean;
+  retentionMode: RetentionMode;
+  trainingUse: TrainingUse;
+  deletionMechanism: DeletionMechanism;
+  region: string;
+  evidenceRef: string;
+}
+
+/** Child photos may only be sent where training is prohibited and deletion is supported. */
+export function isEligibleForChildPhotos(policy: ProviderDataPolicy): boolean {
+  return policy.childDataSent && policy.trainingUse === "PROHIBITED" && policy.deletionMechanism !== "NOT_SUPPORTED";
+}
+
+export function assertEligibleForChildPhotos(policy: ProviderDataPolicy): void {
+  if (!isEligibleForChildPhotos(policy)) {
+    throw new Error("provider is not eligible to receive child photos");
+  }
 }
 
 export interface ProviderBoundary {

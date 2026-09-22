@@ -1,4 +1,4 @@
-import type { Approval, Book, BookRevision } from "@for-little-ones/domain";
+import type { ApprovedBookRevision, Book, BookRevision } from "@for-little-ones/domain";
 
 /**
  * Spike C — commerce candidate vs minimal self-built surface.
@@ -26,7 +26,7 @@ export const FORMATS: Record<typeof FORMAT_HARDCOVER_SQUARE, FormatSpec> = {
 
 /**
  * The ONLY thing commerce may carry about an approved revision. Constructed
- * from the canonical Approval object, but only these two opaque fields ever
+ * from the canonical ApprovedBookRevision snapshot, but only these two opaque fields ever
  * leave this module — enforced at runtime by `toOrderPayload`.
  */
 export interface OpaqueApprovedRevisionRef {
@@ -44,14 +44,19 @@ export interface CartLine {
   opaqueRef?: OpaqueApprovedRevisionRef;
 }
 
-export function opaqueRefFromApproved(revision: BookRevision, approval: Approval): OpaqueApprovedRevisionRef {
-  return { approvedBookRevisionId: revision.id, revisionHash: approval.hash };
+export function opaqueRefFromApproved(revision: BookRevision, approval: ApprovedBookRevision): OpaqueApprovedRevisionRef {
+  if (revision.id !== approval.revisionId || revision.status !== "APPROVED") {
+    throw new Error("only the approved revision may be referenced by commerce");
+  }
+  return { approvedBookRevisionId: approval.id, revisionHash: approval.contentHash };
 }
 
 /** Commerce may only be offered an APPROVED revision. Anything else is rejected up front. */
-export function approvalOf(book: Book): Approval | null {
-  if (book.status !== "APPROVED" || !book.approval) return null;
-  return book.approval;
+export function approvalOf(book: Book): ApprovedBookRevision | null {
+  const approval = book.approval;
+  if (!approval) return null;
+  const revision = book.revisions.find((candidate) => candidate.id === approval.revisionId);
+  return revision?.status === "APPROVED" ? approval : null;
 }
 
 export interface PaymentRequest {

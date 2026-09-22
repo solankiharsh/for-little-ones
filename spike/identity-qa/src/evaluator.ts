@@ -30,26 +30,25 @@ export interface SwappableLikenessEvaluator {
 export interface RegistrationEvaluatorOptions {
   /** Noise sigma on the evaluator's likeness readout ([0,1] scale). */
   evaluatorNoiseSigma: number;
-  /** Below this predicted likeness the identity is HARD_BLOCK (cannot be waived). */
-  hardBlockBelow: number;
   /** Below this predicted likeness the identity demands human review. */
   reviewBelow: number;
 }
 
 export const EVALUATOR_CARD: ProviderCard = {
-  childDataSent: {
-    sent: false,
-    what: "likeness readout only; no raw images in the offline dry-run",
-    why: "offline methodology run; real phase wraps a vision evaluator behind this boundary",
-    form: "feature vector"
+  dataPolicy: {
+    verifiedAt: "2026-09-22",
+    policyVersion: "offline-evaluator-v1",
+    childDataSent: false,
+    retentionMode: "NONE",
+    trainingUse: "PROHIBITED",
+    deletionMechanism: "CONTRACTUAL_ZERO_RETENTION",
+    region: "local-process",
+    evidenceRef: "internal://spike-identity-qa/offline-evaluator"
   },
-  retention: "none",
-  dataUseTerms: "none",
   idempotency: "deterministic per page asset",
   timeoutMs: 0,
   retryPolicy: "n/a",
-  costMetadata: "costCents=0: mock",
-  deletion: "n/a"
+  costMetadata: "costCents=0: mock"
 };
 
 export function makeFeatureRegressionEvaluator(
@@ -57,7 +56,6 @@ export function makeFeatureRegressionEvaluator(
 ): SwappableLikenessEvaluator {
   const options: RegistrationEvaluatorOptions = {
     evaluatorNoiseSigma: opts.evaluatorNoiseSigma ?? 0.035,
-    hardBlockBelow: opts.hardBlockBelow ?? 0.2,
     reviewBelow: opts.reviewBelow ?? 0.62
   };
 
@@ -70,21 +68,13 @@ export function makeFeatureRegressionEvaluator(
       const score01 = Math.max(0, Math.min(1, observed));
 
       const checks: CheckResult[] = [];
-      if (score01 < options.hardBlockBelow) {
-        checks.push({
-          code: "identity.likeness.hard",
-          dimension: "identity.likeness",
-          severity: "HARD_BLOCK",
-          detail: `predicted likeness ${score01.toFixed(3)} below hard-block floor ${options.hardBlockBelow}`,
-          meta: { score01, reference: toShort(page.reference.referenceId), pageKey: page.spec.pageKey }
-        });
-      } else if (score01 < options.reviewBelow) {
+      if (score01 < options.reviewBelow) {
         checks.push({
           code: "identity.likeness.review",
           dimension: "identity.likeness",
           severity: "REVIEW_REQUIRED",
           detail: `predicted likeness ${score01.toFixed(3)} below review floor ${options.reviewBelow}`,
-          meta: { score01, pageKey: page.spec.pageKey }
+          meta: { score01, reference: toShort(page.reference.referenceId), pageKey: page.spec.pageKey }
         });
       }
 
@@ -96,8 +86,8 @@ export function makeFeatureRegressionEvaluator(
         checks.push({
           code: "identity.character-swap.detected",
           dimension: "identity.character-swap",
-          severity: "HARD_BLOCK",
-          detail: "character swap / wrong-likeness event detected",
+          severity: "REVIEW_REQUIRED",
+          detail: "automated character-swap concern detected; human review required before calibration",
           meta: { swapSignal }
         });
       }

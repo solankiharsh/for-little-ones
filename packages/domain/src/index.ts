@@ -2,14 +2,19 @@ export type { ChildProfile, PersonalFact } from "./child";
 export type {
   Book,
   BookStatus,
+  RevisionStatus,
   Page,
   PageStatus,
   CharacterBible,
   Relationship,
   CanonicalTextBlock,
   BookRevision,
+  ApprovedBookRevision,
+  CreateApprovedBookRevision,
+  DeepReadonly,
   Approval
 } from "./book";
+export { createApprovedBookRevision } from "./book";
 export { validateGeometry } from "./print";
 export type {
   PrintSpec,

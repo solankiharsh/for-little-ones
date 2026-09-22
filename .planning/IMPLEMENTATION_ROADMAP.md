@@ -29,7 +29,7 @@ Customer-visible: a parent can create a complete story and see it.
 | F-008 Story Generation | Stage pipeline (`OUTLINE` gate → per-page `PAGE_TEXT`); typed `StoryOutlineResult`/`PageTextResult` (runtime-schema-validated, `schemaVersion`); `text.v1` policy set (age/story/localisation under `/policies`); immutable-fact injection; per-page provenance |
 | F-010 Generation Progress (v0) | Durable job, per-step + per-page states, refresh-safe, emotional labels |
 | F-011 Book Preview (v0) | Lightweight reader: thumbnail rail + spread (desktop), flip (mobile); fixture/placeholder illustrations — the M1 print-look preview; real illustrated assets land M2 |
-| D016 Shared print contract | PrintSpec + shared print catalogue (`PrintCapability`/`PrintQuote`: format feasibility, geometry, quote inputs) in the canonical model (D016) — consumed by F-015/F-016/F-014; the F-017 print renderer lands M4 |
+| D016 Shared print contract | Canonical `PrintSpec` + `PrintPreflightContract` (stable format feasibility and geometry) consumed by F-015/F-016/F-014; provider capabilities stay in printing and live quotes stay in commerce, with checkout snapshotting the purchased quote; the F-017 print renderer lands M4 |
 | F-025 Privacy & Deletion (core v0) | Retention classes, consent in upload/checkout copy, delete-now baseline, provider-audit contract (F-025 full = M6) |
 
 **Acceptance:** anonymous user → discover story → create profile (no photos) → pick concept → generate (progress UI survives refresh) → reads full story in reader — **text + layout with fixture/placeholder illustrations**. One-page text failure retried without restart. "Printability" gates against the shared contract are checkable even though the real renderer ships in M4.
@@ -40,7 +40,7 @@ Customer-visible: the generated child looks like the child on every page (**chil
 
 | Feature | Work |
 | --- | --- |
-| F-004 Photo Upload | 1–5 photos, client compression, validation tiers, delete; upload topology (direct vs API-relay) decided in spike (D017) |
+| F-004 Photo Upload | 1–5 photos, client compression, validation tiers, delete; browser direct signed upload to private storage followed by server-side validation (D017, qualified before M2) |
 | F-005 Character Bible (v0) | Reference photos + approved appearance + versioning (region, cross-book later) |
 | F-009 Illustration Generation | Illustration plans + identity-conditioned images; typed `IllustrationPlan`/`IllustrationResult` (schemaVersion); `illustration.v1` policy set; per-artifact provenance; per-page attempt budget, ≥300 DPI gating |
 | F-015 Book QA (core) | Identity, wrong-child-count, name/pronoun, contradiction, duplicate checks |

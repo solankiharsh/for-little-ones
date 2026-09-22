@@ -100,11 +100,11 @@ Key properties:
 - **Opaque references, hard invariant (Spike C proven 4/4, retained as the integration's semantic minimum):** every personalised cart line / order line carries exactly `approvedBookRevisionId` + `contentHash` (`revisionHash`) + `productFormatId` + `printSpecId` + `displayTitle` + `quantity` (+ non-sensitive ops metadata such as `recipientLabel`). Medusa **never** receives child profile/photos, story, page text, prompts, character bible, generated image URLs or sensitive personalisation facts. Direction: `order line → opaque ApprovedBookRevision → domain resolves the book`; the reverse (line item → book JSON) never exists. One approved revision may back **N** orders (reorders/gifts).
 - **Personalisation recipe (documented Medusa pattern):** pointer data rides line-item `metadata`; richer commerce-side links use a custom module + module link if ever needed — never duplicated canonical content.
 
-**State separation (Book vs commerce):** `BookStatus` is content/generation/approval lifecycle only — it carries no `ORDERED`/`IN_PRODUCTION`/`SHIPPED`/`DELIVERED`/`PAYMENT_FAILED`/`FULFILMENT_FAILED` states (one approved revision → N orders makes a single Book-level "ordered" state meaningless; `_SPEC_GUIDE.md` §4 defines the three machines — book/order/fulfilment). Order lifecycle lives in Medusa; fulfilment timeline (`FULFILMENT_SUBMITTED → IN_PRODUCTION → SHIPPED → DELIVERED`, exceptional failures) lives on the order/fulfilment projection sourced from Medusa + print-handoff events — never on the Book.
+**State separation (Book vs commerce):** `BookStatus` is only the stable container lifecycle; editorial generation and approval are `BookRevision` states. Neither carries `ORDERED`/`IN_PRODUCTION`/`SHIPPED`/`DELIVERED`/`PAYMENT_FAILED`/`FULFILMENT_FAILED` (one approved revision → N orders makes a single Book-level "ordered" state meaningless; `_SPEC_GUIDE.md` §4 defines the three machines — book/revision, order, fulfilment). Order lifecycle lives in Medusa; fulfilment timeline (`FULFILMENT_SUBMITTED → IN_PRODUCTION → SHIPPED → DELIVERED`, exceptional failures) lives on the order/fulfilment projection sourced from Medusa + print-handoff events.
 
 **Product modelling:** one catalogue Product ("Personalised Children's Book"); Variants = format/binding/size; a Line Item = one specific approved revision + format. Never one Product per generated book.
 
-**Pricing vs print quote (§9/D016):** book content generation ≠ physical price. Customer price = Medusa product/region configuration; printer cost = our `PrintQuote` via the print catalogue; margin policy (F-027) maps cost → price offline. A live printer quote is never canonical Book state and never feeds Medusa pricing logic.
+**Pricing vs print quote (§9/D016):** book content generation ≠ physical price. Customer price = Medusa product/region configuration; printer cost = a transient commerce-side `PrintQuote`; margin policy (F-027) maps cost → price offline. `PrintSpec` is canonical and frozen with the approved revision, while a purchased quote is snapshotted on the order. A live printer quote is never canonical Book state and never feeds Medusa pricing logic.
 
 **Payment:** Medusa payment abstraction + first-party Stripe provider (inbound `/hooks/payment/{provider}_{id}` webhooks, validated; Apple/Google Pay via `automatic_payment_methods`). Capture is business-effect idempotent (§14); payment failure preserves the approved Book; retry never regenerates; no parallel payment state machine outside Medusa.
 
@@ -164,7 +164,7 @@ Book
 **Adapters** translate this into: editor snapshot (OpenPolotno JSON, per version), reader payload (pre-rendered images + text), print payload (PDF/PDF-X artifacts per printer), digital version.
 
 - **Revision rule (F-016):** approval makes a deep-immutable snapshot with hash; print, order items, and reorder all bind to it. Edits always create a new revision; the approved one is byte-preserved.
-- **Print contract (D016):** a shared **PrintSpec/PrintPreflightContract + print catalogue (`PrintCapability`/`PrintQuote`)** — format feasibility + geometry rules (trim/bleed/safe areas/DPI/fonts/page rules) + capability and pricing inputs — is part of the canonical model. Core QA (F-015), approval (F-016) and the editor (F-014) consume the catalogue/contract; the print renderer (F-017) implements the geometry contract and its fulfilment adapter (`PrintProvider`, F-019) never answers an approval-facing quote. This is what keeps QA/approval off the renderer's critical path.
+- **Print contract (D016):** canonical **PrintSpec/PrintPreflightContract** defines stable format feasibility + geometry rules (trim/bleed/safe areas/DPI/fonts/page rules). Core QA (F-015), approval (F-016) and the editor (F-014) consume it; the print renderer (F-017) implements it. Provider capability is a printing integration concern and expiring quotes are commerce application data, so neither becomes canonical Book state. This keeps QA/approval off the renderer's critical path without conflating product configuration with live provider data.
 
 ## 8. Character model & identity
 
@@ -242,7 +242,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 
 ## 13. Print pipeline
 
-- Deterministic renderer (F-017): trim, bleed, safe areas, DPI/a, resolution validation, embedded fonts, cover+spine math, page-count rules, colour profile. Output PDF/PDF-X artifact per printer standard; adapted via `PrintProvider` (`validateArtifact · submitOrder · getOrderStatus · cancelOrder · getTracking` — **pricing/capability lives in the shared print catalogue, D016, never here**) with per-vendor adapters. Implements the shared **PrintSpec/PrintPreflightContract** (D016).
+- Deterministic renderer (F-017): trim, bleed, safe areas, DPI/a, resolution validation, embedded fonts, cover+spine math, page-count rules, colour profile. Output PDF/PDF-X artifact per printer standard; adapted via `PrintProvider` (`validateArtifact · submitOrder · getOrderStatus · cancelOrder · getTracking`). It implements the shared **PrintSpec/PrintPreflightContract** (D016); live provider capability stays in the printing integration and quotes remain commerce data.
 - **Never** browser screenshot (D005).
 - Assets pre-flattened at print resolution from the approved revision; cache artifact tagged with `revisionHash`.
 - **Determinism:** same `ApprovedBookRevision` + same `PrintSpec` → the same **visible/content output**. Compare via normalized artifact hash · content-manifest hash · per-page raster comparison · geometry validation report. Byte-identical PDF bytes are only required if the renderer also eliminates timestamps/random IDs (PDFs legitimately embed such values); that is a hardening option, not the launch guarantee (F-017 §14).
@@ -250,7 +250,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 ## 14. Payment/order flow
 
 1. Checkout on **Medusa** (ADOPTED, D006): cart items each carry the opaque `approvedBookRevisionId` + `contentHash` (+ format/display/qty metadata) — Spike C invariant; server-side validation that the referenced revision exists and is `APPROVED` runs before any price is shown (F-018).
-2. Estimate arrival before payment (quote from the shared print catalogue — D016).
+2. Estimate arrival before payment (transient commerce-side quote; snapshot the purchased quote onto the order).
 3. Payment via Medusa's payment abstraction + Stripe provider; capture **business-effect idempotent**: Medusa workflow guards + our subscriber-side idempotent consumer → capture/order effects happen at most once per attempt; duplicate provider webhooks replay the stored result (at-least-once + idempotent handling — never claim exactly-once). Provider-crash uncertain-outcome cases go through reconciliation, not blind replay.
 4. Success → Medusa order created → `ORDER_CREATED` emitted to our `CommerceEventAdapter` (book stays `APPROVED`); failure → payment failure state on the Medusa payment/order with clean retry; the approved Book is never mutated; no print pre-payment.
 5. Order → fulfilment (below). Refunds/cancellations only via approved-revision-aware rules (F-026), executed in Medusa with our ops UI deep-linking.
@@ -264,7 +264,7 @@ CreateBook → validate inputs → validate photos → build/update Character Bi
 
 ## 16. Privacy/deletion
 
-- Trace every system: browser → API → storage → model provider → output → retention/deletion (mandatory; F-025 data inventory).
+- Trace every system: browser → signed private storage upload → server-side completion/validation → model provider → output → retention/deletion (mandatory; F-025 data inventory).
 - Retention proposal (**PROPOSED — legal/product sign-off required before it goes live**): unsaved uploads ≤48h (draft); saved/order-adjacent photos ≤30 days unless order-in-flight; delete-now cascade into storage/DB/queues/provider payloads/derived likenesses; consent on profile + purchase. Parity floor with the category is *published, enforceable windows*, not a promise of specific numbers.
 - No use of customer child data to train general/public models (a product requirement confirmed via the provider data-use audit — F-025 — before any customer-facing claim); no public asset URLs; no "never-shared"/absolute guarantees beyond what we can enforce; staff access to photos default-denied (F-026).
 - Provider audit: every external party touching child data documented before code + reviewed on change.

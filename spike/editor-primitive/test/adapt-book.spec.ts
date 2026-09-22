@@ -5,7 +5,7 @@ import { snapshotFromBook, canonicalCommandsFromUserEdit } from "../src/adapt-bo
 
 const book: Book = {
   id: "book-001",
-  status: "EDITING",
+  status: "DRAFT",
   metadata: { locale: "en-GB" },
   childProfileIds: ["child-1"],
   characters: [],

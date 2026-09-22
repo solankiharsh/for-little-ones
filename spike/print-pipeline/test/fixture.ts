@@ -1,4 +1,4 @@
-import type { Book, PrintSpec } from "@for-little-ones/domain";
+import { createApprovedBookRevision, type Book, type PrintSpec } from "@for-little-ones/domain";
 
 export const MIXAM_ART_SQUARE_210: PrintSpec = {
   id: "print-mixam-art-sq",
@@ -8,7 +8,7 @@ export const MIXAM_ART_SQUARE_210: PrintSpec = {
   pageRange: { minPages: 24, maxPages: 48 }
 };
 
-export function fixtureBook(pageCount = 24): Book {
+export async function fixtureBook(pageCount = 24, printSpec: PrintSpec = MIXAM_ART_SQUARE_210): Promise<Book> {
   const pages = Array.from({ length: pageCount }, (_, i) => ({
     pageNumber: i + 1,
     status: "READY" as const,
@@ -19,15 +19,21 @@ export function fixtureBook(pageCount = 24): Book {
   }));
   return {
     id: "book-print-fixture",
-    status: "APPROVED",
+    status: "DRAFT",
     metadata: { locale: "en" },
     childProfileIds: ["child-ava"],
     characters: [{ id: "char-ava", characterId: "char-ava", version: "v1", name: "Ava", styleTokensRef: "mock://style/ava" }],
     relationships: [],
     pages,
     revisions: [{ id: "rev-9", revisionSeq: 9, createdAt: "2026-09-22T00:00:00.000Z", status: "APPROVED", pageNumbers: pages.map((p) => p.pageNumber) }],
-    printSpecId: MIXAM_ART_SQUARE_210.id,
-    approval: { revisionId: "rev-9", approvedAt: "2026-09-22T00:00:00.000Z", hash: "sha256:print-fixture" }
+    printSpecId: printSpec.id,
+    approval: await createApprovedBookRevision({
+      id: "approved-rev-9",
+      revisionId: "rev-9",
+      approvedAt: "2026-09-22T00:00:00.000Z",
+      pages,
+      printSpec
+    })
   };
 }
 

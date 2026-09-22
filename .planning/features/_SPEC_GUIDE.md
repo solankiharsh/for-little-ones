@@ -64,7 +64,7 @@ Rules:
 - Adapters translate it: editor (OpenPolotno/Konva), browser reader, print renderer, digital version, future editors.
 - **Editor JSON is never stored as the canonical book.** Store canonical model + a derived `editorSnapshot` cached per editor/version if needed.
 - Orders reference an **immutable approved revision**, never a live book (D011).
-- **PrintSpec/PrintPreflightContract + print catalogue (D016) breaks the F-015/F-016/F-017 cycle:** the contract (format feasibility, trim/bleed/safe areas/DPI/fonts/page rules) and the catalogue (`PrintCapability`/`PrintQuote` — capability + pricing/delivery inputs) live in the canonical model. Core QA (F-015) and approval (F-016) and the editor (F-014) consume *catalogue/contract*; the print renderer (F-017) is an implementation of the geometry contract and is NOT a dependency of QA/approval/editor, and its fulfilment adapter (`PrintProvider`, F-019) never answers an approval-facing quote. Reference the contract/catalogue by name in any spec that validates against print geometry or quotes.
+- **PrintSpec/PrintPreflightContract (D016) breaks the F-015/F-016/F-017 cycle:** stable format feasibility, trim/bleed/safe areas/DPI/fonts/page rules live in the canonical model. Core QA (F-015), approval (F-016), and the editor (F-014) consume that contract; the print renderer (F-017) implements it and is not a dependency of those features. `PrintCapability` remains a printing-integration concern and expiring `PrintQuote` data belongs to commerce; neither is canonical Book state.
 
 Three distinct renderers (D005):
 1. **Editing renderer** — interactive (candidate: OpenPolotno wrapped behind our editor domain).
@@ -84,9 +84,9 @@ Three distinct renderers (D005):
 - **Revision** — generated or edited snapshot of the book; the approved revision is preserved exactly for print.
 - **PrintSpec** — format, dimensions, bleed, paper, cover, binding, colour profile, min/max pages, resolution, provider metadata.
 - **PrintPreflightContract** — the print-feasibility + geometry rules derived from a `PrintSpec` (trim, bleed, safe areas, DPI, fonts, page rules, provider constraints) fixed as a **shared contract** (D016). QA, approval and the editor consume it; the print renderer implements it; the renderer is not a prerequisite of the contract.
-- **PrintCapability / PrintQuote** — the shared print catalogue (D016) exposes, at foundation level and independent of the F-017 renderer: `PrintCapability` (which formats/pages are producible, geometry limits) and `PrintQuote` (pricing + delivery estimate via `quote(...)` / `estimate(...)` / `validateFormat(...)`). Approval (F-016) and the editor (F-014) consume capability/quote; the renderer only renders; fulfilment (`PrintProvider`, F-019) only submits artifacts.
+- **PrintCapability / PrintQuote** — `PrintCapability` is live printing-integration data about producible formats; `PrintQuote` is transient commerce data containing provider cost, delivery estimate and expiry. The selected quote is snapshotted when an order is purchased. Neither belongs to a canonical Book or BookRevision.
 - **HARD_BLOCK / REVIEW_REQUIRED / ADVISORY** — QA severities: HARD_BLOCK cannot be waived (fix, or explicit recorded content override; print-geometry HARD_BLOCK is never overridable, incl. layout overflow, elements outside the valid canvas, text outside the safe area, invalid bleed, missing assets, insufficient mandatory resolution, invalid page geometry); REVIEW_REQUIRED must be reviewed/recorded before approval (no auto-block, no silent pass); ADVISORY is informational (incl. purely stylistic layout observations).
-- **DurableExecutionContract** — the foundational, feature-free execution contract (F-028 provides the durability principles; see §5). Covers ONLY: enqueue work · durable state · per-unit (per-step/per-page) state · lease/reclaim semantics · retry · cancellation · idempotency / business-operation key · progress observation. Generation specs depend on this contract, not on the orchestration feature.
+- **DurableExecutionContract** — the foundational, feature-free asynchronous execution contract (F-028 provides the durability principles; see §5). Covers ONLY: enqueue work · durable state · per-unit (per-step/per-page) state · lease/reclaim semantics · retry · cancellation · idempotency / business-operation key · progress observation. Generation specs depend on this contract, not on the orchestration feature.
 - **GenerationStepExecution** — the execution interface a generation spec *consumes* while *exposing* its own `GenerationStep` units. It extends the `DurableExecutionContract` vocabulary. Order: F-008/F-009 *expose* step units and *consume* the `GenerationStepExecution`/`DurableExecutionContract` interface; F-010 *implements* the runtime and depends on the step units. No generation spec may list F-010 as a dependency (that creates F-008/09 ⇄ F-010 cycles), and F-028 is a patterns spec consumed by F-010 — never a dependency of it. See §5 dependency rules.
 - **Order → OrderItem → ApprovedBookRevision → PrintArtifact**.
 
@@ -97,17 +97,18 @@ Three distinct renderers (D005):
 Three lifecycles, deliberately separate. **One approved revision can back N orders** (reorders,
 gifts), so commerce/fulfilment states must never live on the Book.
 
-**1. Book (content/approval) — `BookStatus` in `packages/domain` (code truth):**
+**1. Book + revision (content/approval) — `BookStatus` and `RevisionStatus` in `packages/domain` (code truth):**
 
 ```text
-DRAFT → PREPARING → GENERATING → READY_FOR_REVIEW → EDITING → READY_FOR_APPROVAL
-     → APPROVED          ← terminal for commerce: the Book stays APPROVED once ordered
+DRAFT → ARCHIVED                         Book lifecycle
+
+PREPARING → GENERATING → READY_FOR_REVIEW → EDITING → READY_FOR_APPROVAL
+          → APPROVED                     Revision lifecycle; immutable approval snapshot is orderable
 ```
 
-Book exceptional states: `GENERATION_FAILED · RENDER_FAILED · CANCELLED · ARCHIVED`
-(each spec should reference the ones that apply to it).
-There is **no** `ORDERED`, `IN_PRODUCTION`, `SHIPPED`, `DELIVERED`, `PAYMENT_FAILED` or
-`FULFILMENT_FAILED` on the Book — those were removed 2026-09-22 with D006 ADOPTED.
+Revision exceptional states: `GENERATION_FAILED · RENDER_FAILED · CANCELLED`. There is no
+`ORDERED`, `IN_PRODUCTION`, `SHIPPED`, `DELIVERED`, `PAYMENT_FAILED` or `FULFILMENT_FAILED` on a
+Book or revision.
 
 **2. Order (commerce) — Medusa order/payment state (D006; owned by `apps/commerce`):**
 
@@ -180,7 +181,7 @@ Determinism: "deterministic generation outcome" means the same inputs produce th
 ## 7. Privacy invariants (non-negotiable)
 
 - Children's photos, names and family data are sensitive product data.
-- Trace: browser → API → storage → model provider (if any) → output → retention/deletion. Every spec that touches photos must state where they go and the deletion contract.
+- Trace: browser → signed private storage upload → server-side completion/validation → model provider (if any) → output → retention/deletion. Every spec that touches photos must state where they go and the deletion contract.
 - No unnecessary logging of photos or sensitive fields; no public asset URLs; no additional providers without documentation.
 - Parents must have explicit retention language and a delete-now control (§18 of spec, D-series).
 - Generated likenesses derived from photos are personally identifiable — handle like the source.

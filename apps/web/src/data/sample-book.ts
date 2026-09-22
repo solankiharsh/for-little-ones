@@ -48,7 +48,7 @@ function page(
 
 export const sampleBook: Book = {
   id: "book-fox-moon",
-  status: "READY_FOR_REVIEW",
+  status: "DRAFT",
   metadata: { title: "The Fox Who Lost the Moon", locale: "en" },
   childProfileIds: ["child-mira"],
   characters: [

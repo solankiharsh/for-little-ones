@@ -1,7 +1,8 @@
 # Spike D — Print pipeline against a realistic provider (Mixam)
 
-Status: **HARNESS GREEN — sample PDF produced; decision: first provider = Mixam (hardcover, art-book
-square) with an adapter, PrintSpec stays generic (D016)** (2026-09-22). Runtime: fully offline,
+Status: **HARNESS GREEN — sample PDF produced; Mixam is the provisionally selected print-spec reference
+and preferred first production candidate (not an adopted fulfilment provider); PrintSpec stays generic
+(D016)** (2026-09-22). Runtime: fully offline,
 deterministic; no browser, no Docker.
 
 ## Question (PROJECT_SPIKES §Spike D)

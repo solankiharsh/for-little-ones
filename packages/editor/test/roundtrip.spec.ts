@@ -5,7 +5,7 @@ import type { Book } from "@for-little-ones/domain";
 function canonicalBook(): Book {
   return {
     id: "book-1",
-    status: "READY_FOR_APPROVAL",
+    status: "DRAFT",
     metadata: { locale: "en" },
     childProfileIds: ["child-1"],
     characters: [
@@ -29,6 +29,7 @@ function canonicalBook(): Book {
         illustration: { assetRef: "mock://assets/page-2.png", planKey: "plan-2" }
       }
     ],
+    currentRevisionId: "rev-3",
     revisions: [{ id: "rev-3", revisionSeq: 3, createdAt: "2026-09-20T00:00:00.000Z", status: "READY_FOR_APPROVAL", pageNumbers: [1, 2] }],
     printSpecId: "print-a5-sq"
   };

@@ -6,7 +6,7 @@
 
 ## Summary
 
-Parents upload 1–5 photos of a child so the Character Bible (F-005) can build a stable likeness (spec §5, §10). Photos are validated client- and server-side — face visibility, resolution, obstruction, two faces, too dark — with graceful fallback so usable photos are never rejected. No generation can start until at least one valid photo exists. This spec fixes the full photo trace (browser → API → storage → model provider → output → deletion) required by guide §7.
+Parents upload 1–5 photos of a child so the Character Bible (F-005) can build a stable likeness (spec §5, §10). Photos are validated client- and server-side — face visibility, resolution, obstruction, two faces, too dark — with graceful fallback so usable photos are never rejected. No generation can start until at least one valid photo exists. This spec fixes the full photo trace (browser → signed private storage upload → server-side completion/validation → model provider → output → deletion) required by guide §7.
 
 ## 1. Goal
 
@@ -72,14 +72,14 @@ PhotoReference
 └── traceHistory: [{ hop: browser|api|storage|model-provider|output, at, providerId }]
 ```
 
-- **Trace (guide §7):** browser (client compression + EXIF pass-through in original) → API (validate multipart, checksum) → object storage (private bucket, no public URL) → model provider (only the model-processing job passes the normalized image to `IdentityProvider`/`QualityProvider`; provider documented in F-025 audit) → output (derived likeness stored back in same private bucket) → deletion (F-025 schedule + delete-now).
+- **Trace (guide §7):** browser → short-lived signed upload → private object storage → `CompletePhotoUpload` server event → validation worker → approved `PhotoReference` → model provider (only the model-processing job passes the normalized image to an eligible `IdentityProvider`/`QualityProvider`) → output (derived likeness stored back in same private bucket) → deletion (F-025 schedule + delete-now).
 - **Scoring:** the validation job emits a 0–1 reference score (face clarity, sharpness, neutral lighting, single subject, no obstruction). The primary + top-scoring photos become `<referencePhotos>` in the Character Bible (F-005). Score is a fact about the photo, not about the child — it never feeds story text.
 
 ## 8. Backend/API requirements
 
 Proposed boundary (proposed subsystems `BookService` storage layer + dedicated photo pipeline; names shared for consistency):
 
-- `PresignPhotoUpload{ childProfileId, count, mime, size }` → returns a short-lived, scope-limited upload token + destination key. **Open question (D017):** direct-to-storage (browser → signed private storage, bypassing API) vs API relay (browser → API → storage). Neither is defaulted. Requirements both must satisfy: private objects, content-type/size validation, malware/image validation, no permanent public URLs, ownership enforcement, retention/deletion per F-025. Resolve in the security/architecture spike before build.
+- `PresignPhotoUpload{ childProfileId, count, mime, size }` → returns a short-lived, scope-limited private-storage upload URL + destination key. The browser uploads originals directly; API relay is only permitted for an explicit derived-copy or policy reason, never the default. Requirements: private objects, content-type/size validation, malware/image validation, no permanent public URLs, ownership enforcement, retention/deletion per F-025. D017 requires implementation qualification before M2; M1 has no child-photo uploads.
 - `CompletePhotoUpload{ uploadToken, checksum }` → triggers processing job; idempotent (same token returns same PhotoReference).
 - `ValidatePhotoJobResult` (internal job callback; advances `uploadState`, stores validation + score).
 - `SetPhotoPrimary{ photoId }`, `DeletePhoto{ photoId }` (soft-delete; F-025 hard-delete + propagate to Bible likeness), `MarkSubject{ photoId, faceBoxIndex }`.

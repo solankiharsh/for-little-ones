@@ -7,7 +7,7 @@
 
 ## Summary
 
-The privacy programme the whole product runs on (spec §18). It defines (a) a **data inventory** of every party touching child data along the trace `browser → API → storage → model provider → output → retention/deletion` (spec §22), (b) explicit retention windows, (c) parent/guardian consent, (d) a **delete-now** control whose cascade removes data from storage, the DB, queues, model-provider payloads and derived likenesses (guide §7: derived likenesses are PII), and (e) privacy UX *inside the purchase experience*, not only legal pages. It also sets one requirement: **child data must not train general/public models** — enforced via the provider data-use audit, and stated to customers only once verified (§10).
+The privacy programme the whole product runs on (spec §18). It defines (a) a **data inventory** of every party touching child data along the trace `browser → signed private storage upload → server-side completion/validation → model provider → output → retention/deletion` (spec §22), (b) explicit retention windows, (c) parent/guardian consent, (d) a **delete-now** control whose cascade removes data from storage, the DB, queues, model-provider payloads and derived likenesses (guide §7: derived likenesses are PII), and (e) privacy UX *inside the purchase experience*, not only legal pages. It also sets one requirement: **child data must not train general/public models** — enforced via the provider data-use audit, and stated to customers only once verified (§10).
 
 ## 1. Goal
 
@@ -24,6 +24,11 @@ Child photos, names and family data are sensitive product data (guide §7). Comp
 None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
 
 Proposed subsystems enforcing this: `BookService`/`BookRepository` (audit + deletion cascade), `CharacterBible` (likeness provenance), `GenerationJob` (cancel-on-delete, retention sweep jobs), provider interfaces `StoryProvider`, `IllustrationProvider`, `IdentityProvider`, `QualityProvider`, `ModerationProvider` (each must declare payload handling), `PrintProvider` (print data).
+
+Every provider card carries a verified `ProviderDataPolicy`: `verifiedAt`, `policyVersion`,
+`childDataSent`, `retentionMode`, `trainingUse`, `deletionMechanism`, `region`, and `evidenceRef`.
+`deletionMechanism=NOT_SUPPORTED`, unknown/permitted training use, or missing child-data evidence means
+the provider is ineligible for child photos. Prose descriptions never substitute for these fields.
 
 ## 4. Problems with current implementation
 

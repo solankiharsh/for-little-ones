@@ -11,7 +11,7 @@ Concise executive view of the full feature-spec set. Detail lives in `features/N
 | 01 | Onboarding & account claim | P0 | M1 (session) / M6 (claim) | Explore before account; claim later | `anonymous_project_id` + ownership token (P0 core); magic-link claim later | — | Unclaimed-project retention |
 | 02 | Story discovery | P0 | M1 | Browse themes/occasions, no blank prompt | Data-driven catalogue (content, not code) | 01 | Catalogue copy quality |
 | 03 | Child profile | P0 | M1 | One reusable profile, second book in seconds | Reusable `ChildProfile` entity; mandatory/optional/parent-confirmed fields | 01 | Field-scope creep |
-| 04 | Photo upload | P0 | M2 | Upload 1–5, gentle validation, delete anytime | Photo pipeline + face/resolution QA; upload topology TBD (direct vs API-relay) — D017. M1 ships WITHOUT child photos (fixture/placeholder visuals) | 03 | Rejecting usable photos; provider for face-detection |
+| 04 | Photo upload | P0 | M2 | Upload 1–5, gentle validation, delete anytime | Browser direct signed upload to private storage, then server-side validation and `PhotoReference` approval — D017. M1 ships WITHOUT child photos (fixture/placeholder visuals) | 03 | Rejecting usable photos; provider for face-detection |
 | 05 | Character Bible | P1 | M2 | One canonical child look per book/cast | Provider-agnostic `CharacterBible`; versioning; consumes validated photo refs (M2 path) | 03, 04 | Vendor identity lock-in |
 | 06 | Personalisation | P0 | M1 | Layered questions; facts never mutate | Typed, locale-aware, immutable Fact model | 03 | Vocabulary pinning per locale |
 | 07 | Story concepts | P0 | M1 | 3 choices with titles/pitches | `StoryProvider` structured JSON + moderation + human fallback | 02, 03, 06 | Fallback-concept content commitment |
@@ -46,7 +46,7 @@ Concise executive view of the full feature-spec set. Detail lives in `features/N
 | **IMG.LY Photobook Starter** | UX/ARCHITECTURE REFERENCE only | Page nav, thumbnails, selection, provider separation | Not adopted by default |
 | **Postiz** | REJECT AS FOUNDATION | Reference for jobs/retries/observability | Not a dependency |
 | **Durable execution** | Durable execution substrate with explicit job states; candidate classes PostgreSQL-backed and Redis-backed (BullMQ-class) selected after the D014 spike — a workflow engine only if the spike shows its guarantees are needed; wording neutral until then (D019) | Durable execution | Redis-backed class needs outbox/reconciliation |
-| **PrintSpec/PrintPreflightContract** | OWN (shared domain contract + print catalogue `PrintCapability`/`PrintQuote` — D016) | Format feasibility + geometry rules + capability/quote inputs consumed by QA/approval/editor; renderer implements it but never quotes | Breaks the F-015/F-016/F-017 cycle |
+| **PrintSpec/PrintPreflightContract** | OWN (shared domain contract — D016) | Stable format feasibility + geometry consumed by QA/approval/editor; provider capability is a printing concern and expiring quotes are commerce data | Breaks the F-015/F-016/F-017 cycle without persisting live provider data on Books |
 | **Canonical Book model** | OWN (KEEP) | Domain truth | Editor/reader/print/digital = adapters |
 
 ## C. Legacy review (KEEP / MODIFY / REPLACE / ADD / DEFER / REJECT)

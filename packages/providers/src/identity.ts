@@ -1,4 +1,12 @@
-import type { ProviderBoundary } from "./shared";
+import { assertEligibleForChildPhotos, type ProviderBoundary } from "./shared";
+
+const childPhotoAccess: unique symbol = Symbol("childPhotoAccess");
+
+/** Branded only after the provider's data policy is checked. */
+export interface ChildPhotoInputs {
+  sourcePhotoRefs: string[];
+  readonly [childPhotoAccess]: true;
+}
 
 /**
  * IdentityReference — a reusable, provider-native private reference to a child's
@@ -12,12 +20,19 @@ export interface IdentityReference {
 }
 
 export interface IdentityProvider extends ProviderBoundary {
-  deriveReference(inputs: {
-    sourcePhotoRefs: string[];
-  }): Promise<{ reference: IdentityReference; knownFacesCount: number }>;
+  deriveReference(inputs: ChildPhotoInputs): Promise<{ reference: IdentityReference; knownFacesCount: number }>;
 
   scoreLikeness(input: {
     reference: IdentityReference;
     candidateAssetRef: string;
   }): Promise<{ likenessScore01: number }>;
+}
+
+/** The application must use this gate before any child photo references reach a provider. */
+export function deriveIdentityReference(
+  provider: IdentityProvider,
+  inputs: { sourcePhotoRefs: string[] }
+): Promise<{ reference: IdentityReference; knownFacesCount: number }> {
+  assertEligibleForChildPhotos(provider.card.dataPolicy);
+  return provider.deriveReference({ ...inputs, [childPhotoAccess]: true });
 }

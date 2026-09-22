@@ -1,5 +1,5 @@
 import fs from "fs";
-import type { Book, PrintSpec } from "@for-little-ones/domain";
+import type { Book } from "@for-little-ones/domain";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { mmToPt, pageSizePt, safeRectPt, type BookPrintReport } from "./geometry";
@@ -13,7 +13,6 @@ import { mmToPt, pageSizePt, safeRectPt, type BookPrintReport } from "./geometry
 
 export interface RenderInput {
   book: Book;
-  spec: PrintSpec;
   /** Path to a TrueType font to embed. Byte-stability is per exact font bytes. */
   ttfPath: string;
 }
@@ -40,7 +39,11 @@ function wrap(text: string, maxWidthPt: number, fontSize: number, widthOf: (t: s
 }
 
 export async function renderBook(input: RenderInput): Promise<RenderResult> {
-  const { book, spec, ttfPath } = input;
+  const { book, ttfPath } = input;
+  const approval = book.approval;
+  if (!approval) throw new Error("print rendering requires an approved revision snapshot");
+  const spec = approval.printSpec;
+  const pages = approval.pages;
   const { trimWidthMm, trimHeightMm, bleedMm, safeMarginMm } = spec.sheet;
   const { w, h } = pageSizePt(trimWidthMm, bleedMm, trimHeightMm);
   const safe = safeRectPt(trimWidthMm, bleedMm, safeMarginMm, trimHeightMm);
@@ -51,7 +54,7 @@ export async function renderBook(input: RenderInput): Promise<RenderResult> {
   const font = await doc.embedFont(fontBytes, { subset: true });
 
   const report: BookPrintReport = {
-    pageCount: book.pages.length,
+    pageCount: pages.length,
     pageWidthPt: w,
     pageHeightPt: h,
     trimPt: mmToPt(trimWidthMm),
@@ -65,7 +68,7 @@ export async function renderBook(input: RenderInput): Promise<RenderResult> {
   const lineHeight = fontSize * 1.4;
   const fontWidthOf = (t: string): number => font.widthOfTextAtSize(t, fontSize);
 
-  for (const page of book.pages) {
+  for (const page of pages) {
     const pdfPage = doc.addPage([w, h]);
     let y = safe.y + safe.h - lineHeight;
     for (const block of page.textBlocks) {
