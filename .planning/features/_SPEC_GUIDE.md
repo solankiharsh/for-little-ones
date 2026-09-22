@@ -92,18 +92,49 @@ Three distinct renderers (D005):
 
 ---
 
-## 4. Book lifecycle state machine (APPROVED)
+## 4. Lifecycle state machines (APPROVED) — book vs order/fulfilment (D006 state split)
+
+Three lifecycles, deliberately separate. **One approved revision can back N orders** (reorders,
+gifts), so commerce/fulfilment states must never live on the Book.
+
+**1. Book (content/approval) — `BookStatus` in `packages/domain` (code truth):**
 
 ```text
 DRAFT → PREPARING → GENERATING → READY_FOR_REVIEW → EDITING → READY_FOR_APPROVAL
-     → APPROVED → ORDERED → IN_PRODUCTION → SHIPPED → DELIVERED
+     → APPROVED          ← terminal for commerce: the Book stays APPROVED once ordered
 ```
 
-Exceptional states (each spec should reference the ones that apply to it):
-`GENERATION_FAILED · RENDER_FAILED · PAYMENT_FAILED · FULFILMENT_FAILED · CANCELLED · ARCHIVED`
+Book exceptional states: `GENERATION_FAILED · RENDER_FAILED · CANCELLED · ARCHIVED`
+(each spec should reference the ones that apply to it).
+There is **no** `ORDERED`, `IN_PRODUCTION`, `SHIPPED`, `DELIVERED`, `PAYMENT_FAILED` or
+`FULFILMENT_FAILED` on the Book — those were removed 2026-09-22 with D006 ADOPTED.
+
+**2. Order (commerce) — Medusa order/payment state (D006; owned by `apps/commerce`):**
+
+```text
+cart → payment authorized/captured → order placed → (payment failure → retry, Book untouched)
+     → fulfilled (when our print handoff confirms) → cancelled/refunded (ops rules, F-026)
+```
+
+Payment failure is a **Medusa payment/order** state with clean retry; it never mutates the Book.
+Order events reach our side through `CommerceEventAdapter` (Medusa subscribers → idempotent
+handlers).
+
+**3. Fulfilment (print handoff) — our projection + Medusa fulfilment (F-019):**
+
+```text
+FULFILMENT_SUBMITTED → IN_PRODUCTION → SHIPPED → DELIVERED
+exceptional: FULFILMENT_FAILED · CANCELLED   (recorded against the ORDER, never the Book)
+```
+
+States ride the order/fulfilment projection (sourced from Medusa order/fulfilment events + our
+`PrintProvider` adapter callbacks), keyed by `orderId` + `approvedBookRevisionId`.
 
 Per-page state where relevant: `PENDING · GENERATING · READY · FAILED · REVISION_REQUIRED · APPROVED`
 Accept: per-page failure must never force regenerating the whole book (D010).
+
+Invariant: `Book A · ApprovedBookRevision 7 · Orders A, B, C …` — each order independently
+tracks payment + fulfilment while the Book remains `APPROVED`.
 
 ---
 
@@ -137,7 +168,7 @@ Determinism: "deterministic generation outcome" means the same inputs produce th
 
 | Topic | Position |
 | --- | --- |
-| Commerce | **Medusa is a CANDIDATE commerce module (D006 — pending spike: edition/hosting/tax/VAT)** for cart/customer/product/pricing/payment/order/regions/currency/shipping/fulfilment. Do not fork it. Represent personalised configuration so a line item references the approved revision. Keep the Book model ours; adopt only if the spike shows a meaningful win over a purpose-built module. |
+| Commerce | **Medusa is ADOPTED as the commerce foundation (D006, 2026-09-22 — re-opened on a constraint change; self-hosted at `apps/commerce`)** for cart/customer/product/pricing/payment/order/regions/currency/shipping/fulfilment — commerce state only. Do not fork it. Line items carry opaque `approvedBookRevisionId` + `contentHash` + format/print/display/qty refs only (Spike C invariant, ported to `packages/commerce`); Medusa never receives child/story/page data and never owns the Book model. Book/order/fulfilment lifecycles are separate (§4). Our storefront stays `apps/web` headless against Medusa's Store API. |
 | Book editor | **OpenPolotno `@reyka/openpolotno` is a CANDIDATE IMPLEMENTATION — pending spike (D007):** low-level editing engine, wrapped behind our own editor boundary with a **custom simple UI**. Never expose generic Canva UX. Decide direct dep vs pinned version vs small fork after the spread spike. Editor JSON is a derived snapshot, never canonical. |
 | IMG.LY Photobook Starter | UX/architecture reference only: page navigation, thumbnails, asset management, selection model, provider separation. Not adopted by default (D008). |
 | Postiz | Architecture inspiration only (jobs, retries, observability). REJECTED as foundation (D009). |

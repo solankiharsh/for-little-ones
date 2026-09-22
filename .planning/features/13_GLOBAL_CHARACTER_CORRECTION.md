@@ -86,7 +86,7 @@ Proposed boundary (proposed shared subsystem `BookService`; reminder: proposed n
 - `RequestCharacterRegeneration{ bookId, bibleId, fromVersion, pageIds }` → transaction: flips selected pages to `PENDING`, enqueues a `GenerationJob` per page (idempotent by `bookId+pageId+bibleVersion`), emits `PAGE_REVISION_CREATED` per completed page.
 - `GetApplicationDiff{ bookId, revisionA, revisionB }` → changed page ids + before/after asset refs for the diff UI.
 - `RollbackCharacterCorrection{ bookId, toVersion }` → restores bible snapshot + prior illustration refs, resets `generationMetadata.characterBibleVersion`, re-asserts per-page `READY`.
-- Validation: `fromVersion` must equal the page's recorded version (optimistic lock, no mixed-apply); apply rejected if book is `APPROVED` or `ORDERED` (D011 — parent must fork a new revision, never mutate an approved one); `appearancePatch` must be parent-confirmed.
+- Validation: `fromVersion` must equal the page's recorded version (optimistic lock, no mixed-apply); apply rejected if book is `APPROVED` (D011 — parent must fork a new revision, never mutate an approved one; any order referencing the approval keeps the book `APPROVED`, so this single check covers the old "ORDERED" case too — D006 state split); `appearancePatch` must be parent-confirmed.
 - Events: `CHARACTER_VERSION_BUMPED → AFFECTED_PAGES_COMPUTED → CHARACTER_REGEN_REQUESTED → PAGE_RENDERED (×N) → CHARACTER_CORRECTION_COMPLETED`.
 
 ## 9. Background jobs

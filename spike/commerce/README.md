@@ -1,7 +1,10 @@
 # Spike C — Commerce (candidate vs minimal self-built surface)
 
-Status: **HARNESS GREEN — decision: REJECT Medusa as the foundation now; self-build a thin commerce
-surface; documented revisit triggers** (2026-09-22). Runtime: headless, sandboxed, no Docker/services.
+Status: **HARNESS GREEN — original decision: REJECT Medusa as the foundation now (2026-09-22).**
+**SUPERSEDED: D006 re-opened 2026-09-22 (constraint change) → Medusa ADOPTED** (see
+`DECISIONS.md` D006 and `RESEARCH_LOG.md` "D006 re-opening"). All evidence below is retained
+unchanged as the proven semantic minimum for the Medusa integration; only the product constraint
+changed, not the findings. Runtime: headless, sandboxed, no Docker/services.
 
 ## Question (PROJECT_SPIKES §Spike C)
 
@@ -51,12 +54,20 @@ and already invariant-clean. **Do not migrate for architectural neatness (AGENTS
 
 ## Decision (record → RESEARCH_LOG / DECISIONS D006)
 
-- **REJECT (defer) Medusa** as the commerce foundation; adopt a **thin self-built commerce surface** behind
-  the usual app/domain seam, with the opaque-revision invariant hard-coded.
-- The open purchase decision is the **real payment provider adapter** (Stripe-class) + idempotent webhook
-  ingestion and any shipping/tax compute — the sandbox proves the state machine and invariant, not the
-  external payment rails. That lands with the commerce feature, not as a foundation choice.
-- Revisit triggers (all four) documented in `MEDUSA_EVIDENCE.md`.
+- **ORIGINAL (2026-09-22): REJECT (defer) Medusa** as the commerce foundation; adopt a **thin
+  self-built commerce surface** behind the usual app/domain seam, with the opaque-revision
+  invariant hard-coded.
+- **SUPERSEDED (2026-09-22, constraint change): D006 ADOPTED — Medusa is the commerce
+  foundation** (self-hosted, `apps/commerce`), behind the same opaque-revision boundary; the
+  invariant tests here remain the minimum the integration must satisfy (ported to
+  `packages/commerce` in the implementation PR).
+- The open purchase decision is the **real payment provider adapter** (Stripe-class) + idempotent
+  webhook ingestion and any shipping/tax compute — the sandbox proves the state machine and
+  invariant, not the external payment rails. (Resolved direction: Medusa's first-party Stripe
+  provider + its inbound `/hooks/payment/*` route; our idempotent layer sits on the subscriber
+  side.)
+- Revisit triggers (all four) documented in `MEDUSA_EVIDENCE.md` — now pre-emptively exercised
+  by choice rather than waited for.
 
 ## Honesty notes
 

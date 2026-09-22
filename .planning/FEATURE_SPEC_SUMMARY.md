@@ -25,7 +25,7 @@ Concise executive view of the full feature-spec set. Detail lives in `features/N
 | 15 | Book QA | P0 | M2 (core) → M4 (print) | Problems flagged before it reaches you | QA suite (identity/facts/layout/print gates); HARD_BLOCK/REVIEW_REQUIRED/ADVISORY; re-runnable | 09, 11, PrintSpec/PreflightContract | QA false negatives |
 | 16 | Approval | P0 | M4 | One "Approve & Print"; exact book locked | Deep-immutable `ApprovedBookRevision` + hash; format feasibility via shared contract | 15, 10, PrintSpec/PreflightContract (D016) | Lock semantics leaks |
 | 17 | Print rendering | P0 | M4 | Deterministic, print-ready output | Bleed/safe/DPI/fonts/cover/spine pipeline (implements the shared contract); `PrintProvider` | 16, PrintSpec/PreflightContract (D016) — not F-014 | Printer PDF standard |
-| 18 | Cart & checkout | P0 | M5 | Multi-book cart, pay in seconds | CommerceModule (Medusa candidate — pending spike); line item → approved revision | 16 | Medusa edition; tax/VAT |
+| 18 | Cart & checkout | P0 | M5 | Multi-book cart, pay in seconds | Medusa commerce foundation (D006 ADOPTED, self-hosted `apps/commerce`); line item → approved revision (opaque ref) | 16 | Idempotent capture; launch-market tax config |
 | 19 | Fulfilment | P0 | M5 | Print submitted; no double-ship | `PrintProvider.submit/getStatus`; idempotent submission | 17, 18 | Partner formats/DPI |
 | 20 | Order tracking | P0 | M5 | Timeline + email, PII-free | Lifecycle events + provider numbers | 19, 26 | Provider tracking coverage |
 | 21 | Family library | P2 | M6 | "Our Stories", kept forever | Library render of owned books via reader | 16, 11 | Public PII leaks |
@@ -41,7 +41,7 @@ Concise executive view of the full feature-spec set. Detail lives in `features/N
 
 | Primitive | Decision | Purpose | Boundary |
 | --- | --- | --- | --- |
-| **Medusa** | CANDIDATE — pending spike (edition, hosting, tax/VAT) — D006 | Commerce: cart, customer, product, pricing, payment, order, regions, currency, shipping | NEVER the Book model owner; line items reference `approvedBookRevisionId` |
+| **Medusa** | **ADOPTED (D006, 2026-09-22 — re-opened on a constraint change; self-hosted at `apps/commerce`, v2.21.0/MIT verified)** | Commerce: cart, customer, product, pricing, payment, order, regions, currency, shipping | NEVER the Book model owner; line items carry opaque `approvedBookRevisionId` + `contentHash` only; commerce/fulfilment states never touch `BookStatus` |
 | **OpenPolotno `@reyka/openpolotno`** | CANDIDATE IMPLEMENTATION — pending spike (spread, serialization, wrap vs fork) — D007 | Low-level editor engine under a custom simple UI | Never canonical model; never full Canva UX; pinned/possibly forked |
 | **IMG.LY Photobook Starter** | UX/ARCHITECTURE REFERENCE only | Page nav, thumbnails, selection, provider separation | Not adopted by default |
 | **Postiz** | REJECT AS FOUNDATION | Reference for jobs/retries/observability | Not a dependency |

@@ -64,7 +64,7 @@ Evaluation of reusable infrastructure and open-source primitives.
 
 Current candidates include:
 
-- Medusa
+- Medusa (**ADOPTED** as commerce foundation — D006, 2026-09-22; see `DECISIONS.md`)
 - OpenPolotno
 - IMG.LY Photobook Starter
 - Postiz as architecture reference

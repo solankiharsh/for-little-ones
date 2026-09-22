@@ -4,6 +4,12 @@ import type { GenerationProvenance } from "@for-little-ones/provenance";
  * Canonical Book model (D004, _SPEC_GUIDE §2). Ours — independent of editor
  * format, AI provider and print provider. Adapters translate it; the editor JSON,
  * a generated PDF and printer payloads are never canonical.
+ *
+ * BookStatus is the content/generation/approval lifecycle ONLY (D006, state
+ * split): commerce and fulfilment states (ORDERED, IN_PRODUCTION, SHIPPED,
+ * DELIVERED, PAYMENT_FAILED, FULFILMENT_FAILED) live on the Medusa order and the
+ * fulfilment projection — one approved revision can back N orders, so a single
+ * Book-level "ordered" state is meaningless. See _SPEC_GUIDE §4 (three machines).
  */
 export type BookStatus =
   | "DRAFT"
@@ -13,14 +19,8 @@ export type BookStatus =
   | "EDITING"
   | "READY_FOR_APPROVAL"
   | "APPROVED"
-  | "ORDERED"
-  | "IN_PRODUCTION"
-  | "SHIPPED"
-  | "DELIVERED"
   | "GENERATION_FAILED"
   | "RENDER_FAILED"
-  | "PAYMENT_FAILED"
-  | "FULFILMENT_FAILED"
   | "CANCELLED"
   | "ARCHIVED";
 

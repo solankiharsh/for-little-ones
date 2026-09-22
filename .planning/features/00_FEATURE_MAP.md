@@ -105,7 +105,7 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 
 ## Open decision inputs
 
-- Commerce via Medusa: **CANDIDATE — pending spike** (D006) — edition/hosting/tax/VAT to be decided; not selected.
+- Commerce via Medusa: **ADOPTED** (D006, 2026-09-22 — re-opened on a constraint change) — self-hosted at `apps/commerce`; edition/tax question closed (D014 item 3); hard boundary + opaque line-item invariant in guide §6.
 - Editor primitive OpenPolotno: **CANDIDATE IMPLEMENTATION — pending spike** (D007) — proof-of-concept for spread support and wrap-vs-fork before F-014 approval.
 - Durable execution substrate: candidate classes PostgreSQL-backed and Redis-backed (BullMQ-class); a workflow engine only if the D014 spike shows its guarantees are needed — wording stays neutral until the spike (D019).
 - Print contract (D016): PrintSpec/PrintPreflightContract is a shared landing decision — already agreed as the cycle-break for F-015/F-016/F-017.

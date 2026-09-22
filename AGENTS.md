@@ -31,7 +31,7 @@ We are currently in:
 
 > research → architecture → feature specification → milestone-0 foundation rails
 
-Milestone-0 monorepo rails have explicitly begun (`packages/` + `apps/`, generation contracts, durable-execution contract, provenance, policy manifest — `DECISIONS.md` D021). The platform-foundation spikes (durable substrate, editor, commerce, print partner, QA threshold) run **in parallel** and are explicitly NOT blocked by the rails, and vice versa.
+Milestone-0 monorepo rails have explicitly begun (`packages/` + `apps/`, generation contracts, durable-execution contract, provenance, policy manifest — `DECISIONS.md` D021). The platform-foundation spikes (durable substrate, editor, commerce, print partner, QA threshold) run **in parallel** and are explicitly NOT blocked by the rails, and vice versa. (2026-09-22: durable substrate → pg-boss D022, editor → D007, commerce → Medusa D006 all resolved; print partner → first provider Mixam D020; QA-threshold calibration still open.)
 
 Do NOT begin large-scale feature implementation (a spec feature end-to-end) until:
 
@@ -173,19 +173,26 @@ Do not implement all of these simultaneously.
 
 ---
 
-## Platform Decisions Currently Under Evaluation
+## Platform Decisions (ADOPTED / under evaluation)
+
+Decisions marked **ADOPTED** are recorded in `DECISIONS.md` and binding; the rest remain candidates.
 
 ### Commerce
 
-Primary candidate:
+Foundation:
 
-- Medusa
+- Medusa — **ADOPTED (D006, 2026-09-22, re-opened on a constraint change)**; self-hosted at
+  `apps/commerce` (Postgres + Redis + server + worker), boundary types in `packages/commerce`.
 
-Use it for mature commerce primitives if it provides a meaningful improvement over the current implementation.
+Use it for mature commerce primitives — cart, order, payment, promotion, tax, regions, shipping,
+customer — and keep the boundary hard: Medusa owns **commerce state only**; the canonical Book,
+approval, generation and print content stay in the For Little One domain, referenced by Medusa
+only through opaque immutable identifiers (`approvedBookRevisionId` + `contentHash`).
 
-Do not migrate to Medusa purely for architectural neatness.
+Do not migrate or rewrite domain features merely because Medusa exists.
 
-First compare it against what the repository already contains.
+Do not put commerce or fulfilment states on `BookStatus` (one approved revision → N orders; see
+`_SPEC_GUIDE.md` §4).
 
 ---
 
@@ -354,6 +361,11 @@ execution / provenance / policies / storage are foundational: no feature depende
 - `packages/provenance` + `packages/policies` — immutable `GenerationProvenance` + policy-set manifest/hash (mirrors `policies/MANIFEST.md`).
 - `packages/storage` — private-storage contract only (owner-scoped, signed expiring URLs); no implementation yet. Upload topology (D017) still open.
 - `packages/testing` — shared fakes live here, next to the seams they satisfy.
+- `apps/commerce` (D006 — planned with the Medusa foundation PR) — self-hosted Medusa backend; isolated
+  from root typecheck/test strictness (own tsconfig/scripts); commerce state only.
+- `packages/commerce` (D006 — planned) — OUR boundary types only (`CommerceGateway`,
+  `ApprovedRevisionLineItemReference`, `CommerceEventAdapter`) + Spike C invariant tests ported; must
+  never import Medusa internals.
 
 Before committing: `npm run typecheck` and `npm test` must be green. Add generation code to `packages/` first; keep `contracts` free of adapter/app imports.
 
