@@ -1,6 +1,6 @@
 # 14_BOOK_EDITOR.md — Custom Simple Book Editor (above OpenPolotno)
 
-> **Spec ID:** F-014 · **Priority:** P1 · **Status:** draft
+> **Spec ID:** F-014 · **Priority:** P1 · **Status:** agreed (2026-09-22 — D007 posture resolved by Spike B; record in `../RESEARCH_LOG.md`)
 > **Depends on:** F-011 Book Preview, F-012 Page Correction, F-013 Global Character Correction, shared PrintSpec/PreflightContract (D016 — font/DPI/safe-area rules; the F-017 renderer is an implementation of the contract, a parallel surface, NOT a prerequisite)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -94,10 +94,10 @@ Editor snapshot and working state live under the same session ownership as the b
 
 ### Spike checklist (BLOCKS F-014 approval — record conclusions in `../RESEARCH_LOG.md`)
 
-1. **Spread support:** decide single-canvas-per-page vs Spread canvas; verify OpenPolotno multipage handles the paired cover/inside spreads at 2:3 with correct bleed margin ([D007] direct dep vs pinned vs fork residence is decided here).
-2. **Page restore:** prove canonical → snapshot → canonical round-trip survives an editor mid-session browser refresh without data loss.
-3. **Child-image actions:** verify custom element path can host our `CharacterBible`-aware actions (swap illustration via F-012, "keep this face") inside OpenPolotno without exposing generic layers.
-4. **Font/asset contract with F-017:** verify edits keep the embedded-font and DPI contract the print renderer requires (SVG/text styles export with resolveable fonts).
+1. **Spread support** — **RESOLVED (Spike B):** single engine page per canonical page. The engine is natively multipage; a paired spread is rendered as two adjacent engine pages (bleed on the inner seam = full bleed on both edges; the engine lays both out with `bleed` per page at trim size, verified at 215.9mm trim, fit scale 0.637 @ 390×844). Spread *rendering* is a view concern layered by the editor app — never a model mapping. The D007 residence is decided: **pinned dependency (`@reyka/openpolotno@1.5.0`, exact) + wrapper** in `packages/editor` (the single Book→engine boundary).
+2. **Page restore** — **RESOLVED (Spike B):** canonical → snapshot → engine round-trip is byte-stable (`visibleResultStable`); engine JSON is derived, never canonical (D004). Browser refresh restores the engine session by reloading the snapshot — evidenced in the phase-2 harness (SVG/raster deterministic, byte-equal).
+3. **Child-image actions** — **DEFERRED to F-012/F-013 implementation:** the engine exposes `selectElements(ids)` + element `set()`/reorder; a `CharacterBible`-aware action slot is an editor-app layer, testable once F-011/F-012 exist. No engine defect found that blocks it. Distinct child-image element type and custom store actions were probed in phase 1 (store is extensible; `src/vendor.d.ts` pins the small surface).
+4. **Font/asset contract with F-017** — **RESOLVED & FLAGGED (Spike B phase 2):** web fonts load through the engine's own loader (`loadFont`, poll-until-measure; +72px at a 90px span); self-hosted fonts register via `store.addFont` and a `document.fonts.check === true` gate, but `isFontLoaded` is only a measure-difference heuristic, not a load guarantee — use `document.fonts` for load truth. The print renderer (F-017) validates fonts/DPI against the canonical shared contract (D016) and must never rely on editor-internal font state. Deterministic print path stays engine-free.
 
 ## 15. Dependencies
 
@@ -107,4 +107,4 @@ Editor snapshot and working state live under the same session ownership as the b
 
 **P1 — differentiation.** "Much better preview/editor" and effort-lessness of editing are reason-to-exist items (spec §26). Not P0: competitors ship correction (Diffrun) and the category doesn't expect a full editor; bootstrapping with F-012/F-013 first and a small spike (above) is the cheaper path to a differentiating editor without the OpenPolotno commitment risk (D007).
 
-**Decision needed:** direct dependency vs pinned version vs internal fork of `@reyka/openpolotno` — resolved by spike 1 in `../RESEARCH_LOG.md` before F-014 is marked agreed (feature-map open input).
+**RESOLVED (2026-09-22):** pinned dependency (`@reyka/openpolotno@1.5.0`, exact) + wrapper in `packages/editor` (D007 posture — see `../DECISIONS.md`, `../EDITOR_SPONSOR_TICKET.md`, `../RESEARCH_LOG.md`). The wrapper exposes the canonical Book→snapshot boundary; the browser seam (main-entry UI, fonts, selection) is layered by the editor app on top, not in the wrapper.

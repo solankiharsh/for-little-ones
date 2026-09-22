@@ -1,0 +1,21 @@
+{
+  "name": "@for-little-ones/editor",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@for-little-ones/domain": "*",
+    "@reyka/openpolotno": "1.5.0"
+  }
+}

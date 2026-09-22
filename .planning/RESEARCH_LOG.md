@@ -453,5 +453,32 @@ Phase-2 evidence lands the previously-missing render + interaction numbers for `
 
 **Follow-up**
 
-- Sponsor ticket filed: `.planning/EDITOR_SPONSOR_TICKET.md` (posture recommendation **pin + wrap**, 5 acceptance criteria as the D020 closure gate). A sponsor pins/depends `@reyka/openpolotno` at a commit and drives the adapt-book wrap; only then move D007 from extended open to a closed posture.
+- **RESOLVED (2026-09-22):** D007 closed as **pin + wrap**. `packages/editor` pins `@reyka/openpolotno@1.5.0` (exact, no caret), carries the single Book→engine boundary (`src/adapt-book.ts`, ported from this spike) + `src/vendor.d.ts` shim + `src/geometry.ts`, with 10 in-package tests 73/73 root suite (round-trip acceptance path + `boundary.spec.ts` dependency-direction guard: no other package may reference the engine). F-014 promoted to agreed; page→spread mapping recorded (one canonical page → one engine page). Criterion 3 (reader/print bundle guard) is a CI/apps assertion that lands with F-011.
 - Optional: point `phase2.mjs` at upstream `openpolotno@1.0.2` the same way for a like-for-like browser comparison (both candidates already share the measured model surface).
+
+---
+
+### 2026-09-22 — D007 closure record: pinned engine wrapper lands in packages/editor
+
+**Question**
+
+Does the evidence from Spike B close D007 as a posture rather than leaving it open until a future sponsor rebuilds the same harness in-package?
+
+**How it was tested**
+
+- New workspace package `packages/editor` (deps: `@for-little-ones/domain` + `@reyka/openpolotno@1.5.0` exact). Promoted the spike's `adapt-book` + `geometry` + engine store factory onto the canonical `Book` (packages/domain) and the engine model subpath, with a pinned `vendor.d.ts` shim (re-verified: the exports map promises `*.d.ts` but `dist/` ships none).
+- Engine imported only via `@reyka/openpolotno/model/store` (headless, no `.js` suffix; the main entry + `@meronex/icons` seam stays browser-app scope). `store.addFont` is documented headless-unsafe and called only by the future browser seam.
+- Tests added in-package: pinned-engine round-trip suite (serialize/restore byte-identical, transaction undo/redo ≈ base line, arbitrary print dims, crop/font-family round-trip, bleed serialization, height 0→1 wrinkle) and the canonical Book→adapter path (one engine page per canonical page at 215.9 mm trim; user edit → canonical commands `set-text` + `clear-face`; rebuild byte-identical; canonical book id never leaks into the snapshot). `boundary.spec.ts` asserts no package outside `editor` references the engine anywhere, and the pin is exact.
+
+**Conclusion**
+
+All listed checks green: root `npm test` 73/73 (7 files), `packages/editor` typechecks; the only failing root typecheck error remains the pre-existing `packages/providers/test/adapter-contract.spec.ts` literal `schemaVersion` mismatch (unrelated, predates this work). D007 is **ADOPTED (pin + wrap)**: criterion 1, 2, 4, 5 of `.planning/EDITOR_SPONSOR_TICKET.md` met in-package; criterion 3 (reader/print never import the editor package) is enforceable only once an apps bundle exists (F-011) — recorded, not faked.
+
+**Impact**
+
+- Feature work can build F-014 on `@for-little-ones/editor` without re-litigating the engine posture; the adapter is the canonical translation boundary, snapshot never canonical (D004 has 3 test witnesses).
+- The engine is one pinned version, one shim, one adapter file — the cheapest residence that stayed honest with the evidence.
+
+**Follow-up**
+
+- Browser seam (editor app layer): import engine main + `utils/fonts` in the F-014 app, registered fonts via `store.addFont`, selection/guides, sweep harness upgrades. Reader/print bundle guard asserted in CI when apps exist (F-011). optional upstream `openpolotno@1.0.2` parity (above).
