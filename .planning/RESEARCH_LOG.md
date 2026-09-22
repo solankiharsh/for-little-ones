@@ -453,5 +453,5 @@ Phase-2 evidence lands the previously-missing render + interaction numbers for `
 
 **Follow-up**
 
-- A sponsor pins/depends `@reyka/openpolotno` at a commit and drives the adapt-book wrap; only then move D007 from extended open to a closed posture.
+- Sponsor ticket filed: `.planning/EDITOR_SPONSOR_TICKET.md` (posture recommendation **pin + wrap**, 5 acceptance criteria as the D020 closure gate). A sponsor pins/depends `@reyka/openpolotno` at a commit and drives the adapt-book wrap; only then move D007 from extended open to a closed posture.
 - Optional: point `phase2.mjs` at upstream `openpolotno@1.0.2` the same way for a like-for-like browser comparison (both candidates already share the measured model surface).
