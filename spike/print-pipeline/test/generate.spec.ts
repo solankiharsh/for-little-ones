@@ -4,7 +4,7 @@ import { PDFDocument } from "pdf-lib";
 import { validateGeometry } from "@for-little-ones/domain";
 import { renderBook } from "../src/generate";
 import { evaluateAgainstMixam, MIXAM_RULES, OFFERED_SQUARE_TRIMS_MM } from "../src/mixam";
-import { safeRectPt, pageSizePt } from "../src/geometry";
+import { mmToPt, safeRectPt, pageSizePt } from "../src/geometry";
 import { MIXAM_ART_SQUARE_210, SYSTEM_FONT_TTF, fixtureBook } from "./fixture";
 
 describe.skipIf(!existsSync(SYSTEM_FONT_TTF))("Spike D — deterministic print pipeline (D016 generic PrintSpec)", () => {
@@ -31,6 +31,19 @@ describe.skipIf(!existsSync(SYSTEM_FONT_TTF))("Spike D — deterministic print p
     const size = parsed.getPage(0).getSize();
     expect(size.width).toBeCloseTo(w);
     expect(size.height).toBeCloseTo(h);
+  });
+
+  it("honours rectangular trim dimensions", async () => {
+    const spec = { ...MIXAM_ART_SQUARE_210, sheet: { ...MIXAM_ART_SQUARE_210.sheet, trimHeightMm: 148 } };
+    const result = await renderBook({ book: fixtureBook(), spec, ttfPath: SYSTEM_FONT_TTF });
+    expect(result.report.pageWidthPt).toBeCloseTo(mmToPt(216));
+    expect(result.report.pageHeightPt).toBeCloseTo(mmToPt(154));
+  });
+
+  it("rejects text that cannot fit in the safe area", async () => {
+    const book = fixtureBook();
+    book.pages[0]!.textBlocks = [{ id: "long", kind: "body", text: "overflow ".repeat(5000) }];
+    await expect(renderBook({ book, spec: MIXAM_ART_SQUARE_210, ttfPath: SYSTEM_FONT_TTF })).rejects.toThrow("safe area");
   });
 
   it("keeps all text inside the safe area", async () => {

@@ -41,7 +41,10 @@ export class SandboxPayment {
       paymentId,
       deliveredAt: new Date().toISOString()
     };
-    this.deliver(hook);
+    const delivery = this.deliver(hook);
+    if (delivery.deduped) {
+      return { ...hook, kind: "payment.failed" };
+    }
     const current = this.states.get(paymentId);
     if (current === "requires_capture") {
       this.states.set(paymentId, "captured");
@@ -51,8 +54,7 @@ export class SandboxPayment {
 
   fail(paymentId: string, eventId: string): PaymentWebhook {
     const hook: PaymentWebhook = { eventId, kind: "payment.failed", paymentId, deliveredAt: new Date().toISOString() };
-    this.deliver(hook);
-    this.states.set(paymentId, "failed");
+    if (!this.deliver(hook).deduped) this.states.set(paymentId, "failed");
     return hook;
   }
 
