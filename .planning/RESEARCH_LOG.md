@@ -423,3 +423,35 @@ Phase 1 satisfies the documented measurement surface and keeps `D007` **extended
 
 - Phase 2 (browser): canvas export + interaction latency on a phone-sized surface; verify crop/mask and web-font metrics against real raster output.
 - Then close D007 with evidence.
+
+---
+
+### 2026-09-22 — Spike B (editor): real-browser validation (phase 2)
+
+**Scope** `spike/editor-primitive/` — close the phase-1 gaps in the system Chrome (playwright-core, `channel: "chrome"`, 390×844, dsf 3) against the `@reyka/openpolotno` editor UI (`RaeditorApp`), accepting the truncated-branch candidate that phase-1 already forwards (both candidates share the identical model surface; upstream `openpolotno@1.0.2` is the older snapshot).
+
+**Hypothesis** A bundled browser harness can mount the real editor, render to canvas, load real fonts, and yield structure-first render/interaction numbers without fabricated thresholds.
+
+**Observed**
+
+- Package-surface facts: `createStore` is NOT re-exported from the package main; deep-import `@reyka/openpolotno/model/store`. Sub-path imports resolve without a `.js` suffix (`.../utils/fonts` succeeds, `.../utils/fonts.js` fails). The main entry bundles extensionless `@meronex/icons` imports → cannot be `require()`d from Node; only a bundler (Vite 7 here) resolves it.
+- Font loading is real and measurable: `injectGoogleFont("Nunito")` + reyka `loadFont` loads Nunito (Google CSS reachable, HTTP 200); `document.fonts.check` true and a 90 px DOM span rendered 72.4 px wider (≈ 0.7–1 s). One-shot `document.fonts.load("28px Nunito")` + `fonts.ready` does NOT work (returns before the stylesheet applies) — the editor's own poll-until-measure path is the working one.
+- `store.addFont({ fontFamily, url: <data URI> })` works in the browser: registry grows and `injectCustomFont` inserts a working @font-face (`document.fonts.check` true). Caveat surfaced while verifying: reyka's `isFontLoaded` is a measure-difference heuristic over ASCII `TEST_TEXT`; an icon font (RaphaelIcons) with no ASCII coverage loads fine yet keeps the heuristic false — treat `isFontLoaded` as a rendering probe, not a load guarantee.
+- Real pointer drag on the text element: 17 rAF samples, avg 1.2–1.3 ms, p90 ≈ 2 ms input-to-paint (Playwright mouse. The first blind coordinate missed; the page is letterboxed inside the stage (`offY` ≈ 122 px) and a ±46 px grab-point sweep engaged the node).
+- Undo/redo in the real UI: transaction ≈ 2 ms, undo ≈ 1 ms, redo ≈ 0.5 ms. Raster export at pixelRatio 2 is exactly 1224×1224 px; two consecutive SVG exports are byte-equal, contain text, and mention the loaded font.
+- Crop semantic on real pixels: `cropX/Y/W/H(0.25, 0.25, 0.5, 0.5)` cuts source ink 182 838 → 84 316 px but the composited element rect stays fixed — the cropped source is stretched to element bounds (recorded as observed behaviour, not a defect).
+- `document.fonts.check("16px 'FakeLocal'")` and `document.fonts.load` semantics: these are FontFaceSet-level success/failure signals and the honest load gate for custom fonts.
+
+**Conclusion**
+
+Phase-2 evidence lands the previously-missing render + interaction numbers for `@reyka/openpolotno@1.5.0`. All 9 structural checks PASS and are re-assertable via `npm run phase2` + `test/browser.spec.ts` (self-skips if `phase2.json` absent). `D007` (editor posture) stays **extended open** — the numbers now exist; the closed posture decision still needs a sponsor who pins/depends the engine at a chosen commit. `D004` wrap boundary is unchanged and re-proven.
+
+**Impact**
+
+- Any product work assumes: `createStore` deep import, no `.js` subpath suffixes, a bundler at the browser seam, the numeric crop surface (not clip-path), and font loading via reyka's poll-based `loadFont`.
+- The browser harness (`src/browser/`, `scripts/phase2.mjs`, `vite-browser.config.ts`) is the repeatable evidence generator for the editor posture card.
+
+**Follow-up**
+
+- A sponsor pins/depends `@reyka/openpolotno` at a commit and drives the adapt-book wrap; only then move D007 from extended open to a closed posture.
+- Optional: point `phase2.mjs` at upstream `openpolotno@1.0.2` the same way for a like-for-like browser comparison (both candidates already share the measured model surface).
