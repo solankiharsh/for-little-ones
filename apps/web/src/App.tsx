@@ -91,10 +91,10 @@ export default function App() {
               </p>
               <div className="flo-hero-actions">
                 <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>
-                  Create their book <span className="flo-btn-arrow" aria-hidden="true">→</span>
+                  Start their story <span className="flo-btn-arrow" aria-hidden="true">→</span>
                 </button>
-                <a href="#story" className="flo-btn flo-btn-ghost">
-                  Read a sample story
+                <a href="#story-worlds" className="flo-btn flo-btn-ghost">
+                  Explore story worlds
                 </a>
               </div>
               <p className="flo-hero-note">
@@ -218,6 +218,42 @@ export default function App() {
                 <span>The Fox Who<br />Lost the Moon</span>
                 <i aria-hidden="true" />
               </motion.div>
+            </div>
+          </div>
+        </section>
+
+        <section className="flo-worlds" id="story-worlds" aria-label="Story world examples">
+          <div className="flo-worlds-inner">
+            <div className="flo-worlds-head">
+              <div>
+                <p className="flo-kicker">A place to begin</p>
+                <h2>Start with a world they already love.</h2>
+              </div>
+              <p>
+                A bedtime question, a favourite creature, a family in-joke. Pick a spark,
+                then we make the story unmistakably theirs.
+              </p>
+            </div>
+            <div className="flo-world-grid">
+              <article className="flo-world flo-world-night">
+                <span className="flo-world-kicker">Bedtime wonder</span>
+                <h3>The moon that followed home</h3>
+                <p>For the child who always has one more question about the sky.</p>
+              </article>
+              <article className="flo-world flo-world-garden">
+                <span className="flo-world-kicker">Small adventures</span>
+                <h3>The secret garden map</h3>
+                <p>A rainy-day expedition with a brave companion and a pocketful of clues.</p>
+              </article>
+              <article className="flo-world flo-world-sea">
+                <span className="flo-world-kicker">Big imagination</span>
+                <h3>The lighthouse that sang</h3>
+                <p>A sea-swept story for a little explorer who never misses a wave.</p>
+              </article>
+            </div>
+            <div className="flo-world-actions">
+              <a href="#reader" className="flo-btn flo-btn-ghost">See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></a>
+              <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
             </div>
           </div>
         </section>
