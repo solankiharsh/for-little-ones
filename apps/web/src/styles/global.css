@@ -699,6 +699,8 @@ span.flo-block-caption {
 
 .flo-hero-book { position: relative; z-index: 1; height: 430px; display: grid; place-items: center; perspective: 1300px; }
 .flo-desk-rim { position: absolute; bottom: 20px; width: min(100%, 450px); height: 70px; border-radius: 50%; background: radial-gradient(ellipse, rgb(75 41 15 / .34), rgb(75 41 15 / 0) 68%); filter: blur(5px); }
+.flo-hero-video-frame { position: relative; width: min(430px, 100%); overflow: hidden; border: 1px solid rgb(86 47 18 / .35); border-radius: 18px; background: #8b4b20; box-shadow: 0 30px 48px -27px rgb(54 30 12 / .75); }
+.flo-hero-video-frame video { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
 .flo-book-prop { position: relative; width: 265px; height: 352px; transform: rotate(-8deg) rotateX(3deg); transform-style: preserve-3d; border-radius: 7px 18px 18px 7px; background: #7d3c18; box-shadow: -16px 16px 20px -10px rgb(54 30 12 / .35), 18px 28px 35px -19px rgb(54 30 12 / .75); }
 .flo-book-prop-spine { position: absolute; inset: 0 auto 0 0; width: 21px; border-radius: 7px 0 0 7px; background: linear-gradient(90deg, #532509, #a85e28 74%, #713312); }
 .flo-book-prop-cover { position: absolute; inset: 0 0 0 20px; overflow: hidden; border: 1px solid rgb(60 27 8 / .4); border-radius: 1px 18px 18px 1px; background: radial-gradient(circle at 63% 36%, #ffe9b5 0 8%, #f2bb68 9% 18%, transparent 19%), radial-gradient(ellipse at 30% 70%, #d99040 0 16%, transparent 17%), linear-gradient(145deg, #d3833c, #a64c1c 51%, #6e2e14); }
