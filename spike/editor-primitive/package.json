@@ -1,0 +1,23 @@
+{
+  "name": "@for-little-ones/spike-editor-primitive",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "experiment": "tsx src/measure.ts",
+    "bundle-size": "tsx src/measure-bundle.ts"
+  },
+  "devDependencies": {
+    "@reyka/openpolotno": "1.5.0",
+    "@types/node": "^24.0.0",
+    "openpolotno": "1.0.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.7",
+    "@for-little-one/domain": "file:../../packages/domain"
+  }
+}

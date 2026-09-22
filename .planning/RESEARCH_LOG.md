@@ -387,3 +387,39 @@ The mission and spec (§22) require tracing the existing creation journey (landi
 **Follow-up**
 
 - None blocking. If a codebase is later located elsewhere, re-run this inspection and reconcile.
+
+---
+
+## 2026-09-22 — Spike B (editor): OpenPolotno headless validation (phase 1)
+
+**Scope** `spike/editor-primitive/` — validate `openpolotno@1.0.2` vs `@reyka/openpolotno@1.5.0` as the low-level engine under a custom FL1 interface, headlessly (no React/canvas).
+
+**Hypothesis** The candidate stores satisfy the D007 phase-1 acceptance path; final posture stays OPEN until render + interaction numbers exist.
+
+**Observed**
+
+- Both packages import headlessly via `dist/model/store.js` (exports `{ Font, Store, createStore }`), but **ship zero `.d.ts` files** although their `exports` maps reference non-existent `.d.ts` paths. Deep-subpath import is untyped and unstable across upgrades.
+- Model API is config-based: `store.addPage(attrs)` (no string form), `page.addElement({ type })`, `element.set({})`, `store.loadJSON`. No `store.change`.
+- Element types: `text, image, svg, line, group, video, figure, gif` — **no path/shape/rect primitives**; crop is `cropX/Y/W/H`, not clip-path.
+- Undo/redo is deterministic via `store.history.transaction(async fn)` then `history.undo()/redo()` (snapshot-based; `onSnapshot` + 100 ms debounce avoided inside transaction).
+- Bleed surfaces: `toggleBleed(value?)`, `toggleRulers(value?)`, `addGuide(position, orientation)`, `page.bleed` (persists in JSON); the overlay is a view toggle, not persisted.
+- MST protection: direct property assignment throws; only actions mutate.
+- `store.addFont(...)` requires a DOM (`injectCustomFont` touches `document`) — `store.fonts` stays empty headlessly.
+- Default text `height: 0` normalizes to `1` on `loadJSON` (byte-identical round-trip holds once height is explicit).
+- Acceptance path PASS for both: canonical Book page → adapter → snapshot → user edit → canonical command → discard → rebuild → byte-identical visible result; custom action deterministic.
+- Bundle (gzip): openpolotno main 172 KB → model subimport 45 KB; @reyka 190 KB → 48 KB. Latency @30 elements: change ≈ 89 µs, txn ≈ 157 µs, undo ≈ 4.6 ms. Phone math (390×844 @ 215.9 mm): fit 0.637, touch target 69 px model, safe area 71 px.
+
+**Conclusion**
+
+Phase 1 satisfies the documented measurement surface and keeps `D007` **extended open** — the posture (depend/pin/wrap/fork/reject) needs a browser-render + phone-interaction pass before it can close. `D004` already fixes the wrap boundary: `spike/editor-primitive/src/adapt-book.ts` is the only `Book` → editor path and emits canonical commands, never editor JSON.
+
+**Impact**
+
+- Any integration ships a TypeScript shim (`src/vendor.d.ts`) and must pin the deep subpath + engine version.
+- The editor snapshot must never become canonical state (D004).
+- Font registration, web-font glyph metrics and real touch/gesture latency remain unmeasured (phase-2 browser work).
+
+**Follow-up**
+
+- Phase 2 (browser): canvas export + interaction latency on a phone-sized surface; verify crop/mask and web-font metrics against real raster output.
+- Then close D007 with evidence.
