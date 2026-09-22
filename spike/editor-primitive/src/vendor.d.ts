@@ -29,3 +29,26 @@ declare module "openpolotno/dist/model/store.js" {
   export const Store: unknown;
   export const createStore: (options?: Record<string, unknown>) => unknown;
 }
+declare module "@reyka/openpolotno" {
+  import type { ComponentType } from "react";
+  export const RaeditorApp: ComponentType<{ store?: unknown; style?: Record<string, unknown> }>;
+}
+declare module "@reyka/openpolotno/utils/fonts" {
+  export function injectGoogleFont(family: string): void;
+  export function measureFontDom(family: string, fallback?: string, style?: string, weight?: string): number;
+  export function isFontLoaded(family: string): boolean;
+  export function loadFont(
+    family: string,
+    style?: string,
+    weight?: string,
+    text?: string
+  ): Promise<void>;
+}
+declare module "@reyka/openpolotno/model/store" {
+  export function createStore(options?: Record<string, unknown>): unknown;
+  export const Store: unknown;
+}
+declare module "@reyka/openpolotno/utils/font-metric" {
+  const measureFont: (options?: Record<string, unknown>) => number;
+  export default measureFont;
+}
