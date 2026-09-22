@@ -387,7 +387,7 @@ Consequences:
 
 ## D020 — Platform-Foundation Spikes: All Exit Criteria Explicitly OPEN Pending Evidence (2026-09-21)
 
-**Status:** OPEN for the remaining spikes; **SUPERSEDED for the durable job substrate**, which Spike A resolved to **ADOPT pg-boss** on 2026-09-22 (measured evidence in `RESEARCH_LOG.md`; `spike/durable-execution/`). `OPEN` is recorded deliberately: insufficient evidence must never become a fake decision.
+**Status:** OPEN for the remaining spikes; **SUPERSEDED for the durable job substrate**, which Spike A resolved to **ADOPT pg-boss** on 2026-09-22 (measured evidence in `RESEARCH_LOG.md`; `spike/durable-execution/`). Spike E's measurement methodology landed 2026-09-22 (see the two bullets below) but its decisions remain OPEN. `OPEN` is recorded deliberately: insufficient evidence must never become a fake decision.
 
 Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`), each exit-criterion item remains explicitly open:
 
@@ -395,8 +395,8 @@ Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`
 - **Editor implementation posture.** OPEN — Spike B tests the candidate editor against an actual children's-book spread (dimensions, multipage, serialization/restoration, undo/redo, bundle size, canonical-model adapter). Decide: depend directly / pin / wrap / maintain an internal fork / reject. The editor snapshot must never become canonical.
 - **Commerce adoption/rejection.** OPEN — Spike C validates the candidate against the cart → payment → order path while preserving the invariant: commerce may reference an approved revision but may never own or mutate the Book.
 - **First print provider + print contract.** OPEN — Spike D determines actual print requirements (trim, bleed, safe area, page count, binding, cover, spine, fonts, colour, PDF profile, resolution) against one realistic partner or a faithful local fixture, and verifies the print-domain contract is editor-independent.
-- **Identity-generation approach.** OPEN — Spike E tests provider identity/reference-conditioning capabilities (multi-photo, provider-native reference conditioning, reusable private reference, retention/data-use) before any approach or threshold is chosen.
-- **QA approach.** OPEN — Spike E's vision-evaluator feasibility check (does an independent evaluator agree with human review often enough to be useful) must run before a QA threshold/methodology is fixed.
+- **Identity-generation approach.** OPEN — Spike E tests provider identity/reference-conditioning capabilities (multi-photo, provider-native reference conditioning, reusable private reference, retention/data-use) before any approach or threshold is chosen. **Update (2026-09-22):** Spike E phase 1 landed the offline measurement methodology (`spike/identity-qa/`, 29/29 tests, `RESEARCH_LOG.md` entry) — reference conditioning rides the canonical `IdentityProvider` seam and the QA vocabulary is wired to `contracts` quality checks — but **no real-provider evidence exists yet**; this item stays OPEN, any threshold from dry-run numbers would be invented.
+- **QA approach.** OPEN — Spike E's vision-evaluator feasibility check (does an independent evaluator agree with human review often enough to be useful) must run before a QA threshold/methodology is fixed. **Update (2026-09-22):** the blinded-review benchmark form, kappa/confusion agreement metrics and a sensitivity-checked synthetic reviewer are now in place behind the canonical quality vocabulary (`identity.likeness`, `identity.character-swap`, HARD_BLOCK/REVIEW_REQUIRED); the feasibility check itself (real evaluator vs real humans) is still OPEN pending the real phase.
 - **Storage upload topology.** OPEN — D017 (direct-to-storage vs API-relay) is resolved by the same evidence discipline; unchanged pending spike evidence.
 
 ---

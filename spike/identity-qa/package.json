@@ -1,0 +1,20 @@
+{
+  "name": "@for-little-ones/spike-identity-qa",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spike E (offline dry-run): identity-conditioned generation + independent likeness/QA methodology",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "experiment": "tsx src/cli.ts"
+  },
+  "devDependencies": {
+    "@for-little-ones/contracts": "file:../../packages/contracts",
+    "@for-little-ones/providers": "file:../../packages/providers",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}
