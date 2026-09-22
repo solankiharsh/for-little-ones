@@ -105,19 +105,34 @@ export default function App() {
 
             <div className="flo-hero-book" aria-label="A printed picture book standing on a warm desk">
               <div className="flo-desk-rim" aria-hidden="true" />
-              <motion.div
-                className="flo-book-prop"
-                initial={reduced ? { opacity: 0 } : { opacity: 0, y: 26 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
-              >
-                <div className="flo-book-prop-spine" />
-                <div className="flo-book-prop-cover">
-                  <span className="flo-book-prop-title">The Fox Who Lost the Moon</span>
-                  <span className="flo-book-prop-byline">for Ava · a bedtime story</span>
+              {reduced ? (
+                <div className="flo-book-prop">
+                  <div className="flo-book-prop-spine" />
+                  <div className="flo-book-prop-cover">
+                    <span className="flo-book-prop-title">The Fox Who Lost the Moon</span>
+                    <span className="flo-book-prop-byline">for Ava · a bedtime story</span>
+                  </div>
+                  <div className="flo-book-prop-foot" />
                 </div>
-                <div className="flo-book-prop-foot" />
-              </motion.div>
+              ) : (
+                <motion.div
+                  className="flo-hero-video-frame"
+                  initial={{ opacity: 0, y: 26 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
+                >
+                  <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                    aria-label="A personalised colouring book transforming into a finished book"
+                  >
+                    <source src="/demo/personalised-colouring-book-transformation.mp4" type="video/mp4" />
+                  </video>
+                </motion.div>
+              )}
             </div>
           </div>
         </section>
