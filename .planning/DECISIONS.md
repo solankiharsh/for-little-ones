@@ -107,7 +107,7 @@ Do not make the browser editing canvas the print-production system.
 
 ## D006 — Medusa
 
-**Status:** CANDIDATE — pending spike (not selected)
+**Status:** REJECTED as foundation now — **defer; adopt a thin self-built commerce surface** (2026-09-22, Spike C evidence)
 
 Purpose (if adopted):
 
@@ -120,16 +120,28 @@ Purpose (if adopted):
 - shipping;
 - fulfilment.
 
-Adoption depends on the spike decisions in D014 (self-hosted vs headless-cloud edition, tax/VAT routing) and must show a meaningful improvement over a purpose-built commerce module for our scale. No rewrite of any kind happens purely because Medusa exists. Progress flags:
+Spike C (`spike/commerce/`, 2026-09-22) validated the cart → payment → order path and the hard
+invariant (order items reference an APPROVED revision by opaque id + hash only; commerce never
+receives child/story/page data and never owns/mutates the Book). The self-built core is small and
+already invariant-clean (4/4 tests, idempotent-at-least-once webhook handling proven). Medusa's
+documented self-host footprint (Postgres + Redis + server + worker + admin + storefront, breaking
+minor releases) buys marketplace-grade primitives we don't need at one-format scale, and OSS Medusa
+has no outbound webhooks (Cloud-only) — the book→print handoff is a custom idempotent job either way.
+Revisit triggers (multi-SKU/variants, multi-region tax, marketplace, or not wanting to own the payment
+adapter + idempotent webhook layer) are recorded in `spike/commerce/MEDUSA_EVIDENCE.md`.
+
+No rewrite of any kind happens purely because Medusa exists. Progress flags:
 
 - `greenfield` → adoption is a build decision, not a migration;
-- if a real codebase appears later, re-run the comparison against *it* before adopting.
+- if a real codebase appears later, re-run the comparison against *it* before adopting;
+- the open purchase decision now is the real payment-provider adapter (Stripe-class) + idempotent
+  webhook ingestion, landing with the commerce feature.
 
 ---
 
 ## D007 — OpenPolotno
 
-**Status:** CANDIDATE IMPLEMENTATION — pending spike (wrap or fork; not selected)
+**Status:** ADOPTED — **pinned dependency + wrapper** (2026-09-22, Spike B evidence; closes the D020 OPEN item)
 
 Purpose:
 
@@ -139,14 +151,7 @@ Do not expose the complete generic design-editor UX.
 
 Do not make its data format canonical.
 
-Spike (D014 #2) decides:
-
-- direct dependency;
-- pinned dependency;
-- internal fork;
-- wrapper/adapter.
-
-incl. spread support; the reader bundle must never load the editor package (D005, F-011).
+Residence: `@reyka/openpolotno@1.5.0` (exact pin, no caret) declared only in `packages/editor`; the wrapper `packages/editor/src/adapt-book.ts` is the single Book→engine translation boundary (D004). The engine main entry (full editor + Konva) is never imported by the wrapper (headless model subpath only); the browser seam that imports the main entry is an editor-app layer, deferred to F-014 implementation. Spread mapping: one canonical page → one engine page (rendering a spread side-by-side is a view concern). 36/36 spike tests + 10 in-package tests; `boundary.spec.ts` enforces that no other package references the engine (D005). Reader/print bundles must never load the editor package (D005, F-011).
 
 ---
 
@@ -392,9 +397,9 @@ Consequences:
 Until the planned spikes produce measured results (recorded in `RESEARCH_LOG.md`), each exit-criterion item remains explicitly open:
 
 - **Durable job substrate.** **ADOPT — PostgreSQL-backed pg-boss** (2026-09-22): Spike A ran the identical crash/recovery + retry-exhaustion + cancellation scenario through pg-boss 12.33.3 (PostgreSQL-only) and BullMQ 6.3.8 + ioredis on the shared `SpikeBackend` harness (`spike/durable-execution/`), 3× consecutive green runs of 8/8. Both recover a real worker SIGKILL at the provider boundary with zero duplicate provider spend (stable `providerRequestId`, `cached: true`), both visibly terminal the always-fail page (pg-boss native dead-letter queue `generation-bad` vs BullMQ `failed` set — BullMQ has no built-in DLQ), both cancel enqueued work. pg-boss reclaimed in 8.9 s vs 15.2 s (lease design), needs **no second store** (the app is already Postgres; a review-required path is a query over the `job` table), and has a native DLQ. pg-boss's README "exactly-once delivery" is **vendor wording only** — recovery is guaranteed by app-level provider idempotency, not by the substrate; no exactly-once claim is adopted. BullMQ is documented as a passable alternative (Redis-native) if a dedicated Redis for jobs is ever provisioned. Evidence: `research/validate-durable-execution-substrate` (README + `RESEARCH_LOG.md` 2026-09-22 entry).
-- **Editor implementation posture.** OPEN — Spike B tests the candidate editor against an actual children's-book spread (dimensions, multipage, serialization/restoration, undo/redo, bundle size, canonical-model adapter). Decide: depend directly / pin / wrap / maintain an internal fork / reject. The editor snapshot must never become canonical. **Update (2026-09-22):** Spike B phase 1 landed the headless validation (`spike/editor-primitive/`, 26/26 tests, acceptance path PASS for both `openpolotno@1.0.2` and `@reyka/openpolotno@1.5.0`) and **phase 2 landed the real-browser render + interaction pass** (36/36 tests incl. `test/browser.spec.ts`; system Chrome via `playwright-core`, 390×844 @ dsf 3, `npm run phase2` → `tmp/editor-primitive/phase2.json`, all 9 checks PASS): the `@reyka/openpolotno@1.5.0` editor mounts, exports an exact 1224×1224 raster at pixelRatio 2, loads Google Nunito through the engine's own loader (`document.fonts.check` true, 90 px span +72.4 px), registers a self-hosted data-URI font via `store.addFont` (FontFaceSet check true), pointer-drags the text element with ~2 ms avg input-to-paint rAF samples, and does transaction/undo/redo ≈ 2/1/0.5 ms. Both packages ship zero `.d.ts` (type shim + pinned deep subpath required regardless of posture); `createStore` is not in the package main; sub-path imports take no `.js` suffix; the main entry is not Node-importable (extensionless `@meronex/icons`) so the browser seam needs a bundler; crop is a numeric surface that recrops the source and stretches it to element bounds. This item still stays OPEN — the posture (depend/pin/wrap/fork/reject) now has its numbers but still needs a sponsor who pins/depends the engine at a chosen commit before it closes. **Sponsor ticket:** `.planning/EDITOR_SPONSOR_TICKET.md` (recommends **pin + wrap**; its 5 acceptance criteria are the closure gate for this item; `D004` wrap boundary is unchanged and re-proven).
-- **Commerce adoption/rejection.** OPEN — Spike C validates the candidate against the cart → payment → order path while preserving the invariant: commerce may reference an approved revision but may never own or mutate the Book.
-- **First print provider + print contract.** OPEN — Spike D determines actual print requirements (trim, bleed, safe area, page count, binding, cover, spine, fonts, colour, PDF profile, resolution) against one realistic partner or a faithful local fixture, and verifies the print-domain contract is editor-independent.
+- **Editor implementation posture.** **RESOLVED — ADOPT pin + wrap** (2026-09-22). Spike B phase 1 landed the headless validation (`spike/editor-primitive/`, 26/26 tests, acceptance path PASS for both `openpolotno@1.0.2` and `@reyka/openpolotno@1.5.0`) and **phase 2 landed the real-browser render + interaction pass** (36/36 tests incl. `test/browser.spec.ts`; system Chrome via `playwright-core`, 390×844 @ dsf 3, `npm run phase2` → `tmp/editor-primitive/phase2.json`, all 9 checks PASS): the `@reyka/openpolotno@1.5.0` editor mounts, exports an exact 1224×1224 raster at pixelRatio 2, loads Google Nunito through the engine's own loader (`document.fonts.check` true, 90 px span +72.4 px), registers a self-hosted data-URI font via `store.addFont` (FontFaceSet check true), pointer-drags the text element with ~2 ms avg input-to-paint rAF samples, and does transaction/undo/redo ≈ 2/1/0.5 ms. Both packages ship zero `.d.ts` (type shim + pinned deep subpath required regardless of posture); `createStore` is not in the package main; sub-path imports take no `.js` suffix; the main entry is not Node-importable (extensionless `@meronex/icons`) so the browser seam needs a bundler; crop is a numeric surface that recrops the source and stretches it to element bounds. **Closed:** `@reyka/openpolotno@1.5.0` is pinned exact in `packages/editor` (the wrapper — single Book→engine translation boundary, `src/adapt-book.ts`, shim `src/vendor.d.ts`), with 10 in-package tests incl. the round-trip acceptance path and the dependency-direction guard (`boundary.spec.ts`: no other package may reference the engine). F-014 promoted to agreed (page→spread mapping resolved: one canonical page → one engine page). Sponsor ticket `.planning/EDITOR_SPONSOR_TICKET.md` acceptance criteria 1,2,4,5 met; criterion 3's app-level bundle guard lands with F-011.
+- **Commerce adoption/rejection.** **RESOLVED — REJECT (defer) Medusa now; adopt a thin self-built commerce surface** (Spike C, 2026-09-22). The cart → payment → order path + the hard invariant (commerce references an approved revision by opaque id + hash only, never owns/mutates the Book) are proven headlessly 4/4 (`spike/commerce/`), incl. idempotent at-least-once webhook handling and rejection of any non-APPROVED book at checkout. Medusa's documented footprint (Postgres+Redis+server+worker+admin+storefront) buys unused marketplace-grade primitives; OSS has no outbound webhooks, so the print handoff is custom either way. Revisit triggers in `spike/commerce/MEDUSA_EVIDENCE.md`; real payment-provider adapter is the remaining open purchase decision (lands with the commerce feature).
+- **First print provider + print contract.** **RESOLVED — first provider Mixam (hardcover, art-book square); contract stays generic** (Spike D, 2026-09-22). `spike/print-pipeline/` produces a deterministic 24-page sample PDF from fixture Book + generic `PrintSpec` (D016) — byte-identical across runs, text inside safe area, embedded font, editor-independent (no editor/engine import; `packages/domain` has no editor dep). Mixam's live specs recorded in `spike/print-pipeline/MIXAM_EVIDENCE.md`; provider deltas (3 mm bleed, 5 mm general / 12 mm hinge quiet area, offered trims, 300 dpi, CMYK GRACoL2006_Coated1v2, no crop marks, fonts embedded, interiors in multiples of 2) are pinned in the Mixam adapter. One documented finding: our uniform 8 mm safe margin is below Mixam's 12 mm hardcover binding edge — the canonical print spec must either raise it or treat binding edge specially. Geometry decision for F-014/F-017: canonical trim must be an offered Mixam trim (210/148/120/300 mm) or a quoted custom — 215.9 mm is not offered.
 - **Identity-generation approach.** OPEN — Spike E tests provider identity/reference-conditioning capabilities (multi-photo, provider-native reference conditioning, reusable private reference, retention/data-use) before any approach or threshold is chosen. **Update (2026-09-22):** Spike E phase 1 landed the offline measurement methodology (`spike/identity-qa/`, 29/29 tests, `RESEARCH_LOG.md` entry) — reference conditioning rides the canonical `IdentityProvider` seam and the QA vocabulary is wired to `contracts` quality checks — but **no real-provider evidence exists yet**; this item stays OPEN, any threshold from dry-run numbers would be invented.
 - **QA approach.** OPEN — Spike E's vision-evaluator feasibility check (does an independent evaluator agree with human review often enough to be useful) must run before a QA threshold/methodology is fixed. **Update (2026-09-22):** the blinded-review benchmark form, kappa/confusion agreement metrics and a sensitivity-checked synthetic reviewer are now in place behind the canonical quality vocabulary (`identity.likeness`, `identity.character-swap`, HARD_BLOCK/REVIEW_REQUIRED); the feasibility check itself (real evaluator vs real humans) is still OPEN pending the real phase.
 - **Storage upload topology.** OPEN — D017 (direct-to-storage vs API-relay) is resolved by the same evidence discipline; unchanged pending spike evidence.
@@ -411,6 +416,7 @@ The recommended path to "run the D014-blocking spikes and start some real code i
 ```text
 apps/{web, api, worker}            — application shells (stubs commit the direction only)
 packages/domain                    — canonical Book/Child/PrintSpec model (D004/D016), GenerationStep units
+packages/editor                    — pinned engine wrapper (D007 pin+wrap; single Book→snapshot boundary; added 2026-09-22)
 packages/contracts                 — canonical generation contracts (GENERATION_ARCHITECTURE §3) + parseContract
 packages/providers                 — Story/Illustration/Identity/Quality/Moderation boundaries + ProviderCard audit
 packages/execution                 — DurableExecutionContract (D019) + in-memory semantics runtime (test/staging only)

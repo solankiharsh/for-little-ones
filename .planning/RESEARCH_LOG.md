@@ -6,6 +6,73 @@ Use newest entries first.
 
 ---
 
+### 2026-09-22 — Spike D (print provider + contract): first provider Mixam, generic PrintSpec, deterministic sample PDF (decisions RESOLVED)
+
+**Question**
+
+Can we pin a real production print provider's requirements and produce a deterministic sample PDF entirely on the generic `PrintSpec` (D016) so that changing only the editor never changes the print-domain contract (PROJECT_SPIKES §Spike D)?
+
+**How it was tested**
+
+- Transcribed Mixam's live specs (trim/bleed/safe, PDF requirements, hardcover/spine, fonts, resolution, fulfilment) with a Blurb cross-check into `spike/print-pipeline/MIXAM_EVIDENCE.md`, tagged Documented/Inferred.
+- Generic deterministic renderer `spike/print-pipeline/src/generate.ts` (pdf-lib + embedded TrueType via `@pdf-lib/fontkit`) consuming ONLY canonical `Book` + `PrintSpec`. Provider deltas live in `src/mixam.ts` (adapter posture).
+- `spike/print-pipeline/`: `npm run typecheck` clean, `npm test` 8/8, `npm run sample` writes `tmp/print-fixture/sample-book.pdf` (24 pages, 21 KB) + `release.json`.
+
+**Key results**
+
+- Determinism: identical inputs → byte-identical PDF (two builds, `Buffer.equals` true). Page geometry exact (trim + 2×bleed), verified by re-parsing the PDF. All placed text inside the safe area (asserted per line). Font embedded (Arial subset); Mixam's "every font must be embedded" rule satisfied.
+- Mixam eval on the sample: only `SAFE_BINDING_EDGE (REVIEW_REQUIRED)` — hardcover binding-edge quiet area is 12 mm (Documented) vs our uniform 8 mm; zero HARD_BLOCKs. Adapter flags the non-offered 215.9 mm trim; D016 `validateGeometry` catches bleed ≥ half trim.
+- Editor-independence (`test/boundary.spec.ts`): print-pipeline source never imports `@for-little-ones/editor` / `@reyka/openpolotno` / `konva`; `packages/domain` declares no editor dep.
+
+**Honest gaps (recorded, not hidden)**
+
+- Colour: pdf-lib renders DeviceRGB; Mixam wants CMYK GRACoL2006_Coated1v2 — conversion is a production F-017 renderer requirement, not a contract change.
+- Sample covers interior pages only; cover/spine rules (20 mm cover bleed, spine auto-calc, 5 mm hinge, endpapers) are adapter-knowledge, not yet exercised by a cover PDF.
+- Single system TTF stand-in; text-only (no image-DPI measurement path yet).
+
+**Conclusion**
+
+First provider = Mixam (hardcover, art-book square 210 mm); print contract stays generic (D016 unchanged). Canonical trim must be an offered Mixam trim (210/148/120/300) or a quoted custom — 215.9 mm is not offered. Changing the editor implementation cannot change the print-domain contract (asserted). DECISIONS.md print-provider item → RESOLVED.
+
+**Follow-up**
+
+- F-014/F-017 must use the Mixam-aligned PrintSpec (3 mm bleed, safe ≥ 5 mm general / 12 mm binding edge or per-edge safe), pay the CMYK conversion, and exercise a cover PDF separately.
+- Optionally cross-check a second provider later (Printful/Digi) before any multi-provider work.
+
+---
+
+### 2026-09-22 — Spike C (commerce): minimal self-built surface vs Medusa — invariant proven, Medusa deferred (decision RESOLVED)
+
+**Question**
+
+Does adopting Medusa reduce end-to-end risk (payment, tax, shipping, webhooks, refunds, multi-region) enough to justify its operational/domain complexity at our actual scale, while the commerce path must reference an approved revision by opaque id + hash only and never own/mutate the Book?
+
+**How it was tested**
+
+- Headless demo path `spike/commerce/` on the canonical `Book` (packages/domain): approved revision → cart line → format/SKU (`HB-SQ-AVA` @ 2499 minor) → payment sandbox → order. `npm run typecheck` clean, `npm test` 4/4.
+- Hard invariant proven by payload round-trip: `toOrderPayload(order)` contains `approvedBookRevisionId` + `revisionHash` and never any canonical token (child id, character name, story text, asset ref).
+- Payment sandbox exercises at-least-once webhook delivery: duplicate event re-delivery is a no-op, second capture on an already-captured payment refused, fresh events still delivered; only APPROVED books reach checkout (DRAFT/EDITING rejected).
+- Medusa v2 surface digest `spike/commerce/MEDUSA_EVIDENCE.md` from official docs, tagged Documented/Observed/Inferred (footprint: Postgres + Redis + server + worker + admin + storefront; no OSS outbound webhooks — Cloud-only; `lineItems[].metadata` personalisation recipe; workflow-level once-only idempotency; breaking minor releases).
+
+**Key results / comparison**
+
+Self-build: small, owned, invariant-clean, no extra services; pays one real payment-provider adapter + webhook ingestion. Medusa OSS: mature primitives but a heavier 4-process footprint, breaking-release discipline, and webhooks to the print provider still custom. Distinguishing Medusa value (marketplace/multi-region/inventory/tax engines) is unused at one-format scale. AGENTS.md: "do not migrate purely for architectural neatness" — supports the defer.
+
+**Honest gaps**
+
+- Medusa runtime was NOT measured (docs-grounded only); if contended, run a live `medusa dev` against local Postgres.
+- Sandbox payment does not model 3DS/SCA or real capture flows — those belong to the real payment-provider adapter.
+
+**Conclusion**
+
+D006 → RESOLVED: REJECT (defer) Medusa as the foundation now; adopt a thin self-built commerce surface; open purchase decision = real payment-provider adapter + idempotent webhook ingestion, landing with the commerce feature. Revisit triggers (multi-SKU/variants, multi-region tax, marketplace, team not wanting to own the adapter layer) in `MEDUSA_EVIDENCE.md`.
+
+**Follow-up**
+
+- Commerce feature work: `Book` status transitions (ORDERED → …) already exist; wire the opaque-ref order into durable execution (shipment/failure recovery) when built.
+
+---
+
 ### 2026-09-22 — Spike E (phase 1): Identity generation + visual QA — offline measurement methodology landed (decisions still OPEN)
 
 **Question**
@@ -453,5 +520,32 @@ Phase-2 evidence lands the previously-missing render + interaction numbers for `
 
 **Follow-up**
 
-- Sponsor ticket filed: `.planning/EDITOR_SPONSOR_TICKET.md` (posture recommendation **pin + wrap**, 5 acceptance criteria as the D020 closure gate). A sponsor pins/depends `@reyka/openpolotno` at a commit and drives the adapt-book wrap; only then move D007 from extended open to a closed posture.
+- **RESOLVED (2026-09-22):** D007 closed as **pin + wrap**. `packages/editor` pins `@reyka/openpolotno@1.5.0` (exact, no caret), carries the single Book→engine boundary (`src/adapt-book.ts`, ported from this spike) + `src/vendor.d.ts` shim + `src/geometry.ts`, with 10 in-package tests 73/73 root suite (round-trip acceptance path + `boundary.spec.ts` dependency-direction guard: no other package may reference the engine). F-014 promoted to agreed; page→spread mapping recorded (one canonical page → one engine page). Criterion 3 (reader/print bundle guard) is a CI/apps assertion that lands with F-011.
 - Optional: point `phase2.mjs` at upstream `openpolotno@1.0.2` the same way for a like-for-like browser comparison (both candidates already share the measured model surface).
+
+---
+
+### 2026-09-22 — D007 closure record: pinned engine wrapper lands in packages/editor
+
+**Question**
+
+Does the evidence from Spike B close D007 as a posture rather than leaving it open until a future sponsor rebuilds the same harness in-package?
+
+**How it was tested**
+
+- New workspace package `packages/editor` (deps: `@for-little-ones/domain` + `@reyka/openpolotno@1.5.0` exact). Promoted the spike's `adapt-book` + `geometry` + engine store factory onto the canonical `Book` (packages/domain) and the engine model subpath, with a pinned `vendor.d.ts` shim (re-verified: the exports map promises `*.d.ts` but `dist/` ships none).
+- Engine imported only via `@reyka/openpolotno/model/store` (headless, no `.js` suffix; the main entry + `@meronex/icons` seam stays browser-app scope). `store.addFont` is documented headless-unsafe and called only by the future browser seam.
+- Tests added in-package: pinned-engine round-trip suite (serialize/restore byte-identical, transaction undo/redo ≈ base line, arbitrary print dims, crop/font-family round-trip, bleed serialization, height 0→1 wrinkle) and the canonical Book→adapter path (one engine page per canonical page at 215.9 mm trim; user edit → canonical commands `set-text` + `clear-face`; rebuild byte-identical; canonical book id never leaks into the snapshot). `boundary.spec.ts` asserts no package outside `editor` references the engine anywhere, and the pin is exact.
+
+**Conclusion**
+
+All listed checks green: root `npm test` 73/73 (7 files), `packages/editor` typechecks; the only failing root typecheck error remains the pre-existing `packages/providers/test/adapter-contract.spec.ts` literal `schemaVersion` mismatch (unrelated, predates this work). D007 is **ADOPTED (pin + wrap)**: criterion 1, 2, 4, 5 of `.planning/EDITOR_SPONSOR_TICKET.md` met in-package; criterion 3 (reader/print never import the editor package) is enforceable only once an apps bundle exists (F-011) — recorded, not faked.
+
+**Impact**
+
+- Feature work can build F-014 on `@for-little-ones/editor` without re-litigating the engine posture; the adapter is the canonical translation boundary, snapshot never canonical (D004 has 3 test witnesses).
+- The engine is one pinned version, one shim, one adapter file — the cheapest residence that stayed honest with the evidence.
+
+**Follow-up**
+
+- Browser seam (editor app layer): import engine main + `utils/fonts` in the F-014 app, registered fonts via `store.addFont`, selection/guides, sweep harness upgrades. Reader/print bundle guard asserted in CI when apps exist (F-011). optional upstream `openpolotno@1.0.2` parity (above).
