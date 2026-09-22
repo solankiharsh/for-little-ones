@@ -699,6 +699,8 @@ span.flo-block-caption {
 
 .flo-hero-book { position: relative; z-index: 1; height: 430px; display: grid; place-items: center; perspective: 1300px; }
 .flo-desk-rim { position: absolute; bottom: 20px; width: min(100%, 450px); height: 70px; border-radius: 50%; background: radial-gradient(ellipse, rgb(75 41 15 / .34), rgb(75 41 15 / 0) 68%); filter: blur(5px); }
+.flo-hero-video-frame { position: relative; width: min(540px, 100%); aspect-ratio: 16 / 10; overflow: hidden; border: 1px solid rgb(86 47 18 / .35); border-radius: 18px; background: #f8f3e8; box-shadow: 0 30px 48px -27px rgb(54 30 12 / .75); }
+.flo-hero-video-frame video { display: block; width: 100%; height: 100%; object-fit: contain; }
 .flo-book-prop { position: relative; width: 265px; height: 352px; transform: rotate(-8deg) rotateX(3deg); transform-style: preserve-3d; border-radius: 7px 18px 18px 7px; background: #7d3c18; box-shadow: -16px 16px 20px -10px rgb(54 30 12 / .35), 18px 28px 35px -19px rgb(54 30 12 / .75); }
 .flo-book-prop-spine { position: absolute; inset: 0 auto 0 0; width: 21px; border-radius: 7px 0 0 7px; background: linear-gradient(90deg, #532509, #a85e28 74%, #713312); }
 .flo-book-prop-cover { position: absolute; inset: 0 0 0 20px; overflow: hidden; border: 1px solid rgb(60 27 8 / .4); border-radius: 1px 18px 18px 1px; background: radial-gradient(circle at 63% 36%, #ffe9b5 0 8%, #f2bb68 9% 18%, transparent 19%), radial-gradient(ellipse at 30% 70%, #d99040 0 16%, transparent 17%), linear-gradient(145deg, #d3833c, #a64c1c 51%, #6e2e14); }
@@ -736,6 +738,8 @@ span.flo-block-caption {
 .flo-process-mini-scene { display: block; flex: 1; margin-top: 10px; border-radius: 2px; background: radial-gradient(circle at 67% 30%, #ffe6a4 0 13%, transparent 14%), linear-gradient(#29172d, #69304b 54%, #2c1431 55%); }
 .flo-process-finished { z-index: 4; right: 0; bottom: 13px; width: min(195px, 35%); height: 237px; align-items: flex-start; padding: 29px 20px; border-radius: 5px 15px 15px 5px; color: #fff1d5; background: radial-gradient(circle at 70% 28%, #ffe3a9 0 9%, #f1ae58 10% 15%, transparent 16%), linear-gradient(145deg, #ce7431, #7f3515); font: 400 28px/.92 var(--font-family-heading); letter-spacing: -.04em; }
 .flo-process-finished::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 14px; border-radius: 5px 0 0 5px; background: linear-gradient(90deg, rgb(41 15 3 / .55), transparent); }.flo-process-finished i { position: absolute; right: 24px; bottom: 30px; width: 29px; height: 29px; border-radius: 50%; background: #ffe6ae; box-shadow: 0 0 19px 6px rgb(255 221 155 / .35); }.flo-process-spark { position: absolute; z-index: 5; color: #fff1c5; font-size: 26px; }.flo-process-spark-one { top: 14px; left: 48%; }
+
+.flo-worlds { padding-block: clamp(74px, 10vw, 132px); background: var(--flo-surface); }.flo-worlds-inner { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }.flo-worlds-head { display: flex; align-items: end; justify-content: space-between; gap: 48px; }.flo-worlds h2 { max-width: 12ch; margin: 0; font: 400 clamp(40px, 4.8vw, 65px)/.96 var(--font-family-heading); letter-spacing: -.05em; }.flo-worlds-head > p { max-width: 39ch; margin: 0 0 4px; color: var(--flo-ink-soft); font-size: 14px; line-height: 1.75; }.flo-world-grid { display: grid; grid-template-columns: repeat(3, minmax(180px, 238px)); justify-content: center; gap: clamp(30px, 5vw, 72px); margin-top: 50px; perspective: 1200px; }.flo-world { position: relative; min-height: 365px; overflow: visible; display: flex; flex-direction: column; justify-content: end; padding: 25px 22px; border: 0; border-radius: 5px 17px 17px 5px; color: #fff7e8; text-align: left; cursor: pointer; box-shadow: -13px 15px 19px -13px rgb(45 26 12 / .72), 16px 23px 30px -21px rgb(45 26 12 / .9); transition: transform 240ms ease, box-shadow 240ms ease; transform: rotateY(-8deg) rotateZ(-1.5deg); transform-style: preserve-3d; }.flo-world:hover { transform: translateY(-9px) rotateY(-2deg) rotateZ(0); box-shadow: -17px 21px 26px -14px rgb(45 26 12 / .75), 24px 31px 34px -20px rgb(45 26 12 / .95); }.flo-world:focus-visible { outline: 3px solid var(--flo-sienna); outline-offset: 7px; }.flo-world::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(0deg, rgb(19 14 13 / .81), rgb(19 14 13 / 0) 64%); }.flo-world::after { content: ""; position: absolute; z-index: 2; top: 0; bottom: 0; left: 0; width: 15px; border-radius: 5px 0 0 5px; background: linear-gradient(90deg, rgb(24 12 5 / .64), rgb(255 226 168 / .14) 75%, transparent); }.flo-world > * { position: relative; z-index: 3; }.flo-world-kicker { margin-bottom: auto; color: #fff0c8; font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }.flo-world h3 { max-width: 8ch; margin: 0; font: 400 31px/.96 var(--font-family-heading); letter-spacing: -.045em; }.flo-world p { max-width: 27ch; margin: 14px 0 0; color: rgb(255 247 232 / .8); font-size: 12px; line-height: 1.65; }.flo-world-preview { margin-top: 18px; color: #fff0c8; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }.flo-world-preview span { font-size: 15px; vertical-align: -1px; }.flo-world-night { background: radial-gradient(circle at 66% 27%, #fff0b8 0 8%, #f7c66c 9% 15%, transparent 16%), radial-gradient(ellipse at 30% 82%, #7f4e79 0 17%, transparent 18%), linear-gradient(145deg, #11152d, #362049 63%, #8d4a52); }.flo-world-garden { background: radial-gradient(circle at 68% 24%, #ffe5a1 0 5%, transparent 6%), radial-gradient(ellipse at 30% 56%, #f9bc5a 0 10%, transparent 11%), linear-gradient(145deg, #23534a, #5f8651 56%, #d38145); }.flo-world-sea { background: radial-gradient(circle at 65% 25%, #fff1bf 0 8%, transparent 9%), radial-gradient(ellipse at 72% 66%, #d37752 0 13%, transparent 14%), linear-gradient(145deg, #245b73, #478ca1 49%, #e4aa73); }.flo-world-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 37px; }
 
 .flo-reader-wrap { padding-block: clamp(75px, 10vw, 130px); color: #f8eedb; background: #211810; }
 .flo-reader-wrap .flo-kicker { color: #e8ad67; }
@@ -778,6 +782,7 @@ span.flo-block-caption {
 .flo-reader .flo-scene { overflow: hidden; border-radius: 3px; }
 .flo-scene-svg { display: block; width: 100%; height: auto; }
 .flo-reader-empty { padding: 24px; }
+.flo-preview-overlay { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; overflow: auto; padding: 24px; background: rgb(24 15 8 / .84); backdrop-filter: blur(9px); }.flo-preview-modal { width: min(1180px, 100%); padding: 20px; border: 1px solid rgb(238 211 166 / .22); border-radius: 20px; background: #211810; box-shadow: 0 30px 80px rgb(0 0 0 / .45); }.flo-preview-kicker { margin: 0 0 12px; color: #e8ad67; font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 
 .flo-about { background: radial-gradient(circle at 13% 22%, #f4d9a8 0, transparent 28%), var(--flo-paper-deep); }
 .flo-about-body { max-width: 57ch; margin: 28px 0 44px; color: var(--flo-ink-soft); font-size: 15px; line-height: 1.8; }
@@ -823,7 +828,8 @@ span.flo-block-caption {
   .flo-reader .flo-spread { overflow: hidden; }
   .flo-reader .flo-page-num { display: none; }
   .flo-process-inner,
-  .flo-stories-inner { width: min(100% - 36px, 1180px); }
+  .flo-stories-inner,
+  .flo-worlds-inner { width: min(100% - 36px, 1180px); }
   .flo-process-inner,
   .flo-stories-inner { grid-template-columns: 1fr; }
   .flo-process-film { min-height: 290px; }
@@ -831,6 +837,7 @@ span.flo-block-caption {
   .flo-process-page { left: 31%; }
   .flo-memory-grid { grid-template-columns: 1fr; }
   .flo-memory { min-height: 235px; }
+  .flo-worlds-head { display: grid; gap: 22px; }.flo-world-grid { grid-template-columns: 1fr; margin-top: 36px; }.flo-world { min-height: 290px; }
   .flo-about-facts { grid-template-columns: repeat(2, 1fr); }
   .flo-fact:nth-child(2) { border-right: 0; }
   .flo-fact:nth-child(n + 3) { padding-top: 22px; border-top: 1px solid var(--flo-line); }

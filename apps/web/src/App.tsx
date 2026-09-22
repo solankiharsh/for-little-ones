@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
 import BookReader from "./reader/BookReader";
 
 const STUDIO = "For Little One";
+const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
 
 function Logo() {
   return (
@@ -30,19 +31,59 @@ function Logo() {
 
 export default function App() {
   const reduced = useReducedMotion();
-  const [phase, setPhase] = useState<"shelf" | "opening" | "reader">("shelf");
+  const [phase, setPhase] = useState<"idle" | "reader">("idle");
+  const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const previewTriggerRef = useRef<HTMLElement | null>(null);
 
   const open = useCallback(() => {
-    if (reduced) {
-      setPhase("reader");
-      return;
-    }
-    setPhase("opening");
+    document.getElementById("story-worlds")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
   }, [reduced]);
 
   const close = useCallback(() => {
-    setPhase("shelf");
+    setPhase("idle");
+    window.requestAnimationFrame(() => previewTriggerRef.current?.focus());
   }, []);
+
+  const previewStory = useCallback((title: string, trigger?: HTMLElement) => {
+    previewTriggerRef.current = trigger ?? null;
+    setPreviewTitle(title);
+    setPhase("reader");
+  }, []);
+
+  useEffect(() => {
+    if (phase === "reader") previewRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [phase]);
+
+  const trapPreviewFocus = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = [...(previewRef.current?.querySelectorAll<HTMLElement>("button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])") ?? [])];
+    if (controls.length === 0) return;
+    const first = controls[0]!;
+    const last = controls.at(-1)!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }, [close]);
+
+  const previewBook = useMemo(
+    () => ({
+      ...sampleBook,
+      metadata: { ...sampleBook.metadata, title: previewTitle },
+      pages: sampleBook.pages.map((page) => page.pageNumber === 1
+        ? { ...page, textBlocks: page.textBlocks.map((block) => block.kind === "cover-title" ? { ...block, text: previewTitle } : block) }
+        : page),
+    }),
+    [previewTitle],
+  );
 
   return (
     <div className="flo-site">
@@ -91,10 +132,10 @@ export default function App() {
               </p>
               <div className="flo-hero-actions">
                 <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>
-                  Create their book <span className="flo-btn-arrow" aria-hidden="true">→</span>
+                  Start their story <span className="flo-btn-arrow" aria-hidden="true">→</span>
                 </button>
-                <a href="#story" className="flo-btn flo-btn-ghost">
-                  Read a sample story
+                <a href="#story-worlds" className="flo-btn flo-btn-ghost">
+                  Explore story worlds
                 </a>
               </div>
               <p className="flo-hero-note">
@@ -105,19 +146,40 @@ export default function App() {
 
             <div className="flo-hero-book" aria-label="A printed picture book standing on a warm desk">
               <div className="flo-desk-rim" aria-hidden="true" />
-              <motion.div
-                className="flo-book-prop"
-                initial={reduced ? { opacity: 0 } : { opacity: 0, y: 26 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
-              >
-                <div className="flo-book-prop-spine" />
-                <div className="flo-book-prop-cover">
-                  <span className="flo-book-prop-title">The Fox Who Lost the Moon</span>
-                  <span className="flo-book-prop-byline">for Ava · a bedtime story</span>
+              {reduced ? (
+                <div className="flo-book-prop">
+                  <div className="flo-book-prop-spine" />
+                  <div className="flo-book-prop-cover">
+                    <span className="flo-book-prop-title">The Fox Who Lost the Moon</span>
+                    <span className="flo-book-prop-byline">for Ava · a bedtime story</span>
+                  </div>
+                  <div className="flo-book-prop-foot" />
                 </div>
-                <div className="flo-book-prop-foot" />
-              </motion.div>
+              ) : (
+                <motion.div
+                  className="flo-hero-video-frame"
+                  initial={{ opacity: 0, y: 26 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
+                >
+                  <video
+                    autoPlay
+                    muted
+                    playsInline
+                    preload="metadata"
+                    aria-label="A personalised colouring book transforming into a finished book"
+                    onLoadedMetadata={({ currentTarget }) => {
+                      currentTarget.currentTime = 15;
+                    }}
+                    onEnded={({ currentTarget }) => {
+                      currentTarget.currentTime = 15;
+                      void currentTarget.play();
+                    }}
+                  >
+                    <source src="/demo/story-worlds-hero.mp4#t=15" type="video/mp4" />
+                  </video>
+                </motion.div>
+              )}
             </div>
           </div>
         </section>
@@ -207,56 +269,42 @@ export default function App() {
           </div>
         </section>
 
-        {/* ============ the reader — product first ============ */}
-        <section className="flo-reader-wrap" id="reader" aria-label="Your book, open">
-          <div className="flo-reader-inner">
-            <p className="flo-kicker">Your book</p>
-            <h2 className="flo-reader-title">The Fox Who Lost the Moon</h2>
-            <p className="flo-reader-sub">
-              A working reader — the real spreads from your book, open on the
-              desk. Use your keyboard to turn the pages.
-            </p>
-            {phase !== "reader" ? (
-              <motion.button
-                type="button"
-                className="flo-reader-book"
-                aria-label="Open The Fox Who Lost the Moon"
-                onClick={open}
-                initial={false}
-                animate={
-                  phase === "opening"
-                    ? { rotateY: -122, rotateZ: 0, y: -8, scale: 1.03, opacity: 0 }
-                    : { rotateY: -9, rotateZ: -3, y: 0, scale: 1, opacity: 1 }
-                }
-                transition={{ duration: 0.72, ease: [0.32, 0.72, 0, 1] }}
-                onAnimationComplete={() => {
-                  if (phase === "opening") setPhase("reader");
-                }}
-                {...(reduced || phase === "opening"
-                  ? {}
-                  : {
-                      whileHover: { y: -8, rotateZ: 0, scale: 1.02 },
-                      whileTap: { scale: 0.98 },
-                    })}
-              >
-                <span className="flo-reader-book-spine" aria-hidden="true" />
-                <span className="flo-reader-book-cover">
-                  <span className="flo-reader-book-moon" aria-hidden="true" />
-                  <span className="flo-reader-book-title">The Fox Who Lost the Moon</span>
-                  <span className="flo-reader-book-byline">A story for Mira</span>
-                </span>
-                <span className="flo-reader-book-prompt">
-                  {phase === "opening" ? "Opening your book..." : "Tap the cover to open"}
-                </span>
-              </motion.button>
-            ) : (
-              <BookReader
-                book={sampleBook}
-                child={sampleChild}
-                printSpec={samplePrintSpec}
-                onExit={close}
-              />
-            )}
+        <section className="flo-worlds" id="story-worlds" aria-label="Story world examples">
+          <div className="flo-worlds-inner">
+            <div className="flo-worlds-head">
+              <div>
+                <p className="flo-kicker">A place to begin</p>
+                <h2>Start with a world they already love.</h2>
+              </div>
+              <p>
+                A bedtime question, a favourite creature, a family in-joke. Pick a spark,
+                then we make the story unmistakably theirs.
+              </p>
+            </div>
+            <div className="flo-world-grid">
+              <button type="button" className="flo-world flo-world-night" onClick={(event) => previewStory("The Moon That Followed Home", event.currentTarget)}>
+                <span className="flo-world-kicker">Bedtime wonder</span>
+                <h3>The moon that followed home</h3>
+                <p>For the child who always has one more question about the sky.</p>
+                <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
+              </button>
+              <button type="button" className="flo-world flo-world-garden" onClick={(event) => previewStory("The Secret Garden Map", event.currentTarget)}>
+                <span className="flo-world-kicker">Small adventures</span>
+                <h3>The secret garden map</h3>
+                <p>A rainy-day expedition with a brave companion and a pocketful of clues.</p>
+                <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
+              </button>
+              <button type="button" className="flo-world flo-world-sea" onClick={(event) => previewStory("The Lighthouse That Sang", event.currentTarget)}>
+                <span className="flo-world-kicker">Big imagination</span>
+                <h3>The lighthouse that sang</h3>
+                <p>A sea-swept story for a little explorer who never misses a wave.</p>
+                <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
+              </button>
+            </div>
+            <div className="flo-world-actions">
+              <button type="button" className="flo-btn flo-btn-ghost" onClick={(event) => previewStory(SAMPLE_TITLE, event.currentTarget)}>See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
+              <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
+            </div>
           </div>
         </section>
 
@@ -314,6 +362,20 @@ export default function App() {
         </section>
       </main>
 
+      {phase === "reader" && (
+        <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
+          <div className="flo-preview-modal" ref={previewRef}>
+            <p className="flo-preview-kicker">Preview: {previewTitle}</p>
+            <BookReader
+              book={previewBook}
+              child={sampleChild}
+              printSpec={samplePrintSpec}
+              onExit={close}
+            />
+          </div>
+        </div>
+      )}
+
       <footer className="flo-foot" id="foot">
         <div className="flo-foot-inner">
           <div className="flo-foot-brand">
@@ -326,7 +388,7 @@ export default function App() {
           </div>
           <nav className="flo-foot-nav" aria-label="Footer">
             <a href="#how">How it works</a>
-            <a href="#reader">Your book</a>
+            <a href="#story-worlds">Story worlds</a>
             <a href="#about">The studio</a>
             <a href="#top">Back to top</a>
           </nav>
