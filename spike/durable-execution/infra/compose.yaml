@@ -1,0 +1,27 @@
+# Spike-only infrastructure. NOT production. Runs PostgreSQL (the PG-backed candidate's
+# only service) and Redis (the Redis-backed candidate's service) for the throwaway
+# experiment under spike/durable-execution/.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: spike
+      POSTGRES_PASSWORD: spike
+      POSTGRES_DB: durable_spike
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spike -d durable_spike"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
