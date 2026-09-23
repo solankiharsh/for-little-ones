@@ -37,6 +37,23 @@ npm run seed --workspace @for-little-ones/commerce-app
 npm run sandbox --workspace @for-little-ones/commerce-app
 ```
 
+## Visual demo (browser end to end)
+
+```sh
+npm run sandbox-config --workspace @for-little-ones/commerce-app  # prints publishable key JSON
+# put the key in apps/web/.env.local as VITE_MEDUSA_PUBLISHABLE_KEY
+npm run dev --workspace @for-little-ones/commerce-app  # Medusa on :9000
+npm run dev --workspace @for-little-ones/web           # site on :5173/:5174
+```
+
+Open the site, find “Buy the sample book, end to end”, and click through:
+a real order is placed and the confirmation shows the Medusa order id.
+“Replay last request” re-sends the same idempotency key and must return the
+same order (`deduped: true`). The route is `POST
+/store/flo/sandbox-checkout` (`src/api/store/flo/sandbox-checkout/route.ts`);
+repeat keys are elected atomically in `flo_idempotency`, so replays never
+charge twice.
+
 ## Verified
 
 - Revoked approval rejected at checkout, then retry succeeds.

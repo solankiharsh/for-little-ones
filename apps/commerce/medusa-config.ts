@@ -17,7 +17,7 @@ module.exports = defineConfig({
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL,
     http: {
-      storeCors: "http://localhost:5173", adminCors: "http://localhost:9000", authCors: "http://localhost:5173",
+      storeCors: "http://localhost:5173,http://localhost:5174", adminCors: "http://localhost:9000", authCors: "http://localhost:5173,http://localhost:5174",
       jwtSecret: process.env.JWT_SECRET!, cookieSecret: process.env.COOKIE_SECRET!
     }
   },

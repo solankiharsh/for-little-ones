@@ -20,6 +20,9 @@ export default async function seed({ container }: ExecArgs) {
   if (!await db.schema.hasTable("flo_fake_print_receipt")) await db.schema.createTable("flo_fake_print_receipt", (table) => {
     table.text("key").primary(); table.text("order_id").notNullable(); table.text("approved_revision_id").notNullable(); table.text("content_hash").notNullable();
   });
+  if (!await db.schema.hasTable("flo_idempotency")) await db.schema.createTable("flo_idempotency", (table) => {
+    table.text("key").primary(); table.text("order_id").notNullable().defaultTo("");
+  });
   const customers = container.resolve(Modules.CUSTOMER);
   const buyer = (await customers.listCustomers({ email: "buyer@example.test" }))[0] ??
     await customers.createCustomers({ email: "buyer@example.test" });

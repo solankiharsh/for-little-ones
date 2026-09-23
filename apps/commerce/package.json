@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "migrate": "NODE_PATH=./node_modules medusa db:migrate",
     "seed": "NODE_PATH=./node_modules medusa exec ./src/scripts/seed.ts",
+    "sandbox-config": "NODE_PATH=./node_modules medusa exec ./src/scripts/print-sandbox-config.ts",
     "sandbox": "NODE_PATH=./node_modules medusa exec ./src/scripts/sandbox.ts"
   },
   "dependencies": {
