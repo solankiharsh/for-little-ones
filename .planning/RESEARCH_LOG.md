@@ -62,7 +62,7 @@ Spike C deferred Medusa primarily on operational-complexity grounds at one-forma
 
 ---
 
-### 2026-09-22 — Spike D (print provider + contract): first provider Mixam, generic PrintSpec, deterministic sample PDF (decisions RESOLVED)
+### 2026-09-22 — Spike D (print format reference): Mixam candidate, generic PrintSpec, deterministic sample PDF
 
 **Question**
 
@@ -88,7 +88,7 @@ Can we pin a real production print provider's requirements and produce a determi
 
 **Conclusion**
 
-First provider = Mixam (hardcover, art-book square 210 mm); print contract stays generic (D016 unchanged). Canonical trim must be an offered Mixam trim (210/148/120/300) or a quoted custom — 215.9 mm is not offered. Changing the editor implementation cannot change the print-domain contract (asserted). DECISIONS.md print-provider item → RESOLVED.
+Mixam is the preferred first production candidate and print-format reference (hardcover, art-book square 210 mm); the print contract stays generic (D016 unchanged). Canonical trim must be an offered Mixam trim (210/148/120/300) or a quoted custom — 215.9 mm is not offered. Changing the editor implementation cannot change the print-domain contract (asserted). Mixam remains provisionally selected until API/commercial/physical-order and child-data qualification criteria in `MIXAM_EVIDENCE.md` pass.
 
 **Follow-up**
 

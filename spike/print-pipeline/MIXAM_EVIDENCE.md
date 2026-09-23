@@ -63,3 +63,52 @@ spec page) or **Inferred**. URLs shortened to domains/paths; full pages were fet
 - The canonical 215.9 mm square used earlier is NOT an offered art-book trim (210/148/120/300) — the
   adapter flags that mismatch; the print spec must choose an offered size (or confirm a custom trim
   quote).
+
+## Commercial and API qualification (first-party review, 22 Sep 2026)
+
+### Observed
+- Mixam publicly offers a Print API as a POD sales channel and says it can automate print-on-demand
+  printing and fulfilment from a website/application. Its public page does not publish the API
+  reference, authentication, order schema, pricing/quote calls, callbacks, rate limits, sandbox, or
+  idempotency semantics. [POD](https://mixam.com/print-on-demand)
+- POD requires a Mixam account and publisher registration. Products are configured, uploaded,
+  confirmed by the publisher, then reviewed/approved by Mixam before they can be sold; a linked
+  Stripe payout account is required to begin selling through the Publisher Hub. This proves a
+  commercial POD route, but not that an API can submit a unique approved book per customer without
+  that product-approval workflow. [POD introduction](https://mixam.com/support/pod-introduction)
+  [Publisher Hub](https://mixam.com/support/the-publisher-hub)
+- Mixam says it prints, packs and ships POD orders automatically. Delivery dates are estimates, not
+  guarantees; its terms reserve product/service availability and price changes, and it may refuse
+  orders. [POD](https://mixam.com/print-on-demand)
+  [Terms sections 3 and 5](https://mixam.com/terms-of-use)
+- Print artifacts contain child likenesses and names. Mixam's terms permit it to use submitted
+  material to provide the service, including transmitting it to suppliers/vendors for production,
+  packaging and shipment; Mixam may not archive material longer than needed for the final product,
+  but states no fixed retention window. The privacy policy says data may be processed in the United
+  States and retained to meet customer-service, legal and regulatory needs. [Terms section 8.C](https://mixam.com/terms-of-use)
+  [Privacy policy sections 4-5](https://mixam.com/privacy-policy)
+
+### Inferred
+- The deterministic PDF and Mixam-adapter evidence above qualify Mixam as the **first print-format
+  candidate**, not as an adopted production fulfilment provider. A public claim that an API exists
+  is insufficient to implement the required `PrintProvider` boundary safely or reliably.
+
+### Conclusion
+- **PROVISIONALLY SELECTED, not ADOPTED:** retain Mixam as the first-provider candidate for
+  hardcover, 210 mm art-book square. Do not bind F-019 fulfilment or customer promises to Mixam
+  until the criteria below are evidenced. D016 remains generic and the Mixam adapter remains
+  replaceable.
+
+### Remaining qualification criteria
+- Obtain Mixam's current API documentation and credentials, then run a sandbox/non-production
+  order proving: quote, artifact upload/submission, destination/shipping options, order creation,
+  status/tracking retrieval or callbacks, error taxonomy, cancellation/refund path, and stable
+  idempotency under retry.
+- Confirm whether API orders support a unique per-customer PDF or instead require each book to be a
+  pre-approved POD product; document the required account/publisher/product approval terms,
+  commercial pricing, minimums, regions/currencies, SLA and change-notice commitments.
+- Execute a paid physical sample including cover/spine and image-DPI/CMYK checks; resolve the
+  12 mm hardcover binding-edge safe-area requirement before approval.
+- Obtain written data-processing, subprocessor/location and deletion/retention terms suitable for
+  child likenesses, and verify that the handoff sends only `PrintArtifact`, delivery payload and
+  quantity, never source photos or profile/story data.

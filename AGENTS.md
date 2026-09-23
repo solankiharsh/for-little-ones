@@ -31,7 +31,7 @@ We are currently in:
 
 > research → architecture → feature specification → milestone-0 foundation rails
 
-Milestone-0 monorepo rails have explicitly begun (`packages/` + `apps/`, generation contracts, durable-execution contract, provenance, policy manifest — `DECISIONS.md` D021). The platform-foundation spikes (durable substrate, editor, commerce, print partner, QA threshold) run **in parallel** and are explicitly NOT blocked by the rails, and vice versa. (2026-09-22: durable substrate → pg-boss D022, editor → D007, commerce → Medusa D006 all resolved; print partner → first provider Mixam D020; QA-threshold calibration still open.)
+Milestone-0 monorepo rails have explicitly begun (`packages/` + `apps/`, generation contracts, durable-execution contract, provenance, policy manifest — `DECISIONS.md` D021). The platform-foundation spikes (durable substrate, editor, commerce, print partner, QA threshold) run **in parallel** and are explicitly NOT blocked by the rails, and vice versa. (2026-09-22: durable substrate → pg-boss D022, editor → D007, commerce → Medusa D006 adopted; Mixam is provisionally selected pending API/commercial qualification; QA-threshold calibration remains open.)
 
 Do NOT begin large-scale feature implementation (a spec feature end-to-end) until:
 
@@ -357,9 +357,9 @@ execution / provenance / policies / storage are foundational: no feature depende
 - `packages/domain` — canonical Book/Child/PrintSpec model (D004, D016) and `GenerationStep` units.
 - `packages/contracts` — canonical generation contracts (`GENERATION_ARCHITECTURE.md` §3), strict zod schemas, literal `schemaVersion`; provider payloads never leak past adapters.
 - `packages/execution` — `DurableExecutionContract` (D019). The `InMemoryDurableRuntime` is for tests/staging only — it must never be used as a production substrate.
-- `packages/providers` — provider boundaries (Story/Illustration/Identity/Quality/Moderation); each must carry a `ProviderCard` documenting child-data path, retention, idempotency, timeout, retry, cost and deletion before it may receive data.
+- `packages/providers` — provider boundaries (Story/Illustration/Identity/Quality/Moderation); each must carry a verified `ProviderDataPolicy` (child-data use, retention/training/deletion modes, region and evidence) plus idempotency, timeout, retry and cost metadata before it may receive data. A provider without supported deletion or prohibited training use cannot receive child photos.
 - `packages/provenance` + `packages/policies` — immutable `GenerationProvenance` + policy-set manifest/hash (mirrors `policies/MANIFEST.md`).
-- `packages/storage` — private-storage contract only (owner-scoped, signed expiring URLs); no implementation yet. Upload topology (D017) still open.
+- `packages/storage` — private-storage contract only (owner-scoped, signed expiring URLs); no implementation yet. D017 selects browser direct signed uploads to private storage, followed by server-side completion and validation, for M2 photo uploads.
 - `packages/testing` — shared fakes live here, next to the seams they satisfy.
 - `apps/commerce` (D006 — planned with the Medusa foundation PR) — self-hosted Medusa backend; isolated
   from root typecheck/test strictness (own tsconfig/scripts); commerce state only.

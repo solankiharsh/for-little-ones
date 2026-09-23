@@ -39,19 +39,20 @@ export interface MockIdentityProvider {
 }
 
 export const MOCK_IDENTITY_CARD: ProviderCard = {
-  childDataSent: {
-    sent: false,
-    what: "no child data; synthetic tokens only (offline dry-run)",
-    why: "offline methodology run before any real provider is wired",
-    form: "none"
+  dataPolicy: {
+    verifiedAt: "2026-09-22",
+    policyVersion: "offline-mock-v1",
+    childDataSent: false,
+    retentionMode: "NONE",
+    trainingUse: "PROHIBITED",
+    deletionMechanism: "CONTRACTUAL_ZERO_RETENTION",
+    region: "local-process",
+    evidenceRef: "internal://spike-identity-qa/offline-mock"
   },
-  retention: "none (in-memory mock)",
-  dataUseTerms: "none (no training)",
   idempotency: "deterministic by reference+pageSpec; same inputs ⇒ same outputs",
   timeoutMs: 0,
   retryPolicy: "n/a (synchronous mock)",
-  costMetadata: "costCents=0: mock",
-  deletion: "reference is in-memory only; nothing to delete"
+  costMetadata: "costCents=0: mock"
 };
 
 export function makeMockIdentityProvider(opts: Partial<ReferenceConditioningMockOptions> = {}): MockIdentityProvider {

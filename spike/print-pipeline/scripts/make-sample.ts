@@ -8,7 +8,7 @@ import { MIXAM_ART_SQUARE_210, SYSTEM_FONT_TTF, fixtureBook } from "../test/fixt
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "..", "..", "tmp", "print-fixture");
 
-const input = { book: fixtureBook(), spec: MIXAM_ART_SQUARE_210, ttfPath: SYSTEM_FONT_TTF };
+const input = { book: await fixtureBook(), ttfPath: SYSTEM_FONT_TTF };
 const { bytes, report } = await renderBook(input);
 const findings = evaluateAgainstMixam(MIXAM_ART_SQUARE_210, report);
 

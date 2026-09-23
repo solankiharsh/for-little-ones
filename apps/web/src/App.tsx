@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
 import BookReader from "./reader/BookReader";
@@ -33,6 +33,8 @@ export default function App() {
   const reduced = useReducedMotion();
   const [phase, setPhase] = useState<"idle" | "reader">("idle");
   const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const previewTriggerRef = useRef<HTMLElement | null>(null);
 
   const open = useCallback(() => {
     document.getElementById("story-worlds")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
@@ -40,12 +42,37 @@ export default function App() {
 
   const close = useCallback(() => {
     setPhase("idle");
+    window.requestAnimationFrame(() => previewTriggerRef.current?.focus());
   }, []);
 
-  const previewStory = useCallback((title: string) => {
+  const previewStory = useCallback((title: string, trigger?: HTMLElement) => {
+    previewTriggerRef.current = trigger ?? null;
     setPreviewTitle(title);
     setPhase("reader");
   }, []);
+
+  useEffect(() => {
+    if (phase === "reader") previewRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [phase]);
+
+  const trapPreviewFocus = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = [...(previewRef.current?.querySelectorAll<HTMLElement>("button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])") ?? [])];
+    if (controls.length === 0) return;
+    const first = controls[0]!;
+    const last = controls.at(-1)!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }, [close]);
 
   const previewBook = useMemo(
     () => ({
@@ -255,19 +282,19 @@ export default function App() {
               </p>
             </div>
             <div className="flo-world-grid">
-              <button type="button" className="flo-world flo-world-night" onClick={() => previewStory("The Moon That Followed Home")}>
+              <button type="button" className="flo-world flo-world-night" onClick={(event) => previewStory("The Moon That Followed Home", event.currentTarget)}>
                 <span className="flo-world-kicker">Bedtime wonder</span>
                 <h3>The moon that followed home</h3>
                 <p>For the child who always has one more question about the sky.</p>
                 <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
               </button>
-              <button type="button" className="flo-world flo-world-garden" onClick={() => previewStory("The Secret Garden Map")}>
+              <button type="button" className="flo-world flo-world-garden" onClick={(event) => previewStory("The Secret Garden Map", event.currentTarget)}>
                 <span className="flo-world-kicker">Small adventures</span>
                 <h3>The secret garden map</h3>
                 <p>A rainy-day expedition with a brave companion and a pocketful of clues.</p>
                 <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
               </button>
-              <button type="button" className="flo-world flo-world-sea" onClick={() => previewStory("The Lighthouse That Sang")}>
+              <button type="button" className="flo-world flo-world-sea" onClick={(event) => previewStory("The Lighthouse That Sang", event.currentTarget)}>
                 <span className="flo-world-kicker">Big imagination</span>
                 <h3>The lighthouse that sang</h3>
                 <p>A sea-swept story for a little explorer who never misses a wave.</p>
@@ -275,7 +302,7 @@ export default function App() {
               </button>
             </div>
             <div className="flo-world-actions">
-              <button type="button" className="flo-btn flo-btn-ghost" onClick={() => previewStory(SAMPLE_TITLE)}>See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
+              <button type="button" className="flo-btn flo-btn-ghost" onClick={(event) => previewStory(SAMPLE_TITLE, event.currentTarget)}>See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
               <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
             </div>
           </div>
@@ -336,8 +363,8 @@ export default function App() {
       </main>
 
       {phase === "reader" && (
-        <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`}>
-          <div className="flo-preview-modal">
+        <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
+          <div className="flo-preview-modal" ref={previewRef}>
             <p className="flo-preview-kicker">Preview: {previewTitle}</p>
             <BookReader
               book={previewBook}
@@ -361,7 +388,7 @@ export default function App() {
           </div>
           <nav className="flo-foot-nav" aria-label="Footer">
             <a href="#how">How it works</a>
-            <a href="#reader">Your book</a>
+            <a href="#story-worlds">Story worlds</a>
             <a href="#about">The studio</a>
             <a href="#top">Back to top</a>
           </nav>

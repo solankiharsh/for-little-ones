@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Book } from "@for-little-ones/domain";
+import { createApprovedBookRevision, type Book } from "@for-little-ones/domain";
 import {
   FORMATS,
   FORMAT_HARDCOVER_SQUARE,
@@ -11,10 +11,10 @@ import {
 } from "../src/order";
 import { SandboxPayment } from "../src/payment";
 
-function approvedBook(): Book {
+async function approvedBook(): Promise<Book> {
   return {
     id: "book-1",
-    status: "APPROVED",
+    status: "DRAFT",
     metadata: { locale: "en" },
     childProfileIds: ["child-ava"],
     characters: [{ id: "char-ava", characterId: "char-ava", version: "v2", name: "Ava", styleTokensRef: "mock://style/ava" }],
@@ -37,13 +37,32 @@ function approvedBook(): Book {
       }
     ],
     printSpecId: "print-mixam-art-sq",
-    approval: { revisionId: "rev-7", approvedAt: "2026-09-21T00:00:00.000Z", hash: "sha256:abc123" }
+    approval: await createApprovedBookRevision({
+      id: "approved-rev-7",
+      revisionId: "rev-7",
+      approvedAt: "2026-09-21T00:00:00.000Z",
+      pages: [
+        {
+          pageNumber: 1,
+          status: "READY",
+          textBlocks: [{ id: "t1", kind: "story", text: "Ava lives on Sprout Street." }],
+          illustration: { assetRef: "mock://assets/p1.png", planKey: "plan-1" }
+        }
+      ],
+      printSpec: {
+        id: "hardcover-square",
+        binding: "hardcover-case",
+        sheet: { trimWidthMm: 210, trimHeightMm: 210, bleedMm: 3, safeMarginMm: 12 },
+        resolution: { dpiMinimum: 300 },
+        pageRange: { minPages: 24, maxPages: 40 }
+      }
+    })
   };
 }
 
 describe("Spike C — commerce demo path + hard invariant (minimal self-built surface)", () => {
-  it("runs the demo path: approved revision → cart line → SKU/price → payment sandbox → order", () => {
-    const book = approvedBook();
+  it("runs the demo path: approved revision → cart line → SKU/price → payment sandbox → order", async () => {
+    const book = await approvedBook();
     const revision = book.revisions[0]!;
     const ref = opaqueRefFromApproved(revision, book.approval!);
     const line = {
@@ -65,18 +84,20 @@ describe("Spike C — commerce demo path + hard invariant (minimal self-built su
     expect(pay.state(auth.paymentId)).toBe("captured");
   });
 
-  it("rejects any book that is not APPROVED — commerce cannot touch unapproved content", () => {
-    const draft = approvedBook();
-    draft.status = "DRAFT";
+  it("rejects any book without an approved revision snapshot — commerce cannot touch unapproved content", async () => {
+    const draft = await approvedBook();
     delete (draft as Partial<Book>).approval;
     expect(approvalOf(draft)).toBeNull();
-    const editing: Book = { ...approvedBook(), status: "EDITING" };
+    const editing: Book = {
+      ...(await approvedBook()),
+      revisions: [{ ...(await approvedBook()).revisions[0]!, status: "EDITING" }]
+    };
     expect(approvalOf(editing)).toBeNull();
-    expect(approvalOf(approvedBook())).not.toBeNull();
+    expect(approvalOf(await approvedBook())).not.toBeNull();
   });
 
-  it("orders reference the approved revision by opaque id + hash only — canonical data never leaks", () => {
-    const book = approvedBook();
+  it("orders reference the approved revision by opaque id + hash only — canonical data never leaks", async () => {
+    const book = await approvedBook();
     const ref = opaqueRefFromApproved(book.revisions[0]!, book.approval!);
     const item = buildOrderItem({ lineId: "ln-2", format: FORMATS[FORMAT_HARDCOVER_SQUARE], quantity: 1 }, ref);
     const payload = toOrderPayload({
@@ -88,8 +109,8 @@ describe("Spike C — commerce demo path + hard invariant (minimal self-built su
       payment: { paymentId: "pay_1", state: "captured" }
     });
 
-    expect(payload).toContain('"approvedBookRevisionId":"rev-7"');
-    expect(payload).toContain('"revisionHash":"sha256:abc123"');
+    expect(payload).toContain('"approvedBookRevisionId":"approved-rev-7"');
+    expect(payload).toContain(`"revisionHash":"${book.approval!.contentHash}"`);
     expect(payload).not.toContain("Ava");
     expect(payload).not.toContain("Sprout Street");
     expect(payload).not.toContain("child-ava");

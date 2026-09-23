@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { ParseResult, StoryOutlineResult } from "@for-little-ones/contracts";
+import type { ParseResult, StoryOutlineRequest, StoryOutlineResult } from "@for-little-ones/contracts";
 import { StoryOutlineResultSchema, parseContract, CONTRACT_NAMES } from "@for-little-ones/contracts";
-import { ExampleVendorStoryAdapter } from "../src/index";
+import {
+  assertEligibleForChildPhotos,
+  deriveIdentityReference,
+  ExampleVendorStoryAdapter,
+  isEligibleForChildPhotos,
+  type IdentityProvider
+} from "../src/index";
 
 /**
  * Adapter→contract seam (seam 3). A provider adapter maps a vendor payload to a
@@ -9,6 +15,49 @@ import { ExampleVendorStoryAdapter } from "../src/index";
  * past the boundary (GENERATION_ARCHITECTURE §3/§4).
  */
 describe("providers: adapter → canonical contract seam", () => {
+  it("rejects child-photo providers without deletion or a no-training commitment", () => {
+    const policy = {
+      verifiedAt: "2026-09-22",
+      policyVersion: "v1",
+      childDataSent: true,
+      retentionMode: "UNKNOWN" as const,
+      trainingUse: "UNKNOWN" as const,
+      deletionMechanism: "NOT_SUPPORTED" as const,
+      region: "unknown",
+      evidenceRef: "internal://unverified"
+    };
+    expect(isEligibleForChildPhotos(policy)).toBe(false);
+    expect(() => assertEligibleForChildPhotos(policy)).toThrow("not eligible");
+  });
+
+  it("gates identity-reference dispatch on the verified provider data policy", async () => {
+    const provider: IdentityProvider = {
+      card: {
+        dataPolicy: {
+          verifiedAt: "2026-09-22",
+          policyVersion: "v1",
+          childDataSent: true,
+          retentionMode: "EPHEMERAL",
+          trainingUse: "PROHIBITED",
+          deletionMechanism: "API_DELETE",
+          region: "GB",
+          evidenceRef: "internal://verified"
+        },
+        idempotency: "keyed",
+        timeoutMs: 1_000,
+        retryPolicy: "none",
+        costMetadata: "none"
+      },
+      async deriveReference(inputs) {
+        return { reference: { providerId: "test", referenceId: inputs.sourcePhotoRefs[0]!, kind: "private-enduring-reference" }, knownFacesCount: 1 };
+      },
+      async scoreLikeness() {
+        return { likenessScore01: 1 };
+      }
+    };
+
+    await expect(deriveIdentityReference(provider, { sourcePhotoRefs: ["private://photo-1"] })).resolves.toMatchObject({ knownFacesCount: 1 });
+  });
   it("maps a well-formed vendor outline payload to a canonical StoryOutlineResult", async () => {
     const adapter = new ExampleVendorStoryAdapter();
     const vendor = {
@@ -78,7 +127,7 @@ describe("providers: adapter → canonical contract seam", () => {
       locale: "en-GB",
       facts: [],
       policySetVersion: "text.v1@1"
-    };
+    } satisfies StoryOutlineRequest;
     const outcome = await adapter.generateOutline(request, null);
     expect(outcome.ok).toBe(false);
     if (!outcome.ok) {

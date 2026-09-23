@@ -25,7 +25,7 @@ None (Observed). No application code exists anywhere in the workspace.
 See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
 ```
 
-Proposed subsystems: `BookService` (approveBook command), `BookRepository` (revision freeze), `GenerationJob` (all work must settle before approval), `QualityProvider` (approval gate, F-015). Print availability/format/cost come from the **shared print catalogue** (`PrintCapability`/`PrintQuote`, D016) — they do NOT come from the renderer (F-017) or its fulfilment adapter (`PrintProvider`, F-019). Approval never depends on the renderer existing.
+Proposed subsystems: `BookService` (approveBook command), `BookRepository` (revision freeze), `GenerationJob` (all work must settle before approval), `QualityProvider` (approval gate, F-015). Stable format feasibility comes from `PrintSpec`/`PrintPreflightContract`; live provider capability comes from printing and expiring cost/ETA quotes come from commerce (D016). Approval never depends on the renderer existing.
 
 ## 4. Problems with current implementation
 
@@ -39,14 +39,14 @@ Not applicable (greenfield). Risks the **design itself** must avoid:
 
 ## 5. Desired UX
 
-Emma has corrected three pages, QA shows all clear, and the book is `READY_FOR_APPROVAL`. Top-right in preview (F-011) the single CTA reads **Approve & Print**, amber-haloed but calm.
+Emma has corrected three pages, QA shows all clear, and the current revision is `READY_FOR_APPROVAL`. Top-right in preview (F-011) the single CTA reads **Approve & Print**, amber-haloed but calm.
 
 1. **Tap Approve & Print → approval review screen:**
    - Left: a final reading of the book (F-011 embedded; last chance to flip every page — a "Reprint preview" link back).
-   - Right (card, "What we'll print"): cover thumbnail · format selector **Paperback** / **Hardcover** (radio, both pre-validated against the shared print capability/catalogue — D016 — for this revision's page count and printSpec) · quantity stepper (1–5, gift multiples) · price + shipping estimate · **estimated delivery range** (computed from the shared print quote `PrintQuote` — D016 — shown *before* payment per spec §16).
+    - Right (card, "What we'll print"): cover thumbnail · format selector **Paperback** / **Hardcover** (radio, both pre-validated against `PrintSpec`/`PrintPreflightContract` for this revision's page count) · quantity stepper (1–5, gift multiples) · price + shipping estimate · **estimated delivery range** (computed from a transient commerce-side `PrintQuote`, shown *before* payment per spec §16).
    - A clear statement in the parent's copy: "From here we print **exactly this version**. After you approve, this book can't be changed — if you spot something, cancel approval and we'll fix it first."
 2. **Tap the confirm button** → inline progress "We're saving your approved book…". Small delay only; result:
-   - Success: the book state flips to `APPROVED`, a "Saved — what happens next" screen shows the approved snapshot summary (book title, format, quantity, delivery estimate, order status once placed via F-018) and a single CTA **Proceed to payment** → F-018. Also available: "Back to my book" (read-only; edit chrome gone).
+    - Success: the revision state flips to `APPROVED`, a "Saved — what happens next" screen shows the approved snapshot summary (book title, format, quantity, delivery estimate, order status once placed via F-018) and a single CTA **Proceed to payment** → F-018. Also available: "Back to my book" (read-only; edit chrome gone).
    - Failure saving: warm card "We couldn't save your approval. Your book is exactly as you left it — nothing printed yet." with **Try again** (idempotent) and **Go back to my book**. No partial states, no double-approval (idempotency in §8).
 3. **After approval, editing surfaces close:** "Something wrong?" (F-012), editor (F-014) and corrections reveal the same message: "This book is approved. To change it, cancel approval first." — the only path back is **Cancel approval** (below).
 4. Emma realises she wants a tweak anyway (pre-payment): the approval review screen offers **Cancel approval** (quiet, under "Change something?"). Cancelling deep-frees the revision back to `READY_FOR_REVIEW`, restores edit chrome, and clearly re-states "You'll need to approve again before printing."
@@ -75,7 +75,7 @@ ApprovedBookRevision (immutable snapshot; guide §3 Object model)
 │              min/max pages, resolution, provider metadata)
 ├── assetManifestRef (all assets + checksums; the print renderer's input contract)
 ├── qaRunRef (the passing F-015 run; approval gate evidence)
-├── quoteRef (shared print catalogue quote at time of approval — D016)
+├── printSpec (frozen canonical format contract)
 ├── status: APPROVED | CANCELLED
 └── orderLinks[] (opaque pointers added by F-018: orderId, orderedAt —
                   0..N orders; never a status flip — one approval can back N orders, D006)
@@ -83,22 +83,22 @@ ApprovedBookRevision (immutable snapshot; guide §3 Object model)
 
 - The **immutability guarantee** is the `assetManifestRef` + frozen payload: F-017 renders from this snapshot or fails a checksum — it cannot render from a live page.
 - `approval.status` transitions only `APPROVED → CANCELLED` (parent, pre-payment); no other writes. Orders are recorded as `orderLinks[]` entries (F-018), not as approval state — the approval stays `APPROVED` whether zero or five orders exist (state split, guide §4 / D006). `CANCELLED` rows are audit-history only; a new approval is a new snapshot with a new approvalId, never a mutation.
-- Guide §4 now defines three machines: the Book stays `APPROVED` (content lifecycle); order/payment state lives in Medusa; fulfilment `FULFILMENT_SUBMITTED → IN_PRODUCTION → SHIPPED → DELIVERED` lives on the order/fulfilment projection. Exceptional payment/fulfilment states all reference the approvalId (via the order link) for traceability — never `BookStatus`.
+- Guide §4 now defines three machines: the approved revision snapshot remains immutable; order/payment state lives in Medusa; fulfilment `FULFILMENT_SUBMITTED → IN_PRODUCTION → SHIPPED → DELIVERED` lives on the order/fulfilment projection. Exceptional payment/fulfilment states all reference the approvalId (via the order link) for traceability — never `BookStatus` or `RevisionStatus`.
 
 ## 8. Backend/API requirements
 
-- `POST /books/{id}/approval` — the only approval command. Body: `{format, quantity}`. Validation: book state == `READY_FOR_APPROVAL`; no open `GENERATING`/`FAILED` pages or jobs (F-010 must report settled); latest QA run for the revision has **no HARD_BLOCK** results and every **REVIEW_REQUIRED** item is resolved/recorded (F-015) — else 409 with the pending list; format+quantity producible per the shared PrintSpec/PreflightContract + quote interface (D016) — else 409 with the disabled-format reason; session owns the book; anonymous session may approve only after claiming (F-001).
+- `POST /books/{id}/approval` — the only approval command. Body: `{format, quantity}`. Validation: current revision state == `READY_FOR_APPROVAL`; no open `GENERATING`/`FAILED` pages or jobs (F-010 must report settled); latest QA run for the revision has **no HARD_BLOCK** results and every **REVIEW_REQUIRED** item is resolved/recorded (F-015) — else 409 with the pending list; format+quantity producible per `PrintSpec`/`PrintPreflightContract` plus live printing capability and a commerce quote (D016) — else 409 with the disabled-format reason; session owns the book; anonymous session may approve only after claiming (F-001).
 - **Idempotency:** `approvalIdempotencyKey` — re-POST after a network failure returns the same approved revision, does not double-approve.
 - `GET /books/{id}/approval` — current approval or `pending` with the create-one view (quote, estimate, QA summary).
-- `DELETE /books/{id}/approval` — **cancel**, only while `status == APPROVED` and no order references it (empty `orderLinks`); returns the book to `READY_FOR_REVIEW` preserving all page revisions (nothing is rolled back — the parent's corrections stay; only the freeze lifts). Once any order link exists this returns 409 (routed to F-019).
-- `POST /books/{id}/approval/order-link` (F-018 internal) — appends `{orderId, orderedAt}` to `orderLinks` after payment success; **does not flip approval status** (the book stays `APPROVED`; one approval → N orders, D006). Called only by the commerce layer via `CommerceEventAdapter` on `ORDER_CREATED`.
+- `DELETE /books/{id}/approval` — **cancel**, only while the approved revision snapshot has `status == APPROVED` and no order references it (empty `orderLinks`); returns the revision to `READY_FOR_REVIEW` preserving all page revisions (nothing is rolled back — the parent's corrections stay; only the freeze lifts). Once any order link exists this returns 409 (routed to F-019).
+- `POST /books/{id}/approval/order-link` (F-018 internal) — appends `{orderId, orderedAt}` to `orderLinks` after payment success; **does not flip approval status** (one approval → N orders, D006). Called only by the commerce layer via `CommerceEventAdapter` on `ORDER_CREATED`.
 - All approval reads/writes go through `BookService`; `BookRepository` enforces no-write-after-freeze at the store level (defence in depth: even a buggy caller cannot alter an approved revision).
 - No approval is possible without a passing, revision-scoped F-015 run (fail-closed: `UNKNOWN` QA = not approvable).
 
 ## 9. Background jobs
 
 - Approval itself is fast/atomic (snapshot write). The heavy lifts it *frees* are downstream: F-017 `generate-print-artifact` (triggered on `APPROVED` or on paid order, decided in F-017 — approved by default) and F-019 fulfilment submission — both consume the frozen revision only.
-- If the print artifact job fails after approval but before order: book stays `APPROVED`; F-017 retries/resumes; the parent UI shows "Preparing your approved book for printing…" — parent is not asked to re-approve.
+- If the print artifact job fails after approval but before order: the approved revision snapshot remains immutable; F-017 retries/resumes; the parent UI shows "Preparing your approved book for printing…" — parent is not asked to re-approve.
 - Order-created after approval is cancelled (payment failed, F-018): approval is **preserved** (it is not lossless to revoke a committed snapshot); the parent sees "Payment didn't complete — your approved book is safe and you can try again." F-018's unique concern.
 
 ## 10. AI behaviour
@@ -121,12 +121,12 @@ Approval is the consumer gate for F-015: it is not approvable while any HARD_BLO
 
 ## 14. Acceptance criteria
 
-1. Given a book in `READY_FOR_APPROVAL` with QA fully passing, when the parent taps **Approve & Print** and confirms, then a deep-immutable `ApprovedBookRevision` with assetManifest + printSpec + quote is created, the book enters `APPROVED`, the CTA is replaced by "Proceed to payment" (F-018), and every editing surface (F-012 sheet, F-014 editor) refuses changes with the approval-lock message.
+1. Given a current revision in `READY_FOR_APPROVAL` with QA fully passing, when the parent taps **Approve & Print** and confirms, then a deep-immutable `ApprovedBookRevision` with assetManifest + printSpec is created, the revision enters `APPROVED`, the CTA is replaced by "Proceed to payment" (F-018), and every editing surface (F-012 sheet, F-014 editor) refuses changes with the approval-lock message. The live quote is only snapshotted after purchase.
 2. Given a book with a HARD_BLOCK QA item, when the parent taps Approve & Print, then the API returns 409 with the item list and the UI shows the friendly per-page cards routed to F-012; no snapshot is created.
 3. Given the approval request retried with the same `idempotencyKey` after a network failure, then exactly one revision is created and the second call returns the same approvalId (no double-approval).
 4. Given a parent who cancels approval before payment, then the freeze lifts to `READY_FOR_REVIEW`, all correction history is preserved, and re-approving creates a new snapshot (old `CANCELLED` revision remains audit-only).
 5. Given an approved book, when any code path attempts to regenerate or edit a page, then the store rejects the write (write-after-freeze guard) and a monitoring alert fires (F-027); the approved revision's checksums never change.
-6. Given a print-artifact failure after approval but before order, when F-017 exhausts retries, then the book remains `APPROVED` (never silently reverting to review), ops sees the failure (F-026), and the parent sees the calm "Preparing…" state — never a request to re-approve.
+6. Given a print-artifact failure after approval but before order, when F-017 exhausts retries, then the approved revision snapshot remains immutable (never silently reverting to review), ops sees the failure (F-026), and the parent sees the calm "Preparing…" state — never a request to re-approve.
 7. Given an order references the approval (post-payment), when the parent attempts cancellation, then approval cancellation is refused (409 — `orderLinks` non-empty) and the path routes to F-019/fulfilment, keeping the immutable revision safe.
 
 ## 15. Dependencies

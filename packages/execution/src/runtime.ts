@@ -44,7 +44,7 @@ const unitIdFor = (operationKey: BusinessOperationKey, unitKey: string): UnitId 
  * contract semantics (idempotent enqueue by business-operation key, expired-lease
  * reclaim, retry budgets, cancellation, progress observation) for tests and
  * staging providers — it is deliberately NOT a durable substrate and must never be
- * used as one in production (D019 keeps the substrate neutral until the spike).
+ * used as one in production. Its async surface matches production runtimes.
  */
 export class InMemoryDurableRuntime implements DurableExecutionRuntime {
   private jobs = new Map<BusinessOperationKey, InternalJob>();
@@ -54,7 +54,7 @@ export class InMemoryDurableRuntime implements DurableExecutionRuntime {
     this.now = opts.now ?? (() => Date.now());
   }
 
-  enqueue(request: EnqueueRequest): JobView {
+  async enqueue(request: EnqueueRequest): Promise<JobView> {
     const existing = this.jobs.get(request.operationKey);
     if (existing) {
       return this.toView(existing);
@@ -71,7 +71,7 @@ export class InMemoryDurableRuntime implements DurableExecutionRuntime {
     return this.toView(this.jobs.get(request.operationKey)!);
   }
 
-  claim(request: ClaimRequest): ClaimedUnit[] {
+  async claim(request: ClaimRequest): Promise<ClaimedUnit[]> {
     const job = (job: InternalJob) =>
       job.status === "CANCELLED" || job.status === "DEAD" ? [] : job.units;
     const candidates: InternalUnit[] = [];
@@ -107,7 +107,7 @@ export class InMemoryDurableRuntime implements DurableExecutionRuntime {
     return claimed;
   }
 
-  complete(workerId: WorkerId, unitId: UnitId, output: unknown): LeaseHeldResult | LeaseRefusedResult {
+  async complete(workerId: WorkerId, unitId: UnitId, output: unknown): Promise<LeaseHeldResult | LeaseRefusedResult> {
     const unit = this.find(unitId);
     if (!unit) return { ok: "not-leased", reason: "no-unit" };
     if (unit.status === "DEAD") return { ok: "not-leased", reason: "dead" };
@@ -120,7 +120,7 @@ export class InMemoryDurableRuntime implements DurableExecutionRuntime {
     return { ok: "leased", workerId, leasedUntil: held.leasedUntil, reclaimed: held.reclaimed };
   }
 
-  fail(workerId: WorkerId, unitId: UnitId, failure: UnitFailure): LeaseHeldResult | LeaseRefusedResult {
+  async fail(workerId: WorkerId, unitId: UnitId, failure: UnitFailure): Promise<LeaseHeldResult | LeaseRefusedResult> {
     const unit = this.find(unitId);
     if (!unit) return { ok: "not-leased", reason: "no-unit" };
     if (unit.status === "DEAD") return { ok: "not-leased", reason: "dead" };
@@ -135,7 +135,7 @@ export class InMemoryDurableRuntime implements DurableExecutionRuntime {
     return { ok: "leased", workerId, leasedUntil: held.leasedUntil, reclaimed: held.reclaimed };
   }
 
-  cancel(operationKey: BusinessOperationKey): { ok: boolean } {
+  async cancel(operationKey: BusinessOperationKey): Promise<{ ok: boolean }> {
     const job = this.jobs.get(operationKey);
     if (!job) return { ok: false };
     job.status = "CANCELLED";
@@ -148,7 +148,7 @@ export class InMemoryDurableRuntime implements DurableExecutionRuntime {
     return { ok: true };
   }
 
-  job(operationKey: BusinessOperationKey): JobView | undefined {
+  async job(operationKey: BusinessOperationKey): Promise<JobView | undefined> {
     const job = this.jobs.get(operationKey);
     return job ? this.toView(job) : undefined;
   }
