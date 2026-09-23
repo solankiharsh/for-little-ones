@@ -17,4 +17,4 @@ ENV COOKIE_SECRET=$COOKIE_SECRET
 RUN npm run build -w @for-little-ones/commerce && cd apps/commerce && npm run build
 WORKDIR /app/apps/commerce
 EXPOSE 9000
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "npm run migrate && npm run seed && npm run start"]
