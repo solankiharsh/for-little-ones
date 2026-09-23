@@ -1,3 +1,6 @@
 {
-  "rootDirectory": "apps/web"
+  "framework": null,
+  "buildCommand": "npm run build -w @for-little-ones/web",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "npm install --workspace @for-little-ones/web --include-workspace-root --no-audit --no-fund"
 }
