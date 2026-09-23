@@ -8,6 +8,7 @@ import {
   createPaymentSessionsWorkflow,
 } from "@medusajs/medusa/core-flows";
 import { database, validateCart } from "../../../../lib/approvals";
+import { envelopeToAddress, parseCheckoutEnvelope } from "../../../../lib/checkout-envelope";
 import { claimCheckoutKey, markCheckoutDone, orderSummary, releaseCheckoutClaim } from "../../../../lib/checkout";
 import { drainFakePrinter, reconcileOrders } from "../../../../lib/handoff";
 
@@ -32,6 +33,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (typeof body.cart_id !== "string" || !body.cart_id.trim()) {
     return res.status(400).json({ message: "Missing cart_id" });
   }
+  if (Object.keys(body).some((key) => !["cart_id", "shipping_address", "gifts"].includes(key))) {
+    return res.status(400).json({ message: "Unexpected checkout field" });
+  }
+  let envelope;
+  try {
+    envelope = parseCheckoutEnvelope({ shipping_address: body.shipping_address, gifts: body.gifts });
+  } catch (error) {
+    return res.status(400).json({ message: error instanceof Error ? error.message : "Invalid checkout envelope" });
+  }
   const container = req.scope;
   const db = database(container);
 
@@ -53,6 +63,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       return res.status(500).json({ message: "Sandbox not seeded" });
     }
     const cart = await cartModule.retrieveCart(body.cart_id);
+    const itemCount = (cart.items ?? []).length;
+    if (envelope.gifts.some((gift) => gift.lineIndex >= itemCount)) {
+      await releaseCheckoutClaim(db, key, claim.token);
+      return res.status(400).json({ message: "Gift line out of range" });
+    }
     // The storefront demo sells to the sandbox buyer; production resolves the
     // customer from the authenticated session (F-001 claim flow, not built).
     await cartModule.updateCarts(body.cart_id, {
@@ -60,7 +75,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       email: buyer.email,
       region_id: region.id,
       currency_code: "gbp",
-      shipping_address: { first_name: "Sandbox", last_name: "Buyer", address_1: "1 Test Road", city: "London", country_code: "gb", postal_code: "SW1A 1AA" },
+      shipping_address: envelopeToAddress(envelope),
     });
     await validateCart(container, {
       customer_id: cart.customer_id ?? buyer.id,
@@ -81,6 +96,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const [payment] = (await payments.retrievePaymentCollection(collection.id, { relations: ["payments"] })).payments ?? [];
     if (!payment) throw new Error("Payment missing after checkout");
     await capturePaymentWorkflow(container).run({ input: { payment_id: payment.id } });
+    // Delivery + gift details live on the order only — never on cart line
+    // metadata (the four opaque approved-revision fields stay untouched).
+    await container.resolve(Modules.ORDER).updateOrders(order.id, {
+      metadata: { flo_envelope: { shippingAddress: envelope.shippingAddress, gifts: envelope.gifts } },
+    });
     await reconcileOrders(container);
     await drainFakePrinter(container);
     await markCheckoutDone(db, key, order.id);

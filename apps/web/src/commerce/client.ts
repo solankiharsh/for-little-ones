@@ -1,5 +1,5 @@
 import { assertOpaqueLineReference, type ApprovedLineReference } from "./approval";
-import { MAX_QUANTITY, MIN_QUANTITY } from "./cart";
+import { MAX_GIFT_MESSAGE_LENGTH, MAX_QUANTITY, MAX_RECIPIENT_LENGTH, MIN_QUANTITY, shippingAddressError, type LineGift, type ShippingAddress } from "./cart";
 import {
   readCartView, readCheckoutResult, readRegion,
   type BeginCheckoutResult, type StoreCartView, type StoreRegionView, type StoreVariantView,
@@ -146,14 +146,49 @@ export class StorefrontCommerceClient {
 
   /**
    * `POST /store/flo/checkout-cart` — hand a client-built cart to the server for
-   * completion: it revalidates every line's approved revision, ensures shipping,
+   * completion: it revalidates every line's approved revision, attaches delivery,
    * pays through the sandbox provider and captures exactly once (business-effect
-   * idempotency via `x-flo-idempotency-key`).
+   * idempotency via `x-flo-idempotency-key`). Delivery + gift details ride only in
+   * this envelope (guide §7/§12) — never on line metadata.
    */
-  async beginCheckout(input: { cartId: string; idempotencyKey: string }): Promise<BeginCheckoutResult> {
+  async beginCheckout(input: {
+    cartId: string;
+    idempotencyKey: string;
+    shippingAddress: ShippingAddress;
+    gifts: LineGift[];
+  }): Promise<BeginCheckoutResult> {
+    const addressFailure = shippingAddressError(input.shippingAddress);
+    if (addressFailure) throw new Error(`Check your delivery details: ${addressFailure}`);
+    const seenLines = new Set<number>();
+    for (const gift of input.gifts) {
+      if (!Number.isSafeInteger(gift.lineIndex) || gift.lineIndex < 0) throw new Error("Gift line is out of range");
+      if (seenLines.has(gift.lineIndex)) throw new Error("Each book can carry one gift");
+      seenLines.add(gift.lineIndex);
+      if (!gift.recipientLabel.trim() || gift.recipientLabel.length > MAX_RECIPIENT_LENGTH) {
+        throw new Error(`Gift recipient must be 1–${MAX_RECIPIENT_LENGTH} characters`);
+      }
+      if (gift.message.length > MAX_GIFT_MESSAGE_LENGTH) throw new Error(`Gift message must be ${MAX_GIFT_MESSAGE_LENGTH} characters or fewer`);
+    }
+    const address: Record<string, string> = {
+      first_name: input.shippingAddress.firstName,
+      last_name: input.shippingAddress.lastName,
+      address_1: input.shippingAddress.address1,
+      city: input.shippingAddress.city,
+      postal_code: input.shippingAddress.postalCode,
+      country_code: input.shippingAddress.countryCode,
+    };
+    if (input.shippingAddress.address2) address.address_2 = input.shippingAddress.address2;
     const json = await this.request("/store/flo/checkout-cart", {
       method: "POST",
-      body: { cart_id: input.cartId },
+      body: {
+        cart_id: input.cartId,
+        shipping_address: address,
+        gifts: input.gifts.map((gift) => ({
+          line_index: gift.lineIndex,
+          recipient_label: gift.recipientLabel,
+          message: gift.message,
+        })),
+      },
       headers: { "x-flo-idempotency-key": input.idempotencyKey },
     });
     return readCheckoutResult(json);

@@ -44,7 +44,7 @@ export async function orderSummary(container: MedusaRequest["scope"], db: Knex, 
   const query = container.resolve(ContainerRegistrationKeys.QUERY);
   const { data: [order] } = await query.graph({
     entity: "order",
-    fields: ["id", "total", "currency_code", "items.metadata"],
+    fields: ["id", "total", "currency_code", "items.metadata", "metadata"],
     filters: { id: orderId },
   });
   if (!order) throw new Error("Order not found after checkout");
@@ -54,6 +54,7 @@ export async function orderSummary(container: MedusaRequest["scope"], db: Knex, 
     total: Number(order.total),
     currencyCode: order.currency_code as string,
     lineMetadata: (order.items as { metadata: unknown }[])[0]?.metadata ?? null,
+    orderMetadata: (order.metadata as Record<string, unknown> | null) ?? null,
     receiptKey: (receipt?.key as string | undefined) ?? null,
   };
 }

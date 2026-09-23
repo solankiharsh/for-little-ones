@@ -6,6 +6,10 @@ const MEDUSA_URL = "http://localhost:9000";
 const PUBLISHABLE_KEY = "pk_test_123";
 const SKU = "hardcover-square-210";
 const option = demoPurchaseOption();
+const SHIPPING_ADDRESS = {
+  firstName: "Harsh", lastName: "Solanki", address1: "1 Test Road", city: "London", postalCode: "SW1A 1AA", countryCode: "gb",
+};
+const GIFTS = [{ lineIndex: 0, recipientLabel: "Niece", message: "A little story just for you" }];
 
 interface CapturedRequest {
   input: string;
@@ -135,20 +139,65 @@ describe("StorefrontCommerceClient", () => {
     expect(cart.totals.total).toBe(58.4);
   });
 
-  it("completes checkout with its idempotency key and surfaces dedupe", async () => {
+  it("completes checkout with its idempotency key, delivery envelope and gift details, surfacing dedupe", async () => {
     const { client, calls } = clientWith(defaultRoute);
-    const first = await client.beginCheckout({ cartId: "cart_demo_1", idempotencyKey: "key_1" });
+    const first = await client.beginCheckout({ cartId: "cart_demo_1", idempotencyKey: "key_1", shippingAddress: SHIPPING_ADDRESS, gifts: GIFTS });
     const call = calls.at(-1);
     expect(call?.init.headers?.["x-flo-idempotency-key"]).toBe("key_1");
-    expect(JSON.parse(call!.init.body!)).toEqual({ cart_id: "cart_demo_1" });
-    const replay = await client.beginCheckout({ cartId: "cart_demo_1", idempotencyKey: "key_1" });
+    expect(JSON.parse(call!.init.body!)).toEqual({
+      cart_id: "cart_demo_1",
+      shipping_address: {
+        first_name: "Harsh", last_name: "Solanki", address_1: "1 Test Road",
+        city: "London", postal_code: "SW1A 1AA", country_code: "gb",
+      },
+      gifts: [{ line_index: 0, recipient_label: "Niece", message: "A little story just for you" }],
+    });
+    const replay = await client.beginCheckout({
+      cartId: "cart_demo_1", idempotencyKey: "key_1",
+      shippingAddress: SHIPPING_ADDRESS, gifts: GIFTS,
+    });
     expect(first.deduped).toBe(false);
     expect((replay).orderId).toBe("order_1");
   });
 
+  it("omits an empty optional address line from the wire body", async () => {
+    const { client, calls } = clientWith(defaultRoute);
+    await client.beginCheckout({
+      cartId: "cart_demo_1", idempotencyKey: "key_3",
+      shippingAddress: { ...SHIPPING_ADDRESS, address2: "" }, gifts: [],
+    });
+    const raw = JSON.parse(calls.at(-1)!.init.body!) as Record<string, unknown>;
+    const address = raw.shipping_address as Record<string, string>;
+    expect(address.address_2).toBeUndefined();
+  });
+
+  it.each([
+    [{ ...SHIPPING_ADDRESS, postalCode: "NOPE" }, "delivery details"],
+    [{ ...SHIPPING_ADDRESS, firstName: "" }, "delivery details"],
+    [{ ...SHIPPING_ADDRESS, countryCode: "us" }, "delivery details"],
+  ])("fails closed on an invalid delivery envelope %j with no request sent", async (shippingAddress) => {
+    const { client, calls } = clientWith(defaultRoute);
+    await expect(client.beginCheckout({ cartId: "cart_demo_1", idempotencyKey: "key_4", shippingAddress, gifts: [] })).rejects.toThrow();
+    expect(calls.length).toBe(0);
+  });
+
+  it.each([
+    [[{ lineIndex: 0, recipientLabel: "", message: "hi" }]],
+    [[{ lineIndex: 0, recipientLabel: "N".repeat(41), message: "hi" }]],
+    [[{ lineIndex: 0, recipientLabel: "Niece", message: "x".repeat(201) }]],
+    [[{ lineIndex: -1, recipientLabel: "Niece", message: "hi" }]],
+    [
+      [{ lineIndex: 0, recipientLabel: "Niece", message: "hi" }, { lineIndex: 0, recipientLabel: "Other", message: "hey" }],
+    ],
+  ])("fails closed on invalid gift details %j with no request sent", async (gifts) => {
+    const { client, calls } = clientWith(defaultRoute);
+    await expect(client.beginCheckout({ cartId: "cart_demo_1", idempotencyKey: "key_5", shippingAddress: SHIPPING_ADDRESS, gifts })).rejects.toThrow();
+    expect(calls.length).toBe(0);
+  });
+
   it("surfaces the server completion error verbatim", async () => {
     const { client } = clientWith(() => serverResponse({ message: "Approved revision unavailable to buyer" }, 500));
-    await expect(client.beginCheckout({ cartId: "cart_demo_1", idempotencyKey: "key_2" })).rejects.toThrow(
+    await expect(client.beginCheckout({ cartId: "cart_demo_1", idempotencyKey: "key_2", shippingAddress: SHIPPING_ADDRESS, gifts: [] })).rejects.toThrow(
       "Approved revision unavailable to buyer",
     );
   });

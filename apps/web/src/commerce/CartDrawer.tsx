@@ -1,16 +1,26 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCart, type CheckoutStatus } from "./CartContext";
-import { formatMoney, lineTotal, MAX_QUANTITY, type CartEntry } from "./cart";
+import {
+  formatMoney, giftError, lineTotal, MAX_GIFT_MESSAGE_LENGTH, MAX_QUANTITY, MAX_RECIPIENT_LENGTH,
+  shippingAddressErrors, type CartEntry, type ShippingAddress, type ShippingAddressField,
+} from "./cart";
 
 function LineRow({ entry }: { entry: CartEntry }) {
   const { changeQuantity, changeGift, remove } = useCart();
   const [giftOpen, setGiftOpen] = useState(entry.giftTo !== null);
   const [giftTo, setGiftTo] = useState(entry.giftTo ?? "");
   const [giftMessage, setGiftMessage] = useState(entry.giftMessage);
+  const [giftError, setGiftError] = useState<string | null>(null);
 
   function commitGift() {
+    const failure = giftError({ giftTo: giftTo.trim() ? giftTo.trim() : null, giftMessage: giftMessage.trim() });
+    if (failure) {
+      setGiftError(failure);
+      return;
+    }
     changeGift(entry.key, giftTo.trim() ? giftTo.trim() : null, giftMessage.trim());
+    setGiftError(null);
     setGiftOpen(false);
   }
 
@@ -42,6 +52,7 @@ function LineRow({ entry }: { entry: CartEntry }) {
               className="flo-cart-input"
               type="text"
               value={giftTo}
+              maxLength={MAX_RECIPIENT_LENGTH}
               placeholder="To — a name on the label"
               aria-label="Gift recipient"
               onChange={(event) => setGiftTo(event.currentTarget.value)}
@@ -50,11 +61,12 @@ function LineRow({ entry }: { entry: CartEntry }) {
               className="flo-cart-input"
               value={giftMessage}
               rows={2}
-              maxLength={200}
+              maxLength={MAX_GIFT_MESSAGE_LENGTH}
               placeholder="A message (up to 200 characters)"
               aria-label="Gift message"
               onChange={(event) => setGiftMessage(event.currentTarget.value)}
             />
+            {giftError ? <p className="flo-cart-form-error" role="alert">{giftError}</p> : null}
             <div className="flo-cart-gift-actions">
               <button type="button" className="flo-btn flo-btn-small" onClick={commitGift}>Keep gift details</button>
               <button type="button" className="flo-btn flo-btn-small flo-btn-ghost" onClick={() => setGiftOpen(false)}>Cancel</button>
@@ -92,14 +104,73 @@ function StatusPane({ status }: { status: CheckoutStatus }) {
   );
 }
 
+const SHIPPING_FIELDS: { key: ShippingAddressField | "address2"; label: string; autoComplete: string; placeholder?: string }[] = [
+  { key: "firstName", label: "First name", autoComplete: "given-name" },
+  { key: "lastName", label: "Last name", autoComplete: "family-name" },
+  { key: "address1", label: "Street address", autoComplete: "address-line1", placeholder: "House number and street" },
+  { key: "address2", label: "Apartment, suite (optional)", autoComplete: "address-line2" },
+  { key: "city", label: "Town or city", autoComplete: "address-level2" },
+  { key: "postalCode", label: "Postcode", autoComplete: "postal-code", placeholder: "e.g. SW1A 1AA" },
+];
+
+function ShippingForm({ attempted }: { attempted: boolean }) {
+  const { shippingAddress, setShippingAddress } = useCart();
+  const errors = shippingAddressErrors(shippingAddress);
+
+  function fieldValue(key: ShippingAddressField | "address2"): string {
+    return key === "address2" ? (shippingAddress.address2 ?? "") : shippingAddress[key];
+  }
+
+  function setField(key: ShippingAddressField | "address2", value: string) {
+    setShippingAddress({ ...shippingAddress, [key]: value });
+  }
+
+  return (
+    <section className="flo-cart-delivery" aria-label="Delivery address">
+      <p className="flo-kicker">Deliver to</p>
+      <div className="flo-cart-delivery-grid">
+        {SHIPPING_FIELDS.map((field) => {
+          const error = errors[field.key];
+          const show = error !== undefined && (attempted || (fieldValue(field.key).trim() !== "" && error !== "Required"));
+          return (
+            <div key={field.key} className="flo-cart-field">
+              <input
+                className="flo-cart-input"
+                type="text"
+                value={fieldValue(field.key)}
+                autoComplete={field.autoComplete}
+                aria-label={field.label}
+                aria-invalid={show}
+                placeholder={field.placeholder ?? field.label}
+                onChange={(event) => setField(field.key, event.currentTarget.value)}
+              />
+              {show ? <p className="flo-cart-form-error" role="alert">{error}</p> : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function CartDrawer() {
-  const { open, setOpen, status, entries, addSample, cartCount, cartTotals, checkout } = useCart();
+  const { open, setOpen, status, entries, addSample, cartCount, cartTotals, shippingAddress, checkout } = useCart();
   const reduced = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
+  const [addressAttempted, setAddressAttempted] = useState(false);
 
   useEffect(() => {
     if (open) panelRef.current?.querySelector<HTMLElement>("button, [href], input, textarea")?.focus();
+    if (!open) setAddressAttempted(false);
   }, [open]);
+
+  function onPay() {
+    if (Object.values(shippingAddressErrors(shippingAddress)).some(Boolean)) {
+      setAddressAttempted(true);
+      return;
+    }
+    void checkout(shippingAddress);
+  }
 
   function trapFocus(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") setOpen(false);
@@ -166,6 +237,7 @@ export default function CartDrawer() {
                   <ul className="flo-cart-lines">
                     {entries.map((entry) => <LineRow key={entry.key} entry={entry} />)}
                   </ul>
+                  <ShippingForm attempted={addressAttempted} />
                   <footer className="flo-cart-foot">
                     <dl className="flo-cart-totals">
                       <div><dt>Books</dt><dd>{formatMoney(cartTotals.subtotal)}</dd></div>
@@ -176,7 +248,7 @@ export default function CartDrawer() {
                       type="button"
                       className="flo-btn flo-btn-primary flo-btn-lg flo-cart-pay"
                       disabled={status.state === "working"}
-                      onClick={() => void checkout()}
+                      onClick={onPay}
                     >
                       {status.state === "working" ? "Placing your order…" : <>Pay {formatMoney(cartTotals.total)} — no real charge</>}
                     </button>

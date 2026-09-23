@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { addEntry, itemCount, lineTotal, removeEntry, setGift, setQuantity, totals, type CartEntry } from "./cart";
+import {
+  addEntry, checkoutGifts, giftError, itemCount, lineTotal, removeEntry,
+  setGift, setQuantity, shippingAddressErrors, totals, type CartEntry, type ShippingAddress,
+} from "./cart";
 import { demoPurchaseOption } from "./approval";
 
 const option = demoPurchaseOption();
 const shipping = 0;
+const VALID_ADDRESS: ShippingAddress = {
+  firstName: "Harsh", lastName: "Solanki", address1: "1 Test Road", city: "London", postalCode: "SW1A 1AA", countryCode: "gb",
+};
 
 function entry(overrides: Partial<CartEntry> = {}): CartEntry {
   return {
@@ -67,5 +73,45 @@ describe("storefront cart model", () => {
     const entries = [entry(), entry({ key: "approved_sandbox_2" })];
     expect(removeEntry(entries, "approved_sandbox_2")).toHaveLength(1);
     expect(itemCount(removeEntry(removeEntry(entries, "approved_sandbox_1"), "approved_sandbox_2"))).toBe(0);
+  });
+});
+
+describe("delivery + gift envelope validation", () => {
+  it("accepts a complete UK delivery address", () => {
+    expect(shippingAddressErrors(VALID_ADDRESS)).toEqual({});
+  });
+
+  it("flags required delivery fields, with a formatted postcode message for bad codes", () => {
+    const errors = shippingAddressErrors({ ...VALID_ADDRESS, firstName: "", postalCode: "NOPE" });
+    expect(errors.firstName).toBe("Required");
+    expect(errors.postalCode).toMatch(/valid UK postcode/);
+    const empty = shippingAddressErrors({ ...VALID_ADDRESS, city: "" });
+    expect(empty.city).toBe("Required");
+  });
+
+  it("allows a space-free postcode and an optional-second-line address", () => {
+    expect(shippingAddressErrors({ ...VALID_ADDRESS, postalCode: "EC1A1BB", address2: "Flat 3" })).toEqual({});
+  });
+
+  it("rejects a non-UK country in the envelope", () => {
+    expect(shippingAddressErrors({ ...VALID_ADDRESS, countryCode: "us" })).toMatchObject({ countryCodeUnknown: expect.stringMatching(/UK/) });
+  });
+
+  it("requires a recipient once a gift message is present, and bounds both fields", () => {
+    expect(giftError({ giftTo: null, giftMessage: "hello" })).toMatch(/who the gift is for/);
+    expect(giftError({ giftTo: "N".repeat(41), giftMessage: "" })).toMatch(/40 characters/);
+    expect(giftError({ giftTo: "Niece", giftMessage: "x".repeat(201) })).toMatch(/200 characters/);
+    expect(giftError({ giftTo: "Niece", giftMessage: "A little story" })).toBeNull();
+  });
+
+  it("builds the checkout gift list by line position, skipping ungifted lines", () => {
+    const entries = [
+      entry({ giftTo: "Grandma", giftMessage: "For the moon watcher" }),
+      entry({ key: "approved_sandbox_2" }),
+    ];
+    expect(checkoutGifts(entries)).toEqual([
+      { lineIndex: 0, recipientLabel: "Grandma", message: "For the moon watcher" },
+    ]);
+    expect(checkoutGifts([entry()])).toEqual([]);
   });
 });

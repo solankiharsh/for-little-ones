@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StorefrontCommerceClient } from "./client";
 import { demoPurchaseOption, SANDBOX_EMAIL, SANDBOX_REGION_NAME, type PurchaseOption } from "./approval";
-import { addEntry, itemCount, removeEntry, setGift, setQuantity, totals, type CartEntry } from "./cart";
+import {
+  addEntry, checkoutGifts, itemCount, removeEntry, setGift, setQuantity,
+  shippingAddressError, totals, type CartEntry, type ShippingAddress,
+} from "./cart";
 
 const MEDUSA_URL = import.meta.env.VITE_MEDUSA_URL ?? "http://localhost:9000";
 const PUBLISHABLE_KEY = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY as string | undefined;
@@ -27,12 +30,23 @@ interface CartContextValue {
   addSample: () => void;
   cartCount: number;
   cartTotals: ReturnType<typeof totals>;
-  checkout: () => Promise<void>;
+  shippingAddress: ShippingAddress;
+  setShippingAddress: (address: ShippingAddress) => void;
+  checkout: (shippingAddress: ShippingAddress) => Promise<void>;
   status: CheckoutStatus;
   dismissStatus: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
+
+const EMPTY_SHIPPING_ADDRESS: ShippingAddress = {
+  firstName: "",
+  lastName: "",
+  address1: "",
+  city: "",
+  postalCode: "",
+  countryCode: "gb",
+};
 
 function readLines(): CartEntry[] {
   try {
@@ -47,6 +61,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<CartEntry[]>(readLines);
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<CheckoutStatus>({ state: "idle" });
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>(EMPTY_SHIPPING_ADDRESS);
   const clientRef = useRef<StorefrontCommerceClient | null>(null);
   const entriesRef = useRef(entries);
   /**
@@ -77,9 +92,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return clientRef.current;
   }, []);
 
-  const checkout = useCallback(async () => {
+  const checkout = useCallback(async (address: ShippingAddress) => {
     if (!PUBLISHABLE_KEY) {
       setStatus({ state: "error", message: "Missing VITE_MEDUSA_PUBLISHABLE_KEY — run the commerce sandbox-config script and add it to apps/web/.env.local." });
+      return;
+    }
+    // Fail closed before any network work: delivery must be complete and every
+    // gift must have its recipient within bounds. Cart lines stay untouched.
+    const deliveryError = shippingAddressError(address);
+    if (deliveryError) {
+      setStatus({ state: "error", message: `Check your delivery details: ${deliveryError}` });
       return;
     }
     setStatus({ state: "working" });
@@ -101,7 +123,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
           reference: entry.reference,
         });
       }
-      const result = await storefront.beginCheckout({ cartId, idempotencyKey: checkoutKey });
+      const result = await storefront.beginCheckout({
+        cartId,
+        idempotencyKey: checkoutKey,
+        shippingAddress: address,
+        gifts: checkoutGifts(current),
+      });
       checkoutKeyRef.current = null;
       setStatus({
         state: "done",
@@ -126,10 +153,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     addSample: () => setEntries((current) => addEntry(current, demoPurchaseOption())),
     cartCount: itemCount(entries),
     cartTotals: totals(entries, 0),
+    shippingAddress,
+    setShippingAddress,
     checkout,
     status,
     dismissStatus: () => setStatus({ state: "idle" }),
-  }), [entries, open, checkout, status]);
+  }), [entries, open, shippingAddress, checkout, status]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
