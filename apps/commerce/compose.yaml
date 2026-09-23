@@ -1,0 +1,22 @@
+name: for-little-one-commerce
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: commerce
+      POSTGRES_PASSWORD: commerce_local
+      POSTGRES_DB: commerce
+    ports: ["127.0.0.1:5434:5432"]
+    volumes: ["commerce-postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commerce -d commerce"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7.4.0-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:6381:6379"]
+    volumes: ["commerce-redis:/data"]
+volumes:
+  commerce-postgres:
+  commerce-redis:

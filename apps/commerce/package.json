@@ -1,0 +1,23 @@
+{
+  "name": "@for-little-ones/commerce-app",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "NODE_PATH=./node_modules medusa develop",
+    "build": "NODE_PATH=./node_modules medusa build",
+    "start": "NODE_PATH=./node_modules medusa start",
+    "typecheck": "tsc --noEmit",
+    "migrate": "NODE_PATH=./node_modules medusa db:migrate",
+    "seed": "NODE_PATH=./node_modules medusa exec ./src/scripts/seed.ts",
+    "sandbox": "NODE_PATH=./node_modules medusa exec ./src/scripts/sandbox.ts"
+  },
+  "dependencies": {
+    "@for-little-ones/commerce": "*",
+    "@medusajs/admin-sdk": "2.21.1",
+    "@medusajs/cli": "2.21.1",
+    "@medusajs/framework": "2.21.1",
+    "@medusajs/medusa": "2.21.1",
+    "knex": "3.2.10"
+  },
+  "devDependencies": { "@types/node": "^22.10.0", "typescript": "^5.6.0", "ts-node": "^10.9.2" }
+}
