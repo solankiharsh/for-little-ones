@@ -81,5 +81,6 @@ export default async function seed({ container }: ExecArgs) {
   const key = (await keys.listApiKeys({ title: "FLO Sandbox Store" }))[0] ??
     (await createApiKeysWorkflow(container).run({ input: { api_keys: [{ title: "FLO Sandbox Store", type: "publishable", created_by: "" }] } })).result[0];
   await linkSalesChannelsToApiKeyWorkflow(container).run({ input: { id: key.id, add: [channel.id] } });
+  console.log("FLO sandbox publishable key:", (key as { token?: string }).token ?? key.id);
   console.log("Sandbox seeded: one UK/GBP region, hardcover £29.20, synthetic buyer + approval, fake printer.");
 }
