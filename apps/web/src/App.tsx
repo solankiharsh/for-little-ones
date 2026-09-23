@@ -3,6 +3,9 @@ import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
 import BookReader from "./reader/BookReader";
 import SandboxCheckout from "./demo/SandboxCheckout";
+import { CartProvider, useCart } from "./commerce/CartContext";
+import CartDrawer from "./commerce/CartDrawer";
+import { demoPurchaseOption } from "./commerce/approval";
 
 const STUDIO = "For Little One";
 const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
@@ -31,7 +34,16 @@ function Logo() {
 }
 
 export default function App() {
+  return (
+    <CartProvider>
+      <Site />
+    </CartProvider>
+  );
+}
+
+function Site() {
   const reduced = useReducedMotion();
+  const { setOpen, cartCount, add } = useCart();
   const [phase, setPhase] = useState<"idle" | "reader">("idle");
   const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -105,14 +117,25 @@ export default function App() {
             <a href="#story">Your book</a>
             <a href="#about">The studio</a>
           </nav>
-          <motion.button
-            type="button"
-            className="flo-btn flo-btn-primary"
-            onClick={open}
-            {...(reduced ? {} : { whileHover: { scale: 1.03 }, whileTap: { scale: 0.96 } })}
-          >
-            Make <span className="flo-btn-arrow" aria-hidden="true">→</span>
-          </motion.button>
+          <div className="flo-mast-actions">
+            <button
+              type="button"
+              className="flo-btn flo-btn-cart"
+              aria-label={`Open cart — ${cartCount} ${cartCount === 1 ? "book" : "books"}`}
+              onClick={() => setOpen(true)}
+            >
+              Your books
+              <span className="flo-cart-badge" aria-hidden="true">{cartCount}</span>
+            </button>
+            <motion.button
+              type="button"
+              className="flo-btn flo-btn-primary"
+              onClick={open}
+              {...(reduced ? {} : { whileHover: { scale: 1.03 }, whileTap: { scale: 0.96 } })}
+            >
+              Make <span className="flo-btn-arrow" aria-hidden="true">→</span>
+            </motion.button>
+          </div>
         </div>
       </motion.header>
 
@@ -304,6 +327,7 @@ export default function App() {
             </div>
             <div className="flo-world-actions">
               <button type="button" className="flo-btn flo-btn-ghost" onClick={(event) => previewStory(SAMPLE_TITLE, event.currentTarget)}>See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
+              <button type="button" className="flo-btn flo-btn-ghost" onClick={() => { add(demoPurchaseOption()); setOpen(true); }}>Try the sandbox cart <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
               <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
             </div>
           </div>
@@ -364,6 +388,8 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      <CartDrawer />
 
       {phase === "reader" && (
         <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>

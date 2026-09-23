@@ -1,5 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import { Modules } from "@medusajs/framework/utils";
 import {
   addShippingMethodToCartWorkflow,
   capturePaymentWorkflow,
@@ -8,33 +8,10 @@ import {
   createPaymentCollectionForCartWorkflow,
   createPaymentSessionsWorkflow,
 } from "@medusajs/medusa/core-flows";
-import crypto from "node:crypto";
-import type { Knex } from "knex";
 import { commerceGateway } from "../../../../lib/gateway";
 import { database, fixtureReference, FORMAT } from "../../../../lib/approvals";
+import { claimCheckoutKey, markCheckoutDone, orderSummary, releaseCheckoutClaim } from "../../../../lib/checkout";
 import { drainFakePrinter, reconcileOrders } from "../../../../lib/handoff";
-
-const POLL_ATTEMPTS = 120;
-const POLL_INTERVAL_MS = 500;
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function orderSummary(container: MedusaRequest["scope"], db: Knex, orderId: string) {
-  const query = container.resolve(ContainerRegistrationKeys.QUERY);
-  const { data: [order] } = await query.graph({
-    entity: "order",
-    fields: ["id", "total", "currency_code", "items.metadata"],
-    filters: { id: orderId },
-  });
-  if (!order) throw new Error("Order not found after checkout");
-  const [receipt] = await db("flo_fake_print_receipt").where({ order_id: orderId });
-  return {
-    orderId: order.id as string,
-    total: Number(order.total),
-    currencyCode: order.currency_code as string,
-    lineMetadata: (order.items as { metadata: unknown }[])[0]?.metadata ?? null,
-    receiptKey: (receipt?.key as string | undefined) ?? null,
-  };
-}
 
 /**
  * Sandbox-only checkout for the fixture approved revision. Clearly demo
@@ -52,19 +29,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const container = req.scope;
   const db = database(container);
 
-  await db("flo_idempotency").insert({ key, order_id: "" }).onConflict("key").ignore();
-  // Atomic claim: only one request per key wins the empty row; losers poll.
-  const claimToken = `PENDING:${crypto.randomUUID()}`;
-  const claimed = await db("flo_idempotency").where({ key, order_id: "" }).update({ order_id: claimToken });
-  if (claimed === 0) {
-    for (let i = 0; i <= POLL_ATTEMPTS; i++) {
-      const current = await db("flo_idempotency").where({ key }).first();
-      const currentOrder = current?.order_id as string | undefined;
-      if (currentOrder && !currentOrder.startsWith("PENDING:")) {
-        return res.json({ ...(await orderSummary(container, db, currentOrder)), deduped: true });
-      }
-      await sleep(POLL_INTERVAL_MS);
-    }
+  const claim = await claimCheckoutKey(db, key);
+  if (claim.kind === "done") {
+    return res.json({ ...(await orderSummary(container, db, claim.orderId)), deduped: true });
+  }
+  if (claim.kind === "busy") {
     return res.status(409).json({ message: "Checkout already in progress for this key" });
   }
 
@@ -95,10 +64,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     await capturePaymentWorkflow(container).run({ input: { payment_id: payment.id } });
     await reconcileOrders(container);
     await drainFakePrinter(container);
-    await db("flo_idempotency").where({ key }).update({ order_id: order.id });
+    await markCheckoutDone(db, key, order.id);
     return res.json({ ...(await orderSummary(container, db, order.id)), deduped: false });
   } catch (error) {
-    await db("flo_idempotency").where({ key, order_id: claimToken }).delete();
+    await releaseCheckoutClaim(db, key, claim.token);
     return res.status(500).json({ message: error instanceof Error ? error.message : "Sandbox checkout failed" });
   }
 }
