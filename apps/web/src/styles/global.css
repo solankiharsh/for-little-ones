@@ -843,3 +843,13 @@ span.flo-block-caption {
   .flo-fact:nth-child(n + 3) { padding-top: 22px; border-top: 1px solid var(--flo-line); }
   .flo-foot-inner { grid-template-columns: 1fr; gap: 32px; }
 }
+
+.flo-demo { padding-block: clamp(60px, 8vw, 110px); background: #211810; color: #f8eedb; }
+.flo-demo-inner { width: min(1180px, calc(100% - 48px)); margin: 0 auto; max-width: 70ch; }
+.flo-demo .flo-kicker { color: #e8ad67; }
+.flo-demo h2 { margin: 0; font: 400 clamp(32px, 4vw, 54px)/1 var(--font-family-heading); letter-spacing: -.04em; color: #fff6e7; }
+.flo-demo p { color: rgb(248 238 219 / .82); font-size: 14px; line-height: 1.75; }
+.flo-demo-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.flo-demo-result { margin-top: 20px; padding: 14px 18px; border: 1px solid rgb(232 173 103 / .4); border-radius: 12px; background: rgb(232 173 103 / .08); }
+.flo-demo-result code { font-size: 12px; }
+.flo-demo-error { margin-top: 20px; padding: 14px 18px; border: 1px solid rgb(200 90 70 / .6); border-radius: 12px; background: rgb(200 90 70 / .1); }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
 import BookReader from "./reader/BookReader";
+import SandboxCheckout from "./demo/SandboxCheckout";
 
 const STUDIO = "For Little One";
 const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
@@ -307,6 +308,8 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        <SandboxCheckout />
 
         {/* ============ studio / trust ============ */}
         <section className="flo-about" id="about" aria-label="The studio">
