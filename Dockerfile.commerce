@@ -4,6 +4,8 @@ COPY package.json package-lock.json ./
 COPY . .
 RUN npm ci --include-workspace-root --no-audit --no-fund
 ENV PATH="/app/node_modules/.bin:${PATH}"
+ENV NODE_ENV=development
+ENV COMMERCE_SANDBOX=true
 RUN npm run build -w @for-little-ones/commerce && cd apps/commerce && npm run build
 WORKDIR /app/apps/commerce
 EXPOSE 9000
