@@ -14,7 +14,8 @@ ENV DATABASE_URL=$DATABASE_URL
 ENV REDIS_URL=$REDIS_URL
 ENV JWT_SECRET=$JWT_SECRET
 ENV COOKIE_SECRET=$COOKIE_SECRET
+ENV NODE_OPTIONS="--max-old-space-size=360"
 RUN npm run build -w @for-little-ones/commerce && cd apps/commerce && npm run build
 WORKDIR /app/apps/commerce
 EXPOSE 9000
-CMD ["sh", "-c", "npm run migrate && npm run seed && npm run start"]
+CMD ["sh", "-c", "NODE_OPTIONS='--max-old-space-size=420' npm run migrate && NODE_OPTIONS='--max-old-space-size=420' npm run seed && npm run start"]
