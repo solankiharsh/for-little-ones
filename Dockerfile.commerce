@@ -1,0 +1,20 @@
+FROM node:20-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY . .
+RUN npm ci --include-workspace-root --no-audit --no-fund
+ENV PATH="/app/node_modules/.bin:${PATH}"
+ENV NODE_ENV=development
+ENV COMMERCE_SANDBOX=true
+ARG DATABASE_URL
+ARG REDIS_URL
+ARG JWT_SECRET
+ARG COOKIE_SECRET
+ENV DATABASE_URL=$DATABASE_URL
+ENV REDIS_URL=$REDIS_URL
+ENV JWT_SECRET=$JWT_SECRET
+ENV COOKIE_SECRET=$COOKIE_SECRET
+RUN npm run build -w @for-little-ones/commerce && cd apps/commerce && npm run build
+WORKDIR /app/apps/commerce
+EXPOSE 9000
+CMD ["npm", "run", "start"]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CommerceEventAdapter, validateApprovedItem, type RevisionEligibility, type PrintHandoff } from "../src";
+import { CommerceEventAdapter, parseCheckoutEnvelope, validateApprovedItem, type RevisionEligibility, type PrintHandoff } from "../src";
 
 const approved: RevisionEligibility = {
   approvedBookRevisionId: "approved-1", contentHash: "sha256:fixture",
@@ -43,5 +43,49 @@ describe("commerce approved-revision boundary", () => {
     expect(queued.size).toBe(1);
     await adapter.handle({ ...order, id: "order-2", paymentStatus: "captured" });
     expect(queued.size).toBe(2);
+  });
+});
+
+const validEnvelope = {
+  shipping_address: { first_name: "Harsh", last_name: "Solanki", address_1: "1 Test Road", city: "London", postal_code: "SW1A 1AA", country_code: "gb" },
+  gifts: [{ line_index: 0, recipient_label: "Niece", message: "A little story just for you" }],
+};
+
+describe("commerce checkout envelope (delivery + gift recipient)", () => {
+  it("maps an opaque safe shipping address and gift details", () => {
+    expect(parseCheckoutEnvelope(validEnvelope)).toEqual({
+      shippingAddress: { firstName: "Harsh", lastName: "Solanki", address1: "1 Test Road", city: "London", postalCode: "SW1A 1AA", countryCode: "gb" },
+      gifts: [{ lineIndex: 0, recipientLabel: "Niece", message: "A little story just for you" }],
+    });
+  });
+
+  it("accepts an envelope with no gifts", () => {
+    expect(parseCheckoutEnvelope({ shipping_address: validEnvelope.shipping_address, gifts: [] }).gifts).toEqual([]);
+  });
+
+  it.each([
+    [{ shipping_address: { ...validEnvelope.shipping_address, postcode: "SW1A 1AA" }, gifts: [] }, "Unexpected shipping address field"],
+    [{ shipping_address: { ...validEnvelope.shipping_address, postal_code: "not-a-postcode" }, gifts: [] }, "Invalid postal code"],
+    [{ shipping_address: { ...validEnvelope.shipping_address, country_code: "us" }, gifts: [] }, "country"],
+    [{ shipping_address: { ...validEnvelope.shipping_address, first_name: "" }, gifts: [] }, "first_name"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: [{ line_index: 0, recipient_label: "Niece", message: "x".repeat(201) }] }, "message.*200"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: [{ line_index: 0, recipient_label: "N".repeat(41), message: "hi" }] }, "recipient"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: [{ line_index: 0, recipient_label: "", message: "hi" }] }, "recipient"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: [{ line_index: 0, recipient_label: "Niece", message: "hi", child_name: "must never arrive" }] }, "Unexpected gift field"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: [{ line_index: 0, recipient_label: "Niece", message: "hi" }, { line_index: 0, recipient_label: "Other", message: "hey" }] }, "Duplicate"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: [{ line_index: -1, recipient_label: "Niece", message: "hi" }] }, "line_index"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: [{ line_index: "0", recipient_label: "Niece", message: "hi" }] }, "line_index"],
+    [{ shipping_address: validEnvelope.shipping_address, gifts: validEnvelope.gifts, extra: true }, "Unexpected checkout field"],
+    [null, "shipping_address"],
+    [{ shipping_address: "london", gifts: [] }, "shipping_address"],
+  ])("rejects invalid envelope %j with %s", (body, message) => {
+    expect(() => parseCheckoutEnvelope(body)).toThrow(new RegExp(message));
+  });
+
+  it("treats an empty address_2 as absent", () => {
+    expect(parseCheckoutEnvelope({ shipping_address: { ...validEnvelope.shipping_address, address_2: "" }, gifts: [] })).toEqual({
+      shippingAddress: { firstName: "Harsh", lastName: "Solanki", address1: "1 Test Road", city: "London", postalCode: "SW1A 1AA", countryCode: "gb" },
+      gifts: [],
+    });
   });
 });
