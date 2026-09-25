@@ -125,4 +125,15 @@ Run from M2 onward (full set in F-028): refresh during gen · worker restart mid
 
 ## Next work selection — 2026-09-25
 
-The [creation-flow tracker](market/2026-09-25_CREATION_FLOW_LEARNINGS.md) selects NEXT-01 guided creation → NEXT-02 personal touches/dedication → NEXT-03 durable progress → NEXT-04 preview navigation/purchase clarity. These extend M1 before M2 photos; they do not replace milestone dependencies or promote draft specs. Existing landing, sample reader and sandbox cart are kept. The old greenfield framing above is historical; see the current code inspection in the tracker.
+The [creation-flow tracker](market/2026-09-25_CREATION_FLOW_LEARNINGS.md) originally selected guided creation → personal touches → durable progress → preview navigation. The first customer-visible slice now exists: the browser saves the guided draft, Vercel AI Gateway returns a validated six-page story preview, intentional illustration stand-ins are shown, and checkout stays locked until the generated text is reviewable.
+
+That slice is a working product path, not competitor-level maturity. Continue in this order:
+
+1. **Durable projects and generation jobs.** Move draft/revision state from browser-only storage to an anonymous server-owned project with an ownership token. Persist each generation attempt and expose named progress stages that survive refresh, retry and worker restart.
+2. **Story discovery and correction.** Generate three moderated concepts, let the parent select tone/theme, edit or regenerate one page, and keep approved pages unchanged. Add fallbacks, provider timeouts, cost metadata and an age-specific policy/evaluation set.
+3. **Image and character-consistency pipeline.** Introduce photo consent/upload, a versioned character bible, one approved reference look, per-page illustration jobs, identity/child-count QA and isolated page regeneration. Keep the current stand-ins until this gate is reliable.
+4. **Book-quality preview.** Replace the long form preview with cover/dedication/story tabs, spread navigation, thumbnails, mobile reading, generation progress and clear locked/purchasable states. Add colouring pages only after the canonical story-page model supports them.
+5. **Constrained OpenPolotno studio.** Expose a small set of safe actions—crop/position artwork, edit bounded text, choose approved layouts and undo/redo—through the existing editor adapter. Keep the canonical Book revision authoritative and regenerate print assets from it.
+6. **Production and retention.** Complete immutable approval, deterministic print rendering, real payment/fulfilment/tracking, family library, reorder and deletion/retention workflows. Profile and shorten the known slow sandbox order-completion path during the commerce milestone.
+
+The next implementation slice is item 1. Items 2–4 are the largest gaps visible in the competitor references: richer concept choice, recoverable generation, multi-character/personal detail controls, full-book exploration and clear product-value presentation before purchase.
