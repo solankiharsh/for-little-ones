@@ -13,13 +13,17 @@ export {
   PagePlanSchema,
   PageTextRequestSchema,
   PageTextResultSchema,
+  StoryPreviewRequestSchema,
+  StoryPreviewResultSchema,
   type ConceptRequest,
   type ConceptResult,
   type StoryOutlineRequest,
   type StoryOutlineResult,
   type PagePlan,
   type PageTextRequest,
-  type PageTextResult
+  type PageTextResult,
+  type StoryPreviewRequest,
+  type StoryPreviewResult
 } from "./story";
 export {
   IllustrationPlanSchema,

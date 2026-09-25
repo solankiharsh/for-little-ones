@@ -3,7 +3,8 @@
   "include": [
     "packages/*/src/**/*.ts",
     "packages/*/test/**/*.ts",
-    "apps/*/src/**/*.ts"
+    "apps/*/src/**/*.ts",
+    "api/**/*.ts"
   ],
   "exclude": ["apps/commerce/**"]
 }

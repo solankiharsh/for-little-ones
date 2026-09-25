@@ -99,6 +99,30 @@ export const PageTextResultSchema = z.strictObject({
   generationMetadata: GenerationMetadataSchema.optional()
 });
 
+export const StoryPreviewRequestSchema = z.strictObject({
+  schemaVersion: z.literal(SCHEMA_VERSION_V1),
+  childName: z.string().trim().min(1).max(40),
+  age: z.number().int().min(1).max(12),
+  world: z.string().trim().min(1).max(80),
+  favourites: z.array(z.string().trim().min(1).max(40)).max(8),
+  detail: z.string().trim().max(120),
+  dedication: z.string().trim().max(150),
+  locale: z.string().min(2).max(16).default("en-GB")
+});
+
+export const StoryPreviewResultSchema = z.strictObject({
+  schemaVersion: z.literal(SCHEMA_VERSION_V1),
+  title: z.string().trim().min(1).max(100),
+  synopsis: z.string().trim().min(1).max(500),
+  emotionalGoal: z.string().trim().min(1).max(240),
+  pages: z.array(z.strictObject({
+    pageNumber: z.number().int().min(1).max(12),
+    text: z.string().trim().min(1).max(700),
+    illustrationCue: z.string().trim().min(1).max(500)
+  })).length(6),
+  generationMetadata: GenerationMetadataSchema.optional()
+});
+
 export type ConceptRequest = z.infer<typeof ConceptRequestSchema>;
 export type ConceptResult = z.infer<typeof ConceptResultSchema>;
 export type StoryOutlineRequest = z.infer<typeof StoryOutlineRequestSchema>;
@@ -106,3 +130,5 @@ export type StoryOutlineResult = z.infer<typeof StoryOutlineResultSchema>;
 export type PagePlan = z.infer<typeof PagePlanSchema>;
 export type PageTextRequest = z.infer<typeof PageTextRequestSchema>;
 export type PageTextResult = z.infer<typeof PageTextResultSchema>;
+export type StoryPreviewRequest = z.infer<typeof StoryPreviewRequestSchema>;
+export type StoryPreviewResult = z.infer<typeof StoryPreviewResultSchema>;
