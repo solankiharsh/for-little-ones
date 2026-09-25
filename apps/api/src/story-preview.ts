@@ -3,7 +3,7 @@ import {
   StoryPreviewResultSchema,
   type StoryPreviewRequest,
   type StoryPreviewResult
-} from "@for-little-ones/contracts";
+} from "../../../packages/contracts/src/index";
 
 export type StoryPreviewGenerator = (input: StoryPreviewRequest) => Promise<unknown>;
 

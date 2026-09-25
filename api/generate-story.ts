@@ -1,5 +1,5 @@
 import { generateText, Output } from "ai";
-import { StoryPreviewResultSchema, type StoryPreviewRequest } from "@for-little-ones/contracts";
+import { StoryPreviewResultSchema, type StoryPreviewRequest } from "../packages/contracts/src/index";
 import { createStoryPreviewHandler, withGenerationMetadata } from "../apps/api/src/story-preview";
 
 export const maxDuration = 60;
