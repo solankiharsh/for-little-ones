@@ -1,26 +1,71 @@
 import { generateText, Output } from "ai";
-import { StoryPreviewResultSchema, type StoryPreviewRequest } from "../packages/contracts/src/index";
-import { createStoryPreviewHandler, withGenerationMetadata } from "../apps/api/src/story-preview";
+import { z } from "zod";
 
 export const maxDuration = 60;
 
 const model = process.env.AI_STORY_MODEL ?? "google/gemini-2.5-flash";
 
-const handle = createStoryPreviewHandler(async (input) => {
-  const { output } = await generateText({
-    model,
-    output: Output.object({ schema: StoryPreviewResultSchema.omit({ generationMetadata: true }) }),
-    system: [
-      "You write warm, original picture-book stories for children aged 1 to 12.",
-      "Use British English and age-appropriate language. Keep the child safe throughout.",
-      "Never add frightening peril, violence, brands, copyrighted characters, or claims about the real child.",
-      "Return exactly six short pages. Each illustration cue describes a coherent scene but does not generate an image."
-    ].join(" "),
-    prompt: storyPrompt(input)
-  });
-
-  return withGenerationMetadata(output, model);
+const StoryPreviewRequestSchema = z.strictObject({
+  schemaVersion: z.literal("1"),
+  childName: z.string().trim().min(1).max(40),
+  age: z.number().int().min(1).max(12),
+  world: z.string().trim().min(1).max(80),
+  favourites: z.array(z.string().trim().min(1).max(40)).max(8),
+  detail: z.string().trim().max(120),
+  dedication: z.string().trim().max(150),
+  locale: z.string().min(2).max(16)
 });
+
+const StoryPreviewModelSchema = z.strictObject({
+  schemaVersion: z.literal("1"),
+  title: z.string().trim().min(1).max(100),
+  synopsis: z.string().trim().min(1).max(500),
+  emotionalGoal: z.string().trim().min(1).max(240),
+  pages: z.array(z.strictObject({
+    pageNumber: z.number().int().min(1).max(12),
+    text: z.string().trim().min(1).max(700),
+    illustrationCue: z.string().trim().min(1).max(500)
+  })).length(6)
+});
+
+type StoryPreviewRequest = z.infer<typeof StoryPreviewRequestSchema>;
+
+async function handle(request: Request): Promise<Response> {
+  if (request.method !== "POST") {
+    return Response.json({ error: "Method not allowed." }, { status: 405, headers: { Allow: "POST" } });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "The request body must be valid JSON." }, { status: 400 });
+  }
+
+  const input = StoryPreviewRequestSchema.safeParse(body);
+  if (!input.success) {
+    return Response.json({ error: "Check the story details and try again." }, { status: 400 });
+  }
+
+  try {
+    const { output } = await generateText({
+      model,
+      output: Output.object({ schema: StoryPreviewModelSchema }),
+      system: [
+        "You write warm, original picture-book stories for children aged 1 to 12.",
+        "Use British English and age-appropriate language. Keep the child safe throughout.",
+        "Never add frightening peril, violence, brands, copyrighted characters, or claims about the real child.",
+        "Return exactly six short pages. Each illustration cue describes a coherent scene but does not generate an image."
+      ].join(" "),
+      prompt: storyPrompt(input.data)
+    });
+
+    return Response.json({ ...output, generationMetadata: { model, attemptCount: 1 } });
+  } catch (error) {
+    console.error("story-preview generation failed", error);
+    return Response.json({ error: "The story studio is taking a little longer. Please try again." }, { status: 503 });
+  }
+}
 
 export default {
   async fetch(request: Request) {
