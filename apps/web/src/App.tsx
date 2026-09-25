@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
+import HeroShaderBackdrop from "./demo/HeroShaderBackdrop";
 import BookReader from "./reader/BookReader";
 import SandboxCheckout from "./demo/SandboxCheckout";
 import { CartProvider, useCart } from "./commerce/CartContext";
@@ -142,6 +143,7 @@ function Site() {
       <main id="story">
         {/* ============ hero ============ */}
         <section className="flo-hero" id="top" aria-label="What we make">
+          <HeroShaderBackdrop />
           <div className="flo-hero-inner">
             <div className="flo-hero-copy">
               <p className="flo-kicker">A story made for one child</p>
