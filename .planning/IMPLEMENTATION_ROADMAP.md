@@ -137,3 +137,5 @@ That slice is a working product path, not competitor-level maturity. Continue in
 6. **Production and retention.** Complete immutable approval, deterministic print rendering, real payment/fulfilment/tracking, family library, reorder and deletion/retention workflows. Profile and shorten the known slow sandbox order-completion path during the commerce milestone.
 
 The next implementation slice is item 1. Items 2–4 are the largest gaps visible in the competitor references: richer concept choice, recoverable generation, multi-character/personal detail controls, full-book exploration and clear product-value presentation before purchase.
+
+Commercial generation rule (D023): pre-payment shows the title, synopsis, one complete page, a short next-page glimpse and eventually no more than two low-resolution watermarked image drafts. Captured payment unlocks the full story, production images, bounded regeneration and the studio. Entitlement and budget checks live on the server and run before provider enqueue; UI locking alone is never sufficient.

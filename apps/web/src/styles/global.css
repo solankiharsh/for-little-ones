@@ -1026,6 +1026,14 @@ span.flo-block-caption {
 .flo-story-preview li small { color: var(--flo-ink-soft); line-height: 1.45; }
 .flo-story-art-placeholder { min-height: 130px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; border: 1px dashed #b7a98c; border-radius: 10px; background: linear-gradient(145deg, #f1eadb, #e6dcc8); color: var(--flo-ink-soft); text-align: center; }
 .flo-story-art-placeholder span { font-weight: 700; color: var(--flo-sienna-deep); }
+.flo-story-page-locked { position: relative; background: #f8f3e9 !important; }
+.flo-story-page-locked .flo-story-art-placeholder { background: repeating-linear-gradient(135deg, #eee4d2, #eee4d2 10px, #f5eddf 10px, #f5eddf 20px); }
+.flo-story-page-locked p { color: var(--flo-ink-soft); }
+.flo-story-excerpt { position: relative; max-height: 3.4em; overflow: hidden; }
+.flo-story-excerpt::after { content: ""; position: absolute; inset: auto 0 0; height: 2em; background: linear-gradient(transparent, #f8f3e9); }
+.flo-story-unlock { margin: 20px 0 12px; padding: 20px; border-radius: 14px; color: #fffaf0; background: var(--flo-sienna-deep); }
+.flo-story-unlock strong { font: 400 24px/1.2 var(--font-family-heading); }
+.flo-story-unlock p { margin: 8px 0 0; line-height: 1.55; }
 @keyframes flo-spin { to { transform: rotate(360deg); } }
 @media (max-width: 600px) {
   .flo-cart-layer { padding: 10px; }

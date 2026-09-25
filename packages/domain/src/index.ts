@@ -29,3 +29,10 @@ export type {
   AssetGeometryChecks
 } from "./print";
 export type { GenerationStep, GenerationStepOutput } from "./generation";
+export { authorizeGeneration, generationAccessFor, paymentEntitlement } from "./generation-access";
+export type {
+  GenerationAccess,
+  GenerationEntitlement,
+  GenerationOperation,
+  PaymentState
+} from "./generation-access";
