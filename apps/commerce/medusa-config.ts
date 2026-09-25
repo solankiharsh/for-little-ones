@@ -8,6 +8,10 @@ if (process.env.COMMERCE_SANDBOX !== "true" || process.env.NODE_ENV === "product
 for (const key of ["DATABASE_URL", "REDIS_URL", "JWT_SECRET", "COOKIE_SECRET"]) {
   if (!process.env[key]) throw new Error(`Missing ${key}`);
 }
+// BullMQ duplicates the connection for its blocking worker. During cold boot,
+// synchronous module loading can consume ioredis's default 10-second TLS timeout.
+// Keep a bounded 30-second window for both primary and duplicated connections.
+const redisOptions = { connectTimeout: 30_000 };
 const stripe = process.env.STRIPE_API_KEY;
 if (stripe && !stripe.startsWith("sk_test_")) throw new Error("Only Stripe test keys are allowed");
 
@@ -22,8 +26,8 @@ module.exports = defineConfig({
     }
   },
   modules: [
-    { resolve: "@medusajs/medusa/event-bus-redis", options: { redisUrl: process.env.REDIS_URL } },
-    { resolve: "@medusajs/medusa/workflow-engine-redis", options: { redis: { url: process.env.REDIS_URL } } },
+    { resolve: "@medusajs/medusa/event-bus-redis", options: { redisUrl: process.env.REDIS_URL, redisOptions } },
+    { resolve: "@medusajs/medusa/workflow-engine-redis", options: { redis: { redisUrl: process.env.REDIS_URL, redisOptions } } },
     ...(stripe ? [{ resolve: "@medusajs/medusa/payment", options: {
       providers: [{ resolve: "@medusajs/medusa/payment-stripe", id: "stripe", options: {
         apiKey: stripe, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET, capture: true

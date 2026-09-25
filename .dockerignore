@@ -6,3 +6,10 @@
 spike
 *.log
 .DS_Store
+**/.env
+**/.env.*
+**/.medusa
+**/.vercel
+**/__pycache__
+motivation*.pdf
+motivation*.txt

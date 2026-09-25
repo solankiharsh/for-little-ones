@@ -73,3 +73,8 @@ charge twice.
 - Production approval source: the sandbox registry is synthetic and must be
   replaced by the authenticated Book service.
 - Customer-facing cart/payment UI (next slice).
+
+## Cloud Run deployment
+
+See [the deployment runbook](../../scripts/README.md) for reproducible builds,
+runtime Secret Manager bindings, explicit migration/seed jobs, and Redis checks.

@@ -1,0 +1,13 @@
+# Keep local credentials and generated files out of uploaded build sources.
+.gcloudignore
+.git
+.gitignore
+#!include:.gitignore
+**/.env
+**/.env.*
+**/node_modules
+**/.medusa
+**/dist
+**/__pycache__
+motivation*.pdf
+motivation*.txt
