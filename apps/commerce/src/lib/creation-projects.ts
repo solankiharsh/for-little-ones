@@ -58,18 +58,57 @@ export async function authorizeProject(db: Knex, projectId: string, ownerToken: 
 }
 
 export async function startStoryJob(db: Knex, projectId: string, revisionId: string) {
+  return startGenerationJob(db, projectId, revisionId, "STORY_PREVIEW");
+}
+
+export async function startConceptJob(db: Knex, projectId: string, revisionId: string) {
+  return startGenerationJob(db, projectId, revisionId, "CONCEPT_BUNDLE");
+}
+
+async function startGenerationJob(db: Knex, projectId: string, revisionId: string, kind: "STORY_PREVIEW" | "CONCEPT_BUNDLE") {
   const jobId = `job_${randomUUID()}`;
   await db("flo_generation_job").insert({
-    id: jobId, project_id: projectId, revision_id: revisionId, kind: "STORY_PREVIEW", status: "RUNNING", progress: 10
+    id: jobId, project_id: projectId, revision_id: revisionId, kind, status: "RUNNING", progress: 10
   });
   await db("flo_creation_revision").where({ id: revisionId, project_id: projectId }).update({ status: "GENERATING", updated_at: db.fn.now() });
   return { jobId, status: "RUNNING" as const, progress: 10 };
 }
 
-export async function completeStoryJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; teaser: unknown }) {
+interface ProviderUsage { model?: string; inputTokens?: number; outputTokens?: number; costCents?: number }
+
+function providerUsageColumns(metadata: ProviderUsage | undefined) {
+  return {
+    provider_model: metadata?.model ?? null,
+    input_tokens: metadata?.inputTokens ?? null,
+    output_tokens: metadata?.outputTokens ?? null,
+    cost_cents: metadata?.costCents ?? null
+  };
+}
+
+export async function completeConceptJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; concepts: unknown; generationMetadata?: ProviderUsage }) {
+  await db.transaction(async (trx) => {
+    const changed = await trx("flo_generation_job").where({ id: input.jobId, project_id: input.projectId, revision_id: input.revisionId, kind: "CONCEPT_BUNDLE" }).update({
+      status: "READY", progress: 100, ...providerUsageColumns(input.generationMetadata), updated_at: trx.fn.now()
+    });
+    if (changed !== 1) throw new Error("Concept job not found");
+    await trx("flo_creation_revision").where({ id: input.revisionId, project_id: input.projectId }).update({
+      status: "DRAFT", concepts: JSON.stringify(input.concepts), updated_at: trx.fn.now()
+    });
+  });
+}
+
+export async function selectConcept(db: Knex, input: { projectId: string; revisionId: string; conceptId: string }) {
+  const revision = await db("flo_creation_revision").where({ id: input.revisionId, project_id: input.projectId }).first();
+  const concepts = Array.isArray(revision?.concepts) ? revision.concepts : [];
+  if (!concepts.some((concept: unknown) => typeof concept === "object" && concept !== null && (concept as { id?: unknown }).id === input.conceptId)) return false;
+  await db("flo_creation_revision").where({ id: input.revisionId, project_id: input.projectId }).update({ selected_concept_id: input.conceptId, updated_at: db.fn.now() });
+  return true;
+}
+
+export async function completeStoryJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; teaser: unknown; generationMetadata?: ProviderUsage }) {
   await db.transaction(async (trx) => {
     const changed = await trx("flo_generation_job").where({ id: input.jobId, project_id: input.projectId, revision_id: input.revisionId }).update({
-      status: "READY", progress: 100, updated_at: trx.fn.now()
+      status: "READY", progress: 100, ...providerUsageColumns(input.generationMetadata), updated_at: trx.fn.now()
     });
     if (changed !== 1) throw new Error("Generation job not found");
     await trx("flo_creation_revision").where({ id: input.revisionId, project_id: input.projectId }).update({

@@ -12,7 +12,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const job = revision ? await db("flo_generation_job").where({ revision_id: revision.id }).orderBy("created_at", "desc").first() : null;
   return res.json({
     projectId: project.id, entitlement: project.entitlement,
-    revision: revision ? { revisionId: revision.id, version: revision.version, status: revision.status, draft: revision.draft, teaser: revision.teaser } : null,
-    job: job ? { jobId: job.id, kind: job.kind, status: job.status, progress: job.progress, errorCode: job.error_code } : null
+    revision: revision ? { revisionId: revision.id, version: revision.version, status: revision.status, draft: revision.draft, concepts: revision.concepts, selectedConceptId: revision.selected_concept_id, teaser: revision.teaser } : null,
+    job: job ? { jobId: job.id, kind: job.kind, status: job.status, progress: job.progress, errorCode: job.error_code, generationMetadata: { model: job.provider_model, inputTokens: job.input_tokens, outputTokens: job.output_tokens, costCents: job.cost_cents } } : null
   });
 }

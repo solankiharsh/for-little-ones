@@ -16,7 +16,14 @@ const StoryPreviewRequestSchema = z.strictObject({
   locale: z.string().min(2).max(16),
   projectId: z.string().startsWith("project_").max(80),
   revisionId: z.string().startsWith("revision_").max(80),
-  ownerToken: z.string().regex(/^[a-f0-9]{64}$/)
+  ownerToken: z.string().regex(/^[a-f0-9]{64}$/),
+  selectedConcept: z.strictObject({
+    id: z.string().startsWith("concept_").max(80),
+    title: z.string().trim().min(1).max(60),
+    pitch: z.string().trim().min(1).max(240),
+    emotionalGoal: z.string().trim().min(1).max(30),
+    tone: z.string().trim().min(1).max(30)
+  })
 });
 
 const StoryPreviewModelSchema = z.strictObject({
@@ -53,12 +60,13 @@ async function handle(request: Request): Promise<Response> {
 
   try {
     const job = await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/story-jobs`, {
-      method: "POST", body: { revisionId: input.data.revisionId }
+      method: "POST", body: { revisionId: input.data.revisionId, selectedConceptId: input.data.selectedConcept.id }
     }) as { jobId?: unknown };
     if (typeof job.jobId !== "string") throw new Error("Creation service returned an invalid job");
     jobId = job.jobId;
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model,
+      abortSignal: AbortSignal.timeout(45_000),
       output: Output.object({ schema: StoryPreviewModelSchema }),
       system: [
         "You write warm, original picture-book stories for children aged 1 to 12.",
@@ -69,13 +77,18 @@ async function handle(request: Request): Promise<Response> {
       prompt: storyPrompt(input.data)
     });
 
+    const generationMetadata = {
+      model, attemptCount: 1,
+      ...(usage.inputTokens !== undefined ? { inputTokens: usage.inputTokens } : {}),
+      ...(usage.outputTokens !== undefined ? { outputTokens: usage.outputTokens } : {})
+    };
     const teaser = {
       ...output,
       pages: redactStoryPreview(output.pages),
-      generationMetadata: { model, attemptCount: 1 }
+      generationMetadata
     };
     await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/story-jobs/${job.jobId}`, {
-      method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", teaser }
+      method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", teaser, generationMetadata }
     });
     return Response.json(teaser);
   } catch (error) {
@@ -134,12 +147,26 @@ export default {
 function storyPrompt(input: StoryPreviewRequest): string {
   const favourites = input.favourites.length > 0 ? input.favourites.join(", ") : "gentle surprises";
   const personalDetail = input.detail || "No additional personal detail supplied";
+  const policy = storyPolicyForAge(input.age);
   return `Create a six-page personalised story preview with this brief:
 - Main character: ${input.childName}, age ${input.age}
 - Story world: ${input.world}
 - Favourite things: ${favourites}
 - Personal detail: ${personalDetail}
+- Selected concept title: ${input.selectedConcept.title}
+- Selected concept pitch: ${input.selectedConcept.pitch}
+- Intended emotional goal: ${input.selectedConcept.emotionalGoal}
+- Tone: ${input.selectedConcept.tone}
+- Reading band: ages ${policy.band}
+- Language direction: ${policy.direction}
 - Emotional arc: curiosity, a manageable challenge, kind resolution, calm ending
 
-Keep each page to 35-65 words. Use the child's name naturally without repeating it in every sentence. The title must feel like a finished children's book title. Illustration cues should preserve the same character, clothing, palette, and setting from page to page.`;
+Keep each page to ${policy.wordsPerPage} words. Use the child's name naturally without repeating it in every sentence. The title must feel like a finished children's book title. Illustration cues should preserve the same character, clothing, palette, and setting from page to page.`;
+}
+
+export function storyPolicyForAge(age: number) {
+  if (age <= 3) return { band: "1-3" as const, wordsPerPage: "18-35", direction: "Use very short sentences, concrete words and gentle repetition." };
+  if (age <= 6) return { band: "4-6" as const, wordsPerPage: "35-55", direction: "Use clear sentences, playful imagery and a simple cause-and-effect arc." };
+  if (age <= 9) return { band: "7-9" as const, wordsPerPage: "45-70", direction: "Use varied sentences, richer vocabulary and a clear emotional turn." };
+  return { band: "10-12" as const, wordsPerPage: "55-85", direction: "Use nuanced but accessible language, stronger character agency and layered imagery." };
 }

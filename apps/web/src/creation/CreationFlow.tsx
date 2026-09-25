@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import { generationAccessFor } from "@for-little-ones/domain";
-import { createStoryProject, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, type CreationDraft, type StoryProjectCredential } from "./story-preview";
+import { createStoryProject, generateStoryConcepts, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, selectStoryConcept, type CreationDraft, type StoryConcept, type StoryProjectCredential } from "./story-preview";
 
 const WORLDS = ["Bedtime wonder", "Small adventures", "Big imagination"];
-const STEPS = ["Your child", "Their world", "Little details", "Preview"];
+const STEPS = ["Your child", "Their world", "Little details", "Story ideas", "Preview"];
 const FAVOURITES = ["Animals", "Space", "The sea", "Dinosaurs", "Gardens"];
 const TEASER_ACCESS = generationAccessFor("TEASER");
 
@@ -21,12 +21,19 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
   const [dedication, setDedication] = useState(saved?.draft.dedication ?? "");
   const [story, setStory] = useState<StoryPreviewResult | undefined>(saved?.story);
   const [project, setProject] = useState<StoryProjectCredential | undefined>(saved?.project);
+  const [concepts, setConcepts] = useState<StoryConcept[]>(saved?.concepts ?? []);
+  const [selectedConceptId, setSelectedConceptId] = useState(saved?.selectedConceptId ?? "");
+  const [generatingConcepts, setGeneratingConcepts] = useState(false);
+  const [selectingConcept, setSelectingConcept] = useState(false);
+  const [conceptAttempts, setConceptAttempts] = useState(saved?.concepts ? 1 : 0);
+  const [fallbackIdeas, setFallbackIdeas] = useState(saved?.concepts?.some((concept) => concept.source === "fallback") ?? false);
   const [generating, setGenerating] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [started, setStarted] = useState(false);
   const [error, setError] = useState("");
   const child = name.trim();
   const draft: CreationDraft = { childName: child, age, world, favourites, detail: detail.trim(), dedication: dedication.trim() };
+  const selectedConcept = concepts.find((concept) => concept.id === selectedConceptId);
 
   useEffect(() => {
     if (!open) return;
@@ -47,23 +54,29 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
       if (snapshot.story) {
         setStory(snapshot.story);
         setStarted(true);
-        setStep(3);
-      } else if (snapshot.jobStatus === "RUNNING") {
+        setStep(4);
+      } else if (snapshot.jobKind === "STORY_PREVIEW" && snapshot.jobStatus === "RUNNING") {
         setStarted(true);
-        setStep(3);
+        setStep(4);
       }
+      if (snapshot.concepts) setConcepts(snapshot.concepts);
+      if (snapshot.selectedConceptId) setSelectedConceptId(snapshot.selectedConceptId);
     }).catch(() => {
       // The local draft remains usable if the status service is temporarily unavailable.
     }).finally(() => { if (current) setRestoring(false); });
     return () => { current = false; };
   }, [open, project?.projectId, story]);
   useEffect(() => {
-    if (typeof window !== "undefined") saveCreation(window.localStorage, { draft, ...(story ? { story } : {}), ...(project ? { project } : {}) });
-  }, [name, age, world, favourites, detail, dedication, story, project]);
+    if (typeof window !== "undefined") saveCreation(window.localStorage, { draft, ...(story ? { story } : {}), ...(project ? { project } : {}), ...(concepts.length === 3 ? { concepts } : {}), ...(selectedConceptId ? { selectedConceptId } : {}) });
+  }, [name, age, world, favourites, detail, dedication, story, project, concepts, selectedConceptId]);
 
   function revise() {
     setStory(undefined);
     setProject(undefined);
+    setConcepts([]);
+    setSelectedConceptId("");
+    setConceptAttempts(0);
+    setFallbackIdeas(false);
     setStarted(false);
     setError("");
   }
@@ -74,11 +87,44 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
     try {
       const credential = project ?? await createStoryProject(draft);
       if (!project) setProject(credential);
-      setStory(await generateStoryPreview(draft, credential));
+      if (!selectedConcept) throw new Error("Choose a story idea before writing the preview.");
+      setStory(await generateStoryPreview(draft, credential, selectedConcept));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The story studio could not be reached. Please try again.");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function findStoryIdeas() {
+    setGeneratingConcepts(true);
+    setError("");
+    try {
+      const credential = project ?? await createStoryProject(draft);
+      if (!project) setProject(credential);
+      const result = await generateStoryConcepts(draft, credential);
+      setConcepts(result.concepts);
+      setSelectedConceptId("");
+      setFallbackIdeas(result.servedFromFallback);
+      setConceptAttempts((value) => value + 1);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "We couldn't find story ideas just now. Please try again.");
+    } finally {
+      setGeneratingConcepts(false);
+    }
+  }
+
+  async function chooseStoryIdea() {
+    if (!project || !selectedConceptId) return;
+    setSelectingConcept(true);
+    setError("");
+    try {
+      await selectStoryConcept(project, selectedConceptId);
+      setStep(4);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Your story choice could not be saved.");
+    } finally {
+      setSelectingConcept(false);
     }
   }
 
@@ -89,7 +135,12 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
       return;
     }
     setError("");
-    setStep(Math.min(3, step + 1));
+    if (step === 2) {
+      setStep(3);
+      void findStoryIdeas();
+      return;
+    }
+    setStep(Math.min(4, step + 1));
   }
 
   return (
@@ -109,9 +160,9 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
         </ol>
         <form onSubmit={advance}>
           <div className="flo-create-content">
-            <p className="flo-kicker">Step {step + 1} of 4</p>
-            <h2 ref={heading} tabIndex={-1}>{["Who’s the story for?", `A world for ${child}`, "The little things that matter", started ? "Their story starts here" : "A little look at their book"][step]}</h2>
-            <p className="flo-create-intro">{["Every adventure begins with someone special.", "Choose a starting point for their adventure.", "A favourite thing or a few words from you. Everything here is optional.", "Here’s how their personalised hardcover will take shape."][step]}</p>
+            <p className="flo-kicker">Step {step + 1} of 5</p>
+            <h2 ref={heading} tabIndex={-1}>{["Who’s the story for?", `A world for ${child}`, "The little things that matter", `Three ideas for ${child}`, started ? "Their story starts here" : "A little look at their book"][step]}</h2>
+            <p className="flo-create-intro">{["Every adventure begins with someone special.", "Choose a starting point for their adventure.", "A favourite thing or a few words from you. Everything here is optional.", "Choose the adventure you’d most like to read together.", "Here’s how their personalised hardcover will take shape."][step]}</p>
             {step === 0 && <div className="flo-create-fields">
               <label>Child’s name or nickname<input autoComplete="off" maxLength={40} required value={name} placeholder="Their first name" onChange={(e) => { revise(); setName(e.target.value); }} /></label>
               <label>Age<select required value={age} onChange={(e) => { revise(); setAge(e.target.value); }}><option value="">Choose their age</option>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? "year" : "years"}</option>)}</select></label>
@@ -126,10 +177,23 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
               <label>A detail that makes them, them <span>(optional)</span><input value={detail} maxLength={120} placeholder="Their teddy is called Mr Bear" onChange={(e) => { revise(); setDetail(e.target.value); }} /></label>
               <label>A dedication <span>(optional)</span><textarea value={dedication} maxLength={150} rows={3} placeholder={`A few words for ${child} to keep forever…`} onChange={(e) => { revise(); setDedication(e.target.value); }} /><small>{dedication.length}/150 characters</small></label>
             </div>}
-            {step === 3 && <>
+            {step === 3 && <section className="flo-concepts" aria-label="Story ideas">
+              {generatingConcepts && <div className="flo-create-generating" role="status"><span aria-hidden="true" /><div><strong>Dreaming up three story ideas…</strong><small>We’re keeping each one age-appropriate, distinct and grounded in the details you shared.</small></div></div>}
+              {!generatingConcepts && concepts.length === 0 && <div className="flo-concepts-empty"><span aria-hidden="true">✦</span><h3>Ready to find their adventure?</h3><p>We’ll create three short ideas first, so you can choose the direction before the story is written.</p></div>}
+              {fallbackIdeas && concepts.length > 0 && <p className="flo-create-confirmation" role="status">The story studio was busy, so we’ve opened three carefully written starter ideas. You can use any of them now.</p>}
+              {concepts.length > 0 && <div className="flo-concept-grid">{concepts.map((concept) => <label className="flo-concept-card" key={concept.id}>
+                <input type="radio" name="story-concept" value={concept.id} checked={selectedConceptId === concept.id} onChange={() => setSelectedConceptId(concept.id)} />
+                <span className="flo-concept-choice" aria-hidden="true">{selectedConceptId === concept.id ? "Chosen" : "Choose"}</span>
+                <strong>{concept.title}</strong><p>{concept.pitch}</p>
+                <small><span>{concept.tone}</span><span>Ages {concept.readingLevel}</span><span>A story about {concept.emotionalGoal}</span></small>
+              </label>)}</div>}
+              {concepts.length > 0 && conceptAttempts < 3 && <button type="button" className="flo-btn flo-btn-ghost flo-concepts-again" disabled={generatingConcepts} onClick={() => void findStoryIdeas()}>Different ideas</button>}
+              {conceptAttempts >= 3 && <p className="flo-create-hint">Choose the closest idea for now. You’ll still be able to adjust individual pages later.</p>}
+            </section>}
+            {step === 4 && <>
               <div className="flo-create-preview">
-                <div className="flo-create-cover"><span>Made for {child}</span><div className="flo-create-placeholder" role="img" aria-label={`${world} cover artwork for ${child}`}><span aria-hidden="true">✧</span><small>{world} artwork</small></div><h3>{world}</h3><p>A story for {child}</p></div>
-                <div className="flo-create-summary"><h3>Their book, at a glance</h3><dl><dt>For</dt><dd>{child} · age {age}</dd><dt>Story world</dt><dd>{world}</dd>{favourites.length > 0 && <><dt>Favourite things</dt><dd>{favourites.join(", ")}</dd></>}{detail.trim() && <><dt>A personal detail</dt><dd>{detail}</dd></>}{dedication.trim() && <><dt>Dedication</dt><dd className="flo-create-dedication">{dedication}</dd></>}</dl><p className="flo-create-hint">You can go back and change any detail before adding the hardcover to your basket.</p></div>
+                <div className="flo-create-cover"><span>Made for {child}</span><div className="flo-create-placeholder" role="img" aria-label={`${world} cover artwork for ${child}`}><span aria-hidden="true">✧</span><small>{world} artwork</small></div><h3>{selectedConcept?.title ?? world}</h3><p>A story for {child}</p></div>
+                <div className="flo-create-summary"><h3>Their book, at a glance</h3><dl><dt>For</dt><dd>{child} · age {age}</dd><dt>Chosen story</dt><dd>{selectedConcept?.title ?? "Story idea ready"}</dd><dt>Story world</dt><dd>{world}</dd>{favourites.length > 0 && <><dt>Favourite things</dt><dd>{favourites.join(", ")}</dd></>}{detail.trim() && <><dt>A personal detail</dt><dd>{detail}</dd></>}{dedication.trim() && <><dt>Dedication</dt><dd className="flo-create-dedication">{dedication}</dd></>}</dl><p className="flo-create-hint">You can go back and change any detail before adding the hardcover to your basket.</p></div>
               </div>
               {restoring && <p className="flo-create-confirmation" role="status">Restoring your saved story…</p>}
               {started && !story && !restoring && <p className="flo-create-confirmation" role="status">The details are ready. We’ll now write a six-page story preview for you to review before checkout.</p>}
@@ -151,8 +215,8 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
             {error && <p role="alert" className="flo-cart-form-error">{error}</p>}
           </div>
           <footer className="flo-create-actions">
-            <button type="button" className="flo-btn flo-btn-ghost" disabled={generating || restoring} onClick={() => { if (step === 0) onClose(); else { setStep(step - 1); setStarted(false); } }}>{step === 0 ? "Back to the studio" : "← Back"}</button>
-            {step < 3 ? <button className="flo-btn flo-btn-primary" type="submit">{step === 2 ? "Preview their book" : "Continue"} →</button> : <button type="button" className="flo-btn flo-btn-primary" onClick={() => {
+            <button type="button" className="flo-btn flo-btn-ghost" disabled={generating || generatingConcepts || selectingConcept || restoring} onClick={() => { if (step === 0) onClose(); else { setStep(step - 1); setStarted(false); } }}>{step === 0 ? "Back to the studio" : "← Back"}</button>
+            {step < 3 ? <button className="flo-btn flo-btn-primary" type="submit">{step === 2 ? "Find story ideas" : "Continue"} →</button> : step === 3 ? <button type="button" className="flo-btn flo-btn-primary" onClick={() => concepts.length === 0 ? void findStoryIdeas() : void chooseStoryIdea()} disabled={generatingConcepts || selectingConcept || (concepts.length > 0 && !selectedConceptId)}>{generatingConcepts ? "Finding ideas…" : selectingConcept ? "Saving your choice…" : concepts.length === 0 ? "Find three story ideas" : "Start with this story"}</button> : <button type="button" className="flo-btn flo-btn-primary" onClick={() => {
               if (!started) { setStarted(true); return; }
               if (!story) { void writeStory(); return; }
               onAddToBasket(draft);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redactStoryPreview } from "./generate-story";
+import { redactStoryPreview, storyPolicyForAge } from "./generate-story";
 
 describe("pre-payment story response", () => {
   it("sends one full page, one excerpt and no later story text to the browser", () => {
@@ -17,5 +17,14 @@ describe("pre-payment story response", () => {
     expect(teaser.slice(2).every((page) => page.text === "Story page ready after payment.")).toBe(true);
     expect(JSON.stringify(teaser)).not.toContain("Secret page 6");
     expect(JSON.stringify(teaser)).not.toContain("Secret illustration 6");
+  });
+});
+
+describe("age-specific story policy", () => {
+  it("uses shorter, more repetitive text for younger readers", () => {
+    expect(storyPolicyForAge(3)).toEqual({ band: "1-3", wordsPerPage: "18-35", direction: "Use very short sentences, concrete words and gentle repetition." });
+    expect(storyPolicyForAge(6).band).toBe("4-6");
+    expect(storyPolicyForAge(9).wordsPerPage).toBe("45-70");
+    expect(storyPolicyForAge(12).band).toBe("10-12");
   });
 });

@@ -46,7 +46,7 @@ describe("guided creation persistence", () => {
       entitlement: "TEASER",
       revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser },
       job: { jobId: "job_123", kind: "STORY_PREVIEW", status: "READY", progress: 100, errorCode: null }
-    })).toEqual({ entitlement: "TEASER", revisionId: "revision_123", revisionStatus: "TEASER_READY", story: teaser, jobStatus: "READY", progress: 100 });
+    })).toEqual({ entitlement: "TEASER", revisionId: "revision_123", revisionStatus: "TEASER_READY", story: teaser, jobKind: "STORY_PREVIEW", jobStatus: "READY", progress: 100 });
   });
 
   it("rejects a malformed server-restored teaser", () => {

@@ -28,7 +28,9 @@ export type ContractName = (typeof CONTRACT_NAMES)[keyof typeof CONTRACT_NAMES];
 export const GenerationMetadataSchema = z.strictObject({
   model: z.string().min(1),
   attemptCount: z.number().int().min(1),
-  costCents: z.number().int().min(0).optional()
+  costCents: z.number().int().min(0).optional(),
+  inputTokens: z.number().int().min(0).optional(),
+  outputTokens: z.number().int().min(0).optional()
 });
 
 export type GenerationMetadata = z.infer<typeof GenerationMetadataSchema>;

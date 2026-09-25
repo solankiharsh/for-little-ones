@@ -1,6 +1,6 @@
 # 07_STORY_CONCEPTS.md — Story Concepts (3 Generated Ideas)
 
-> **Spec ID:** F-007 · **Priority:** P0 · **Status:** draft
+> **Spec ID:** F-007 · **Priority:** P0 · **Status:** in-build
 > **Depends on:** F-002 (theme seed), F-003 (profile), F-006 (personal facts) · **Consumed by:** F-008 (story generation)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -21,7 +21,7 @@ Turn "theme + child facts" into three *distinct, appealing, appropriate* story p
 
 ## 3. Current implementation
 
-None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
+PR #25 now provides the first production-shaped slice: one Vercel AI Gateway call returns three strictly validated, distinct concepts; the server caps each revision at three bundles, persists the bundle and selected concept, records provider model/token usage, and falls back to three authored starter ideas when the model fails or violates the safety/shape gate. The five-step customer flow exposes selection before story generation. Per-card editing and a dedicated moderation provider remain outstanding.
 
 ## 4. Problems with current implementation
 
