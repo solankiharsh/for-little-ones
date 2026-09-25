@@ -23,6 +23,22 @@ export default async function seed({ container }: ExecArgs) {
   if (!await db.schema.hasTable("flo_idempotency")) await db.schema.createTable("flo_idempotency", (table) => {
     table.text("key").primary(); table.text("order_id").notNullable().defaultTo("");
   });
+  if (!await db.schema.hasTable("flo_creation_project")) await db.schema.createTable("flo_creation_project", (table) => {
+    table.text("id").primary(); table.text("owner_token_hash").notNullable(); table.text("entitlement").notNullable().defaultTo("TEASER");
+    table.timestamp("created_at").notNullable().defaultTo(db.fn.now()); table.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
+  });
+  if (!await db.schema.hasTable("flo_creation_revision")) await db.schema.createTable("flo_creation_revision", (table) => {
+    table.text("id").primary(); table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");
+    table.integer("version").notNullable(); table.text("status").notNullable(); table.jsonb("draft").notNullable(); table.jsonb("teaser").nullable();
+    table.timestamp("created_at").notNullable().defaultTo(db.fn.now()); table.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
+    table.unique(["project_id", "version"]);
+  });
+  if (!await db.schema.hasTable("flo_generation_job")) await db.schema.createTable("flo_generation_job", (table) => {
+    table.text("id").primary(); table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");
+    table.text("revision_id").notNullable().references("id").inTable("flo_creation_revision").onDelete("CASCADE");
+    table.text("kind").notNullable(); table.text("status").notNullable(); table.integer("progress").notNullable().defaultTo(0); table.text("error_code").nullable();
+    table.timestamp("created_at").notNullable().defaultTo(db.fn.now()); table.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
+  });
   const customers = container.resolve(Modules.CUSTOMER);
   const buyer = (await customers.listCustomers({ email: "buyer@example.test" }))[0] ??
     await customers.createCustomers({ email: "buyer@example.test" });

@@ -18,10 +18,31 @@ export const CREATION_STORAGE_KEY = "flo.creation-draft.v1";
 export interface SavedCreation {
   draft: CreationDraft;
   story?: StoryPreviewResult;
+  project?: StoryProjectCredential;
 }
 
-export async function generateStoryPreview(draft: CreationDraft): Promise<StoryPreviewResult> {
-  const request: StoryPreviewRequest = {
+export interface StoryProjectCredential {
+  projectId: string;
+  revisionId: string;
+  ownerToken: string;
+  entitlement: "TEASER" | "PAID" | "REVOKED";
+}
+
+export async function createStoryProject(draft: CreationDraft): Promise<StoryProjectCredential> {
+  const response = await fetch("/api/create-project", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft)
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok || !isProjectCredential(body)) {
+    const message = typeof body === "object" && body !== null && "error" in body && typeof body.error === "string"
+      ? body.error : "Your draft could not be saved. Please try again.";
+    throw new Error(message);
+  }
+  return body;
+}
+
+export async function generateStoryPreview(draft: CreationDraft, project: StoryProjectCredential): Promise<StoryPreviewResult> {
+  const request = {
     schemaVersion: "1",
     childName: draft.childName,
     age: Number(draft.age),
@@ -29,8 +50,11 @@ export async function generateStoryPreview(draft: CreationDraft): Promise<StoryP
     favourites: draft.favourites,
     detail: draft.detail,
     dedication: draft.dedication,
-    locale: "en-GB"
-  };
+    locale: "en-GB",
+    projectId: project.projectId,
+    revisionId: project.revisionId,
+    ownerToken: project.ownerToken
+  } satisfies StoryPreviewRequest & Pick<StoryProjectCredential, "projectId" | "revisionId" | "ownerToken">;
   const response = await fetch("/api/generate-story", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -55,10 +79,24 @@ export function loadSavedCreation(storage: Pick<Storage, "getItem">): SavedCreat
     const value = JSON.parse(raw) as Partial<SavedCreation>;
     if (!isDraft(value.draft)) return null;
     const story = StoryPreviewResultSchema.safeParse(value.story);
-    return story.success ? { draft: value.draft, story: story.data } : { draft: value.draft };
+    const project = isProjectCredential(value.project) ? value.project : undefined;
+    return {
+      draft: value.draft,
+      ...(story.success ? { story: story.data } : {}),
+      ...(project ? { project } : {})
+    };
   } catch {
     return null;
   }
+}
+
+function isProjectCredential(value: unknown): value is StoryProjectCredential {
+  if (typeof value !== "object" || value === null) return false;
+  const project = value as Record<string, unknown>;
+  return typeof project.projectId === "string" && project.projectId.startsWith("project_")
+    && typeof project.revisionId === "string" && project.revisionId.startsWith("revision_")
+    && typeof project.ownerToken === "string" && /^[a-f0-9]{64}$/i.test(project.ownerToken)
+    && (project.entitlement === "TEASER" || project.entitlement === "PAID" || project.entitlement === "REVOKED");
 }
 
 export function saveCreation(storage: Pick<Storage, "setItem">, value: SavedCreation): void {

@@ -13,7 +13,10 @@ const StoryPreviewRequestSchema = z.strictObject({
   favourites: z.array(z.string().trim().min(1).max(40)).max(8),
   detail: z.string().trim().max(120),
   dedication: z.string().trim().max(150),
-  locale: z.string().min(2).max(16)
+  locale: z.string().min(2).max(16),
+  projectId: z.string().startsWith("project_").max(80),
+  revisionId: z.string().startsWith("revision_").max(80),
+  ownerToken: z.string().regex(/^[a-f0-9]{64}$/)
 });
 
 const StoryPreviewModelSchema = z.strictObject({
@@ -36,6 +39,7 @@ async function handle(request: Request): Promise<Response> {
   }
 
   let body: unknown;
+  let jobId: string | undefined;
   try {
     body = await request.json();
   } catch {
@@ -48,6 +52,11 @@ async function handle(request: Request): Promise<Response> {
   }
 
   try {
+    const job = await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/story-jobs`, {
+      method: "POST", body: { revisionId: input.data.revisionId }
+    }) as { jobId?: unknown };
+    if (typeof job.jobId !== "string") throw new Error("Creation service returned an invalid job");
+    jobId = job.jobId;
     const { output } = await generateText({
       model,
       output: Output.object({ schema: StoryPreviewModelSchema }),
@@ -60,15 +69,42 @@ async function handle(request: Request): Promise<Response> {
       prompt: storyPrompt(input.data)
     });
 
-    return Response.json({
+    const teaser = {
       ...output,
       pages: redactStoryPreview(output.pages),
       generationMetadata: { model, attemptCount: 1 }
+    };
+    await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/story-jobs/${job.jobId}`, {
+      method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", teaser }
     });
+    return Response.json(teaser);
   } catch (error) {
+    if (jobId) {
+      await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/story-jobs/${jobId}`, {
+        method: "PATCH", body: { revisionId: input.data.revisionId, status: "FAILED" }
+      }).catch(() => undefined);
+    }
     console.error("story-preview generation failed", error);
     return Response.json({ error: "The story studio is taking a little longer. Please try again." }, { status: 503 });
   }
+}
+
+async function projectRequest(input: StoryPreviewRequest, path: string, init: { method: "POST" | "PATCH"; body: unknown }) {
+  const baseUrl = process.env.CREATION_API_URL;
+  const publishableKey = process.env.VITE_MEDUSA_PUBLISHABLE_KEY;
+  if (!baseUrl || !publishableKey) throw new Error("Creation service is not configured");
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: init.method,
+    headers: {
+      "content-type": "application/json",
+      "x-publishable-api-key": publishableKey,
+      authorization: `Bearer ${input.ownerToken}`
+    },
+    body: JSON.stringify(init.body)
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(`Creation service failed (${response.status})`);
+  return body;
 }
 
 export function redactStoryPreview(pages: z.infer<typeof StoryPreviewModelSchema>["pages"]) {

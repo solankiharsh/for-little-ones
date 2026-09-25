@@ -6,6 +6,7 @@ export default defineConfig({
       "packages/*/test/**/*.spec.ts",
       "api/**/*.spec.ts",
       "apps/api/src/**/*.spec.ts",
+      "apps/commerce/src/lib/**/*.spec.ts",
       "apps/web/src/creation/**/*.spec.ts",
       "apps/web/src/commerce/**/*.spec.ts"
     ],

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import { generationAccessFor } from "@for-little-ones/domain";
-import { generateStoryPreview, loadSavedCreation, saveCreation, type CreationDraft } from "./story-preview";
+import { createStoryProject, generateStoryPreview, loadSavedCreation, saveCreation, type CreationDraft, type StoryProjectCredential } from "./story-preview";
 
 const WORLDS = ["Bedtime wonder", "Small adventures", "Big imagination"];
 const STEPS = ["Your child", "Their world", "Little details", "Preview"];
@@ -20,6 +20,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
   const [detail, setDetail] = useState(saved?.draft.detail ?? "");
   const [dedication, setDedication] = useState(saved?.draft.dedication ?? "");
   const [story, setStory] = useState<StoryPreviewResult | undefined>(saved?.story);
+  const [project, setProject] = useState<StoryProjectCredential | undefined>(saved?.project);
   const [generating, setGenerating] = useState(false);
   const [started, setStarted] = useState(false);
   const [error, setError] = useState("");
@@ -36,11 +37,12 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
   }, [open]);
   useEffect(() => { heading.current?.focus(); }, [step, started]);
   useEffect(() => {
-    if (typeof window !== "undefined") saveCreation(window.localStorage, { draft, ...(story ? { story } : {}) });
-  }, [name, age, world, favourites, detail, dedication, story]);
+    if (typeof window !== "undefined") saveCreation(window.localStorage, { draft, ...(story ? { story } : {}), ...(project ? { project } : {}) });
+  }, [name, age, world, favourites, detail, dedication, story, project]);
 
   function revise() {
     setStory(undefined);
+    setProject(undefined);
     setStarted(false);
     setError("");
   }
@@ -49,7 +51,9 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
     setGenerating(true);
     setError("");
     try {
-      setStory(await generateStoryPreview(draft));
+      const credential = project ?? await createStoryProject(draft);
+      if (!project) setProject(credential);
+      setStory(await generateStoryPreview(draft, credential));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The story studio could not be reached. Please try again.");
     } finally {
