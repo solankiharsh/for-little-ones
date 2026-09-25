@@ -1,6 +1,6 @@
-# Codebase Research — RESOLVED: No Application Code Exists
+# Codebase Research — Historical Baseline and Current Evidence
 
-**Status:** Concluded 2026-09-21. See `../RESEARCH_LOG.md` for the full inspection record.
+**Current update (2026-09-25):** Application code now exists in this checkout: landing/sample reader/sandbox cart, domain packages, and API/worker shells. See [current source evidence and next work](../market/2026-09-25_CREATION_FLOW_LEARNINGS.md). The findings below are the historical 2026-09-21 baseline, superseded by D021 and subsequent implementation; they must not be used to describe current behaviour.
 
 ## Finding
 
@@ -23,6 +23,6 @@ This directory will be populated with:
 - `TESTING.md` — testing strategy
 - `CONCERNS.md` — known risks (initially: the reliability/privacy/identity concerns in feature specs)
 
-**Rule:** feature spec "Current implementation" sections must state `None (Observed)` and link here, not invent systems that do not exist.
+**Rule:** inspect current source before describing feature implementation; do not reuse the historical `None (Observed)` finding without verification.
 
 The `..` links back: `../DECISIONS.md` D013, `../OPEN_QUESTIONS.md` "Existing Architecture".

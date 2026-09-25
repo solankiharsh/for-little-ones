@@ -121,3 +121,8 @@ Run from M2 onward (full set in F-028): refresh during gen · worker restart mid
 2. Feature specs of that milestone promoted `proposed → agreed` (with `_SPEC_GUIDE.md` compliance).
 3. Acceptance criteria green incl. failure cases; CI green; staging playable on phone.
 4. Cost ledger accounting present for any AI/print step introduced.
+
+
+## Next work selection — 2026-09-25
+
+The [creation-flow tracker](market/2026-09-25_CREATION_FLOW_LEARNINGS.md) selects NEXT-01 guided creation → NEXT-02 personal touches/dedication → NEXT-03 durable progress → NEXT-04 preview navigation/purchase clarity. These extend M1 before M2 photos; they do not replace milestone dependencies or promote draft specs. Existing landing, sample reader and sandbox cart are kept. The old greenfield framing above is historical; see the current code inspection in the tracker.

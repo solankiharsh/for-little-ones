@@ -935,3 +935,88 @@ span.flo-block-caption {
 .flo-cart-status-error { border: 1px solid rgb(200 90 70 / .6); background: rgb(200 90 70 / .1); color: var(--flo-ink); }
 .flo-cart-status code { font-size: 11px; }
 .flo-cart-status-close { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: 0; border-radius: 999px; background: transparent; color: var(--flo-ink-soft); cursor: pointer; }
+
+/* One scroll container keeps the book, address and totals reachable together. */
+.flo-cart-layer { align-items: center; padding: 24px; }
+.flo-cart-panel { width: min(100%, 680px); max-height: calc(100dvh - 48px); border-radius: 24px; margin: 0; align-self: center; }
+.flo-cart-panel-inner { height: auto; min-height: 0; max-height: inherit; }
+.flo-cart-head { flex: none; padding: 26px 32px; }
+.flo-cart-title-head { padding-right: 44px; }
+.flo-cart-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.flo-cart-lines { flex: none; overflow: visible; padding: 0 32px; }
+.flo-cart-line { padding: 24px 0; }
+.flo-cart-delivery { padding: 24px 32px 32px; border-top: 1px solid var(--flo-line); }
+.flo-cart-delivery h3 { margin: 0 0 6px; font-size: 20px; }
+.flo-cart-help { color: var(--flo-ink-soft); font-size: 13px; margin: 0 0 22px; }
+.flo-cart-delivery-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 16px; }
+.flo-cart-field { min-width: 0; }
+.flo-cart-field-wide { grid-column: 1 / -1; }
+.flo-cart-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.flo-cart-input { min-height: 48px; font-size: 16px; }
+.flo-cart-form-error { margin: 7px 0 0; color: #9e3325; font-size: 13px; }
+.flo-cart-foot { padding: 24px 32px; }
+.flo-cart-note { font-size: 12px; letter-spacing: 0; text-transform: none; line-height: 1.5; }
+.flo-cart-close, .flo-cart-remove, .flo-cart-qty button { min-width: 44px; min-height: 44px; }
+.flo-cart-gift-toggle { min-height: 44px; font-size: 14px; }
+.flo-cart-status { overflow-wrap: anywhere; padding-right: 40px; }
+
+/* Guided creation: a quiet, bounded draft experience with no generated assets. */
+.flo-create { padding: 0; border: 1px solid var(--flo-line); border-radius: 24px; width: min(960px, calc(100% - 48px)); max-height: calc(100dvh - 48px); color: var(--flo-ink); background: var(--flo-surface); overflow: hidden; }
+.flo-create[open] { display: flex; flex-direction: column; }
+.flo-create::backdrop { background: rgb(38 20 8 / .5); backdrop-filter: blur(3px); }
+.flo-create-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid var(--flo-line); flex: none; }
+.flo-create-head .flo-kicker { margin: 0; }
+.flo-create-scroll { overflow-y: auto; overscroll-behavior: contain; }
+.flo-create-steps { display: flex; justify-content: space-between; gap: 10px; list-style: none; padding: 24px 40px 0; margin: 0; }
+.flo-create-steps li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--flo-ink-soft); }
+.flo-create-steps li span { border: 1px solid var(--flo-line); border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; }
+.flo-create-steps [aria-current] { color: var(--flo-sienna-deep); font-weight: 700; }
+.flo-create-steps [aria-current] span { background: var(--flo-sienna-deep); color: white; }
+.flo-create-content { padding: 40px; }
+.flo-create-content h2 { font: 400 clamp(28px, 4vw, 40px)/1.15 var(--font-family-heading); margin: 0 0 12px; outline: none; overflow-wrap: anywhere; }
+.flo-create-intro { color: var(--flo-ink-soft); line-height: 1.6; margin: 0 0 28px; }
+.flo-create-fields { display: grid; gap: 22px; max-width: 600px; }
+.flo-create-fields label { display: grid; gap: 9px; font-size: 15px; font-weight: 600; }
+.flo-create-fields label span, .flo-create-fields small { font-weight: 400; color: var(--flo-ink-soft); }
+.flo-create-fields input, .flo-create-fields select, .flo-create-fields textarea { width: 100%; box-sizing: border-box; padding: 14px 16px; min-height: 50px; border: 1px solid var(--flo-line); border-radius: 12px; background: #fffdf7; color: var(--flo-ink); font: inherit; font-size: 16px; }
+.flo-create-hint { font-size: 13px; color: var(--flo-ink-soft); line-height: 1.6; }
+.flo-create-worlds, .flo-create-favourites { border: 0; margin: 0; padding: 0; }
+.flo-create-worlds { display: grid; gap: 12px; }
+.flo-create-worlds legend { margin-bottom: 12px; }
+.flo-create-world { display: flex; align-items: center; gap: 16px; padding: 22px; border: 1px solid var(--flo-line); border-radius: 14px; cursor: pointer; }
+.flo-create-world:has(:checked) { border-color: var(--flo-sienna-deep); background: #f3eadc; }
+.flo-create-world input { width: 20px; height: 20px; accent-color: var(--flo-sienna-deep); }
+.flo-create-world strong, .flo-create-world small { display: block; }
+.flo-create-world small { margin-top: 8px; color: var(--flo-ink-soft); line-height: 1.5; }
+.flo-create-favourites legend { margin-bottom: 12px; font-weight: 600; }
+.flo-create-favourites div { display: flex; flex-wrap: wrap; gap: 10px; }
+.flo-create-favourites button { min-height: 44px; border: 1px solid var(--flo-line); background: transparent; border-radius: 24px; padding: 10px 18px; color: var(--flo-ink); cursor: pointer; }
+.flo-create-favourites [aria-pressed="true"] { color: white; background: var(--flo-sienna-deep); }
+.flo-create-actions { display: flex; justify-content: space-between; gap: 16px; padding: 24px 40px; border-top: 1px solid var(--flo-line); }
+.flo-create-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+.flo-create-cover { background: #ece6d5; border: 1px solid var(--flo-line); border-radius: 4px 16px 16px 4px; padding: 28px; text-align: center; overflow-wrap: anywhere; }
+.flo-create-cover > span { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.flo-create-cover h3 { font: 400 30px/1.2 var(--font-family-heading); }
+.flo-create-placeholder { border: 1px dashed #a99b80; border-radius: 50% 50% 8px 8px; min-height: 180px; display: flex; flex-direction: column; justify-content: center; gap: 12px; margin: 24px 0; color: var(--flo-ink-soft); }
+.flo-create-placeholder span { font-size: 48px; }
+.flo-create-summary h3 { margin-top: 0; }
+.flo-create-summary dt { font-size: 12px; color: var(--flo-ink-soft); margin-top: 18px; }
+.flo-create-summary dd { margin: 6px 0 0; overflow-wrap: anywhere; line-height: 1.5; }
+.flo-create-dedication { white-space: pre-wrap; }
+.flo-create-confirmation { background: #e6eddf; padding: 18px; border-radius: 12px; line-height: 1.5; }
+@media (max-width: 600px) {
+  .flo-cart-layer { padding: 10px; }
+  .flo-cart-panel { max-height: calc(100dvh - 20px); border-radius: 18px; }
+  .flo-cart-head, .flo-cart-foot { padding: 20px; }
+  .flo-cart-lines { padding: 0 20px; }
+  .flo-cart-delivery { padding: 24px 20px; }
+  .flo-cart-delivery-grid { grid-template-columns: 1fr; }
+  .flo-create { width: calc(100% - 20px); max-height: calc(100dvh - 20px); border-radius: 18px; }
+  .flo-create-head { padding: 12px 20px; }
+  .flo-create-steps { padding: 20px 20px 0; }
+  .flo-create-steps li { flex-direction: column; font-size: 10px; gap: 6px; text-align: center; }
+  .flo-create-content { padding: 28px 20px; }
+  .flo-create-preview { grid-template-columns: 1fr; }
+  .flo-create-actions { padding: 20px; flex-wrap: wrap; }
+  .flo-create-actions .flo-btn { flex: 1; }
+}

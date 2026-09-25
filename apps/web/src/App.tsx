@@ -7,6 +7,8 @@ import { CartProvider, useCart } from "./commerce/CartContext";
 import CartDrawer from "./commerce/CartDrawer";
 import { demoPurchaseOption } from "./commerce/approval";
 
+import CreationFlow from "./creation/CreationFlow";
+
 const STUDIO = "For Little One";
 const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
 
@@ -43,6 +45,7 @@ export default function App() {
 
 function Site() {
   const reduced = useReducedMotion();
+  const [creating, setCreating] = useState(false);
   const { setOpen, cartCount, add } = useCart();
   const [phase, setPhase] = useState<"idle" | "reader">("idle");
   const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
@@ -50,8 +53,8 @@ function Site() {
   const previewTriggerRef = useRef<HTMLElement | null>(null);
 
   const open = useCallback(() => {
-    document.getElementById("story-worlds")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
-  }, [reduced]);
+    setCreating(true);
+  }, []);
 
   const close = useCallback(() => {
     setPhase("idle");
@@ -390,6 +393,7 @@ function Site() {
       </main>
 
       <CartDrawer />
+      <CreationFlow open={creating} onClose={() => setCreating(false)} />
 
       {phase === "reader" && (
         <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
