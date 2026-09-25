@@ -28,6 +28,15 @@ export interface StoryProjectCredential {
   entitlement: "TEASER" | "PAID" | "REVOKED";
 }
 
+export interface StoryProjectSnapshot {
+  entitlement: StoryProjectCredential["entitlement"];
+  revisionId: string;
+  revisionStatus: "DRAFT" | "GENERATING" | "TEASER_READY";
+  story?: StoryPreviewResult;
+  jobStatus?: "RUNNING" | "READY" | "FAILED";
+  progress?: number;
+}
+
 export async function createStoryProject(draft: CreationDraft): Promise<StoryProjectCredential> {
   const response = await fetch("/api/create-project", {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft)
@@ -39,6 +48,19 @@ export async function createStoryProject(draft: CreationDraft): Promise<StoryPro
     throw new Error(message);
   }
   return body;
+}
+
+export async function loadStoryProject(project: StoryProjectCredential): Promise<StoryProjectSnapshot> {
+  const response = await fetch("/api/project-status", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ projectId: project.projectId, ownerToken: project.ownerToken })
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error("Your saved story could not be restored just now.");
+  const snapshot = parseStoryProjectSnapshot(body);
+  if (!snapshot) throw new Error("Your saved story record was incomplete.");
+  return snapshot;
 }
 
 export async function generateStoryPreview(draft: CreationDraft, project: StoryProjectCredential): Promise<StoryPreviewResult> {
@@ -90,13 +112,48 @@ export function loadSavedCreation(storage: Pick<Storage, "getItem">): SavedCreat
   }
 }
 
+export function parseStoryProjectSnapshot(value: unknown): StoryProjectSnapshot | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (!isEntitlement(record.entitlement) || typeof record.revision !== "object" || record.revision === null) return null;
+  const revision = record.revision as Record<string, unknown>;
+  if (typeof revision.revisionId !== "string" || !revision.revisionId.startsWith("revision_") || !isRevisionStatus(revision.status)) return null;
+  const parsedStory = StoryPreviewResultSchema.safeParse(revision.teaser);
+  if (revision.status === "TEASER_READY" && !parsedStory.success) return null;
+  let jobStatus: StoryProjectSnapshot["jobStatus"];
+  let progress: number | undefined;
+  if (record.job !== null && record.job !== undefined) {
+    if (typeof record.job !== "object") return null;
+    const job = record.job as Record<string, unknown>;
+    if (job.status !== "RUNNING" && job.status !== "READY" && job.status !== "FAILED") return null;
+    if (typeof job.progress !== "number" || !Number.isInteger(job.progress) || job.progress < 0 || job.progress > 100) return null;
+    jobStatus = job.status;
+    progress = job.progress;
+  }
+  return {
+    entitlement: record.entitlement,
+    revisionId: revision.revisionId,
+    revisionStatus: revision.status,
+    ...(parsedStory.success ? { story: parsedStory.data } : {}),
+    ...(jobStatus && progress !== undefined ? { jobStatus, progress } : {})
+  };
+}
+
 function isProjectCredential(value: unknown): value is StoryProjectCredential {
   if (typeof value !== "object" || value === null) return false;
   const project = value as Record<string, unknown>;
   return typeof project.projectId === "string" && project.projectId.startsWith("project_")
     && typeof project.revisionId === "string" && project.revisionId.startsWith("revision_")
     && typeof project.ownerToken === "string" && /^[a-f0-9]{64}$/i.test(project.ownerToken)
-    && (project.entitlement === "TEASER" || project.entitlement === "PAID" || project.entitlement === "REVOKED");
+    && isEntitlement(project.entitlement);
+}
+
+function isEntitlement(value: unknown): value is StoryProjectCredential["entitlement"] {
+  return value === "TEASER" || value === "PAID" || value === "REVOKED";
+}
+
+function isRevisionStatus(value: unknown): value is StoryProjectSnapshot["revisionStatus"] {
+  return value === "DRAFT" || value === "GENERATING" || value === "TEASER_READY";
 }
 
 export function saveCreation(storage: Pick<Storage, "setItem">, value: SavedCreation): void {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import { generationAccessFor } from "@for-little-ones/domain";
-import { createStoryProject, generateStoryPreview, loadSavedCreation, saveCreation, type CreationDraft, type StoryProjectCredential } from "./story-preview";
+import { createStoryProject, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, type CreationDraft, type StoryProjectCredential } from "./story-preview";
 
 const WORLDS = ["Bedtime wonder", "Small adventures", "Big imagination"];
 const STEPS = ["Your child", "Their world", "Little details", "Preview"];
@@ -22,6 +22,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
   const [story, setStory] = useState<StoryPreviewResult | undefined>(saved?.story);
   const [project, setProject] = useState<StoryProjectCredential | undefined>(saved?.project);
   const [generating, setGenerating] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [started, setStarted] = useState(false);
   const [error, setError] = useState("");
   const child = name.trim();
@@ -36,6 +37,26 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
     return () => { dialog.current?.close(); document.body.style.overflow = overflow; trigger?.focus(); };
   }, [open]);
   useEffect(() => { heading.current?.focus(); }, [step, started]);
+  useEffect(() => {
+    if (!open || !project || story) return;
+    let current = true;
+    setRestoring(true);
+    void loadStoryProject(project).then((snapshot) => {
+      if (!current) return;
+      setProject((value) => value ? { ...value, revisionId: snapshot.revisionId, entitlement: snapshot.entitlement } : value);
+      if (snapshot.story) {
+        setStory(snapshot.story);
+        setStarted(true);
+        setStep(3);
+      } else if (snapshot.jobStatus === "RUNNING") {
+        setStarted(true);
+        setStep(3);
+      }
+    }).catch(() => {
+      // The local draft remains usable if the status service is temporarily unavailable.
+    }).finally(() => { if (current) setRestoring(false); });
+    return () => { current = false; };
+  }, [open, project?.projectId, story]);
   useEffect(() => {
     if (typeof window !== "undefined") saveCreation(window.localStorage, { draft, ...(story ? { story } : {}), ...(project ? { project } : {}) });
   }, [name, age, world, favourites, detail, dedication, story, project]);
@@ -110,7 +131,8 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
                 <div className="flo-create-cover"><span>Made for {child}</span><div className="flo-create-placeholder" role="img" aria-label={`${world} cover artwork for ${child}`}><span aria-hidden="true">✧</span><small>{world} artwork</small></div><h3>{world}</h3><p>A story for {child}</p></div>
                 <div className="flo-create-summary"><h3>Their book, at a glance</h3><dl><dt>For</dt><dd>{child} · age {age}</dd><dt>Story world</dt><dd>{world}</dd>{favourites.length > 0 && <><dt>Favourite things</dt><dd>{favourites.join(", ")}</dd></>}{detail.trim() && <><dt>A personal detail</dt><dd>{detail}</dd></>}{dedication.trim() && <><dt>Dedication</dt><dd className="flo-create-dedication">{dedication}</dd></>}</dl><p className="flo-create-hint">You can go back and change any detail before adding the hardcover to your basket.</p></div>
               </div>
-              {started && !story && <p className="flo-create-confirmation" role="status">The details are ready. We’ll now write a six-page story preview for you to review before checkout.</p>}
+              {restoring && <p className="flo-create-confirmation" role="status">Restoring your saved story…</p>}
+              {started && !story && !restoring && <p className="flo-create-confirmation" role="status">The details are ready. We’ll now write a six-page story preview for you to review before checkout.</p>}
               {generating && <div className="flo-create-generating" role="status"><span aria-hidden="true" /> <div><strong>Writing {child}’s story…</strong><small>Creating the title, story arc and six page drafts. This can take around a minute.</small></div></div>}
               {story && <section className="flo-story-preview" aria-label="Generated story preview">
                 <div className="flo-story-preview-head"><p className="flo-kicker">Story preview</p><h3>{story.title}</h3><p>{story.synopsis}</p></div>
@@ -129,12 +151,12 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
             {error && <p role="alert" className="flo-cart-form-error">{error}</p>}
           </div>
           <footer className="flo-create-actions">
-            <button type="button" className="flo-btn flo-btn-ghost" disabled={generating} onClick={() => { if (step === 0) onClose(); else { setStep(step - 1); setStarted(false); } }}>{step === 0 ? "Back to the studio" : "← Back"}</button>
+            <button type="button" className="flo-btn flo-btn-ghost" disabled={generating || restoring} onClick={() => { if (step === 0) onClose(); else { setStep(step - 1); setStarted(false); } }}>{step === 0 ? "Back to the studio" : "← Back"}</button>
             {step < 3 ? <button className="flo-btn flo-btn-primary" type="submit">{step === 2 ? "Preview their book" : "Continue"} →</button> : <button type="button" className="flo-btn flo-btn-primary" onClick={() => {
               if (!started) { setStarted(true); return; }
               if (!story) { void writeStory(); return; }
               onAddToBasket(draft);
-            }} disabled={generating}>{generating ? "Writing story…" : story ? "Add hardcover to basket · £29.20" : started ? "Write story preview" : "Keep this book"}</button>}
+            }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "Add hardcover to basket · £29.20" : started ? "Write story preview" : "Keep this book"}</button>}
           </footer>
         </form>
       </div>

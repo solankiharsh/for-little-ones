@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadSavedCreation, saveCreation } from "./story-preview";
+import { loadSavedCreation, parseStoryProjectSnapshot, saveCreation } from "./story-preview";
 
 describe("guided creation persistence", () => {
   it("round-trips a refresh-safe draft", () => {
@@ -25,5 +25,36 @@ describe("guided creation persistence", () => {
 
   it("ignores corrupted saved data", () => {
     expect(loadSavedCreation({ getItem: () => "not-json" })).toBeNull();
+  });
+
+  it("accepts a server-restored teaser and terminal job", () => {
+    const teaser = {
+      schemaVersion: "1" as const,
+      title: "Milo and the Moonbeam",
+      synopsis: "Milo follows a friendly moonbeam home.",
+      emotionalGoal: "Curiosity becomes confidence.",
+      pages: Array.from({ length: 6 }, (_, index) => ({
+        pageNumber: index + 1,
+        text: index === 0 ? "Milo looked up." : "Story page ready after payment.",
+        illustrationCue: index === 0 ? "Milo beneath the moon." : "Locked until payment is confirmed."
+      })),
+      generationMetadata: { model: "google/gemini-2.5-flash", attemptCount: 1 }
+    };
+
+    expect(parseStoryProjectSnapshot({
+      projectId: "project_123",
+      entitlement: "TEASER",
+      revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser },
+      job: { jobId: "job_123", kind: "STORY_PREVIEW", status: "READY", progress: 100, errorCode: null }
+    })).toEqual({ entitlement: "TEASER", revisionId: "revision_123", revisionStatus: "TEASER_READY", story: teaser, jobStatus: "READY", progress: 100 });
+  });
+
+  it("rejects a malformed server-restored teaser", () => {
+    expect(parseStoryProjectSnapshot({
+      projectId: "project_123",
+      entitlement: "TEASER",
+      revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser: { title: "Incomplete" } },
+      job: null
+    })).toBeNull();
   });
 });
