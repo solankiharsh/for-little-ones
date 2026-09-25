@@ -20,3 +20,5 @@ export {
   type DurableExecutionRuntime
 } from "./contract";
 export { InMemoryDurableRuntime } from "./runtime";
+export { PgBossDurableRuntime } from "./pgboss-runtime";
+export type { PgBossRuntimeOptions } from "./pgboss-runtime";
