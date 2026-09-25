@@ -62,7 +62,18 @@ export class StorefrontCommerceClient {
       },
     };
     if (init.body !== undefined) requestInit.body = JSON.stringify(init.body);
-    const response = await this.fetcher(`${this.options.medusaUrl}${path}`, requestInit);
+    let response: FetchResponse;
+    try {
+      response = await this.fetcher(`${this.options.medusaUrl}${path}`, requestInit);
+    } catch (error) {
+      // Browsers collapse DNS, TLS, CORS and an unavailable service into an
+      // unhelpful `TypeError: Failed to fetch`. Keep the basket retryable and
+      // give the customer a useful next action without exposing infrastructure.
+      if (error instanceof TypeError) {
+        throw new Error("The checkout service could not be reached. Please try again in a moment. Your basket is safe.");
+      }
+      throw error;
+    }
     const json = await asJson(response);
     if (!response.ok) throw new Error(errorMessage(json, `Storefront request failed (HTTP ${response.status})`));
     return json;

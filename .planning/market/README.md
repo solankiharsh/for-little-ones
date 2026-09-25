@@ -48,3 +48,7 @@ The goal is not feature-count competition.
 The goal is to identify:
 
 > what must work extremely well for customers to trust and love this product.
+
+## Recorded journey evidence
+
+- [2026-09-25 screenshot learnings and selected next work](2026-09-25_CREATION_FLOW_LEARNINGS.md): all eight supplied screens, implementation evidence, NEXT-01–04 acceptance criteria, and deferred capabilities.

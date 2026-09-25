@@ -14,6 +14,12 @@ for (const key of ["DATABASE_URL", "REDIS_URL", "JWT_SECRET", "COOKIE_SECRET"]) 
 const redisOptions = { connectTimeout: 30_000 };
 const stripe = process.env.STRIPE_API_KEY;
 if (stripe && !stripe.startsWith("sk_test_")) throw new Error("Only Stripe test keys are allowed");
+const storefrontCors = process.env.STORE_CORS ?? [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://for-little-ones.vercel.app",
+  "/^https:\\/\\/for-little-ones(?:-[a-z0-9-]+)?-flo-58c54c24\\.vercel\\.app$/",
+].join(",");
 
 module.exports = defineConfig({
   admin: { disable: true },
@@ -21,7 +27,7 @@ module.exports = defineConfig({
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL,
     http: {
-      storeCors: "http://localhost:5173,http://localhost:5174,https://for-little-ones.vercel.app", adminCors: "http://localhost:9000", authCors: "http://localhost:5173,http://localhost:5174,https://for-little-ones.vercel.app",
+      storeCors: storefrontCors, adminCors: "http://localhost:9000", authCors: process.env.AUTH_CORS ?? storefrontCors,
       jwtSecret: process.env.JWT_SECRET!, cookieSecret: process.env.COOKIE_SECRET!
     }
   },

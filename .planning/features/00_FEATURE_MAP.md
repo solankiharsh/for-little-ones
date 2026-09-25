@@ -2,7 +2,7 @@
 
 Master map of customer-facing and operational capabilities. Every capability has an ID, a priority, a spec file, a dependency set, and a status.
 
-**Read first:** `_SPEC_GUIDE.md` (rules, template, canonical model). `../codebase/README.md` (finding: greenfield, no existing code).
+**Read first:** `_SPEC_GUIDE.md` (rules, template, canonical model). `../codebase/README.md` (historical baseline plus current implementation evidence).
 
 ## Priority classes (spec §26 / mission §33)
 
@@ -79,7 +79,7 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 | F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, canonical layout, F-010 (v0, M1); F-009 (illustrated preview, M2) | proposed |
 | F-012 | 12_PAGE_CORRECTION.md | Page-level text/image repair | P1 | F-011, F-010 | proposed |
 | F-013 | 13_GLOBAL_CHARACTER_CORRECTION.md | Character-wide correction (hair, outfit, likeness) | P1 | F-005, F-012 | proposed |
-| F-014 | 14_BOOK_EDITOR.md | Custom editor above OpenPolotno | P1 | F-011, F-012, F-013 | proposed |
+| F-014 | 14_BOOK_EDITOR.md | Custom editor above OpenPolotno | P1 | F-011, F-012, F-013 | agreed |
 | F-015 | 15_BOOK_QA.md | Pre-print/pre-approval QA suite | P0 | F-009, F-011, PrintSpec/PreflightContract (D016) | proposed |
 | F-016 | 16_APPROVAL.md | Approve & Print lock, revision freeze | P0 | F-015, F-010, PrintSpec/PreflightContract (D016) | proposed |
 | F-017 | 17_PRINT_RENDERING.md | Deterministic print pipeline + PDF | P0 | F-016, PrintSpec/PreflightContract (D016) — not F-014 (parallel surfaces) | proposed |
@@ -106,8 +106,13 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 ## Open decision inputs
 
 - Commerce via Medusa: **ADOPTED** (D006, 2026-09-22 — re-opened on a constraint change) — self-hosted at `apps/commerce`; edition/tax question closed (D014 item 3); hard boundary + opaque line-item invariant in guide §6.
-- Editor primitive OpenPolotno: **CANDIDATE IMPLEMENTATION — pending spike** (D007) — proof-of-concept for spread support and wrap-vs-fork before F-014 approval.
-- Durable execution substrate: candidate classes PostgreSQL-backed and Redis-backed (BullMQ-class); a workflow engine only if the D014 spike shows its guarantees are needed — wording stays neutral until the spike (D019).
+- Editor primitive OpenPolotno: **ADOPTED pin + wrap** (D007/D020); F-014 spec agreed 2026-09-22. App integration is separate from agreement.
+- Durable execution substrate: **ADOPTED pg-boss** (D022); neutral DurableExecutionContract retained (D019). App/worker wiring is separate from spike evidence.
 - Print contract (D016): PrintSpec/PrintPreflightContract is a shared landing decision — already agreed as the cycle-break for F-015/F-016/F-017.
 - Upload topology (D017): browser direct signed upload to private storage, followed by server-side completion and validation; qualify the storage/provider details before M2.
 - Bilingual (F-024): P2, but keep locale on profile facts from day one.
+
+
+## Evidence-linked next work — 2026-09-25
+
+See [creation-flow learnings and tracker](../market/2026-09-25_CREATION_FLOW_LEARNINGS.md) for NEXT-01–04, their feature mappings, readiness gates and acceptance criteria. It also tracks M2 photo checks, character corrections, additional cast, colouring experiments, private sharing and verified purchase inclusions. Selection is not spec agreement or shipment.

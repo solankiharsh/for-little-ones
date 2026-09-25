@@ -80,7 +80,7 @@ Customer-visible: buy it — cart, payment, order, tracking.
 
 | Feature | Work |
 | --- | --- |
-| F-018 Cart & Checkout | Medusa commerce foundation (D006 ADOPTED — self-hosted `apps/commerce`; foundation PR lands scaffold/cart/checkout first); multi-book cart; ETA before payment; business-effect idempotent capture; line item references approved revision (opaque ref) |
+| F-018 Cart & Checkout | Medusa commerce foundation (D006 ADOPTED — self-hosted `apps/commerce`; foundation PR lands scaffold/cart/checkout first); multi-book cart; ETA before payment; business-effect idempotent capture; line item references approved revision (opaque ref); profile the current 35–40 s sandbox order path, instrument each Medusa/payment/print-handoff stage, then remove avoidable sequential waits and Cloud Run/Redis cold-start latency |
 | F-019 Fulfilment | PrintProvider submit/get status; FULFILMENT_SUBMITTED; digital copy delivery; no double-ship |
 | F-020 Order Tracking | IN_PRODUCTION→SHIPPED→DELIVERED timeline; email + in-app; PII-free payloads |
 | F-026 Admin (v1) | Lineage "why is this stuck" view; retries; refunds; photo default-hiding |
@@ -121,3 +121,8 @@ Run from M2 onward (full set in F-028): refresh during gen · worker restart mid
 2. Feature specs of that milestone promoted `proposed → agreed` (with `_SPEC_GUIDE.md` compliance).
 3. Acceptance criteria green incl. failure cases; CI green; staging playable on phone.
 4. Cost ledger accounting present for any AI/print step introduced.
+
+
+## Next work selection — 2026-09-25
+
+The [creation-flow tracker](market/2026-09-25_CREATION_FLOW_LEARNINGS.md) selects NEXT-01 guided creation → NEXT-02 personal touches/dedication → NEXT-03 durable progress → NEXT-04 preview navigation/purchase clarity. These extend M1 before M2 photos; they do not replace milestone dependencies or promote draft specs. Existing landing, sample reader and sandbox cart are kept. The old greenfield framing above is historical; see the current code inspection in the tracker.

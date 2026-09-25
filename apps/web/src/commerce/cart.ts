@@ -33,7 +33,7 @@ export function formatMoney(value: number): string {
 
 export function toEntry(option: PurchaseOption): CartEntry {
   return {
-    key: option.reference.approvedBookRevisionId,
+    key: option.cartKey ?? option.reference.approvedBookRevisionId,
     title: option.title,
     formatLabel: option.sandboxFormatLabel,
     reference: { ...option.reference },
@@ -48,7 +48,8 @@ export function toEntry(option: PurchaseOption): CartEntry {
 
 /** Adding an approved book again raises its quantity toward the shared cap (5). */
 export function addEntry(entries: CartEntry[], option: PurchaseOption): CartEntry[] {
-  const existingIndex = entries.findIndex((entry) => entry.key === option.reference.approvedBookRevisionId);
+  const key = option.cartKey ?? option.reference.approvedBookRevisionId;
+  const existingIndex = entries.findIndex((entry) => entry.key === key);
   if (existingIndex === -1) return [...entries, toEntry(option)];
   return entries.map((entry, index) =>
     index === existingIndex ? { ...entry, quantity: Math.min(MAX_QUANTITY, entry.quantity + 1) } : entry,

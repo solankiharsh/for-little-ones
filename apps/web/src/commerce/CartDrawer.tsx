@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCart, type CheckoutStatus } from "./CartContext";
 import {
   formatMoney, giftError, lineTotal, MAX_GIFT_MESSAGE_LENGTH, MAX_QUANTITY, MAX_RECIPIENT_LENGTH,
-  shippingAddressErrors, type CartEntry, type ShippingAddress, type ShippingAddressField,
+  shippingAddressErrors, type CartEntry, type ShippingAddressField,
 } from "./cart";
 
 function LineRow({ entry }: { entry: CartEntry }) {
@@ -11,7 +11,7 @@ function LineRow({ entry }: { entry: CartEntry }) {
   const [giftOpen, setGiftOpen] = useState(entry.giftTo !== null);
   const [giftTo, setGiftTo] = useState(entry.giftTo ?? "");
   const [giftMessage, setGiftMessage] = useState(entry.giftMessage);
-  const [giftError, setGiftError] = useState<string | null>(null);
+  const [giftFailure, setGiftError] = useState<string | null>(null);
 
   function commitGift() {
     const failure = giftError({ giftTo: giftTo.trim() ? giftTo.trim() : null, giftMessage: giftMessage.trim() });
@@ -66,7 +66,7 @@ function LineRow({ entry }: { entry: CartEntry }) {
               aria-label="Gift message"
               onChange={(event) => setGiftMessage(event.currentTarget.value)}
             />
-            {giftError ? <p className="flo-cart-form-error" role="alert">{giftError}</p> : null}
+            {giftFailure ? <p className="flo-cart-form-error" role="alert">{giftFailure}</p> : null}
             <div className="flo-cart-gift-actions">
               <button type="button" className="flo-btn flo-btn-small" onClick={commitGift}>Keep gift details</button>
               <button type="button" className="flo-btn flo-btn-small flo-btn-ghost" onClick={() => setGiftOpen(false)}>Cancel</button>
@@ -89,7 +89,7 @@ function StatusPane({ status }: { status: CheckoutStatus }) {
   if (status.state === "done" && status.orderId) {
     return (
       <p className="flo-cart-status flo-cart-status-done" role="status">
-        {status.deduped ? "Same order returned — no duplicate charge. " : "Order placed — we’ve started making it. "}
+        {status.deduped ? "Same order returned — no duplicate charge. " : "Test order placed — nothing will be printed or charged. "}
         Order <code>{status.orderId}</code>
         {typeof status.total === "number" ? <> · {formatMoney(status.total)} {status.currencyCode?.toUpperCase()}</> : null}
         <button type="button" className="flo-cart-status-close" aria-label="Dismiss order confirmation" onClick={dismissStatus}>✕</button>
@@ -127,24 +127,37 @@ function ShippingForm({ attempted }: { attempted: boolean }) {
 
   return (
     <section className="flo-cart-delivery" aria-label="Delivery address">
-      <p className="flo-kicker">Deliver to</p>
+      <div className="flo-cart-section-head">
+        <span className="flo-cart-section-number" aria-hidden="true">1</span>
+        <div>
+          <h3>Delivery address</h3>
+          <p className="flo-cart-help">Where should we send your finished book?</p>
+        </div>
+      </div>
+      <div className="flo-cart-country" aria-label="Delivery country: United Kingdom">
+        <span>Delivery country</span>
+        <strong>United Kingdom</strong>
+      </div>
       <div className="flo-cart-delivery-grid">
         {SHIPPING_FIELDS.map((field) => {
-          const error = errors[field.key];
+          const error = field.key === "address2" ? undefined : errors[field.key];
           const show = error !== undefined && (attempted || (fieldValue(field.key).trim() !== "" && error !== "Required"));
           return (
-            <div key={field.key} className="flo-cart-field">
+            <div key={field.key} className={`flo-cart-field ${field.key.startsWith("address") ? "flo-cart-field-wide" : ""}`}>
+              <label htmlFor={`shipping-${field.key}`}>{field.label}</label>
               <input
                 className="flo-cart-input"
+                id={`shipping-${field.key}`}
+                aria-describedby={show ? `shipping-${field.key}-error` : undefined}
                 type="text"
                 value={fieldValue(field.key)}
                 autoComplete={field.autoComplete}
                 aria-label={field.label}
                 aria-invalid={show}
-                placeholder={field.placeholder ?? field.label}
+                placeholder={field.placeholder ?? ""}
                 onChange={(event) => setField(field.key, event.currentTarget.value)}
               />
-              {show ? <p className="flo-cart-form-error" role="alert">{error}</p> : null}
+              {show ? <p id={`shipping-${field.key}-error`} className="flo-cart-form-error" role="alert">{error}</p> : null}
             </div>
           );
         })}
@@ -160,13 +173,18 @@ export default function CartDrawer() {
   const [addressAttempted, setAddressAttempted] = useState(false);
 
   useEffect(() => {
-    if (open) panelRef.current?.querySelector<HTMLElement>("button, [href], input, textarea")?.focus();
-    if (!open) setAddressAttempted(false);
+    if (!open) { setAddressAttempted(false); return; }
+    const trigger = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.querySelector<HTMLElement>("button")?.focus();
+    return () => { document.body.style.overflow = overflow; trigger?.focus(); };
   }, [open]);
 
   function onPay() {
     if (Object.values(shippingAddressErrors(shippingAddress)).some(Boolean)) {
       setAddressAttempted(true);
+      requestAnimationFrame(() => panelRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
       return;
     }
     void checkout(shippingAddress);
@@ -175,7 +193,7 @@ export default function CartDrawer() {
   function trapFocus(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") setOpen(false);
     if (event.key !== "Tab") return;
-    const controls = [...(panelRef.current?.querySelectorAll<HTMLElement>("button, [href], input, textarea, select") ?? [])];
+    const controls = [...(panelRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled)") ?? [])];
     if (controls.length === 0) return;
     const first = controls[0]!;
     const last = controls.at(-1)!;
@@ -223,6 +241,7 @@ export default function CartDrawer() {
                 </button>
               </header>
 
+              <div className="flo-cart-scroll">
               <StatusPane status={status} />
 
               {entries.length === 0 ? (
@@ -252,10 +271,11 @@ export default function CartDrawer() {
                     >
                       {status.state === "working" ? "Placing your order…" : <>Pay {formatMoney(cartTotals.total)} — no real charge</>}
                     </button>
-                    <p className="flo-cart-note">Sandbox checkout against the local Medusa store. Nothing is printed or charged.</p>
+                    <p className="flo-cart-note">Test checkout · No payment is taken and no book is printed.</p>
                   </footer>
                 </>
               )}
+              </div>
             </div>
           </motion.aside>
         </div>

@@ -34,6 +34,8 @@ export function assertOpaqueLineReference(value: unknown): asserts value is Appr
 }
 
 export interface PurchaseOption {
+  /** Local basket identity; never sent as commerce metadata. */
+  cartKey?: string;
   title: string;
   variantSku: string;
   reference: ApprovedLineReference;

@@ -605,3 +605,8 @@ All listed checks green: root `npm test` 73/73 (7 files), `packages/editor` type
 **Follow-up**
 
 - Browser seam (editor app layer): import engine main + `utils/fonts` in the F-014 app, registered fonts via `store.addFont`, selection/guides, sweep harness upgrades. Reader/print bundle guard asserted in CI when apps exist (F-011). optional upstream `openpolotno@1.0.2` parity (above).
+
+
+## 2026-09-25 — Supplied creation-flow screenshots and next-feature selection
+
+Observed eight user-supplied screens across Diffrun, Adorabook and Magic Moon; no live competitor claims or purchases verified. Inspected Site.open/previewBook, BookReader, API/worker shells and ChildProfile in this checkout. Recorded evidence, KEEP/MODIFY/ADD/DEFER/REJECT dispositions and four ordered next slices in [the tracker](market/2026-09-25_CREATION_FLOW_LEARNINGS.md). Existing screenshot personal data was not copied into repo assets. Planning changes only; no production features promoted or runtime code changed.

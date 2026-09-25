@@ -202,6 +202,21 @@ describe("StorefrontCommerceClient", () => {
     );
   });
 
+  it("turns an unreachable storefront into a useful recovery message", async () => {
+    const fetcher: Fetcher = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    const client = new StorefrontCommerceClient({
+      medusaUrl: MEDUSA_URL,
+      publishableKey: PUBLISHABLE_KEY,
+      fetcher,
+    });
+
+    await expect(client.fetchRegions()).rejects.toThrow(
+      "The checkout service could not be reached. Please try again in a moment. Your basket is safe.",
+    );
+  });
+
   it("lists regions from the Store API", async () => {
     const { client } = clientWith(defaultRoute);
     const regions = await client.fetchRegions();
