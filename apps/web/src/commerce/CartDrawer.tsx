@@ -127,8 +127,17 @@ function ShippingForm({ attempted }: { attempted: boolean }) {
 
   return (
     <section className="flo-cart-delivery" aria-label="Delivery address">
-      <h3>Delivery details</h3>
-      <p className="flo-cart-help">United Kingdom · used for this test order only</p>
+      <div className="flo-cart-section-head">
+        <span className="flo-cart-section-number" aria-hidden="true">1</span>
+        <div>
+          <h3>Delivery address</h3>
+          <p className="flo-cart-help">Where should we send your finished book?</p>
+        </div>
+      </div>
+      <div className="flo-cart-country" aria-label="Delivery country: United Kingdom">
+        <span>Delivery country</span>
+        <strong>United Kingdom</strong>
+      </div>
       <div className="flo-cart-delivery-grid">
         {SHIPPING_FIELDS.map((field) => {
           const error = field.key === "address2" ? undefined : errors[field.key];
@@ -145,7 +154,7 @@ function ShippingForm({ attempted }: { attempted: boolean }) {
                 autoComplete={field.autoComplete}
                 aria-label={field.label}
                 aria-invalid={show}
-                placeholder={field.placeholder ?? field.label}
+                placeholder={field.placeholder ?? ""}
                 onChange={(event) => setField(field.key, event.currentTarget.value)}
               />
               {show ? <p id={`shipping-${field.key}-error`} className="flo-cart-form-error" role="alert">{error}</p> : null}

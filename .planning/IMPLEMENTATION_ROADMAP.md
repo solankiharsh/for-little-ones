@@ -80,7 +80,7 @@ Customer-visible: buy it — cart, payment, order, tracking.
 
 | Feature | Work |
 | --- | --- |
-| F-018 Cart & Checkout | Medusa commerce foundation (D006 ADOPTED — self-hosted `apps/commerce`; foundation PR lands scaffold/cart/checkout first); multi-book cart; ETA before payment; business-effect idempotent capture; line item references approved revision (opaque ref) |
+| F-018 Cart & Checkout | Medusa commerce foundation (D006 ADOPTED — self-hosted `apps/commerce`; foundation PR lands scaffold/cart/checkout first); multi-book cart; ETA before payment; business-effect idempotent capture; line item references approved revision (opaque ref); profile the current 35–40 s sandbox order path, instrument each Medusa/payment/print-handoff stage, then remove avoidable sequential waits and Cloud Run/Redis cold-start latency |
 | F-019 Fulfilment | PrintProvider submit/get status; FULFILMENT_SUBMITTED; digital copy delivery; no double-ship |
 | F-020 Order Tracking | IN_PRODUCTION→SHIPPED→DELIVERED timeline; email + in-app; PII-free payloads |
 | F-026 Admin (v1) | Lineage "why is this stuck" view; retries; refunds; photo default-hiding |
