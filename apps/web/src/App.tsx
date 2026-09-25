@@ -6,7 +6,8 @@ import { CartProvider, useCart } from "./commerce/CartContext";
 import CartDrawer from "./commerce/CartDrawer";
 import { demoPurchaseOption } from "./commerce/approval";
 
-import CreationFlow, { type CreationDraft } from "./creation/CreationFlow";
+import CreationFlow from "./creation/CreationFlow";
+import type { CreationDraft } from "./creation/story-preview";
 
 const STUDIO = "For Little One";
 const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";

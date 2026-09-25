@@ -1012,6 +1012,21 @@ span.flo-block-caption {
 .flo-create-summary dd { margin: 6px 0 0; overflow-wrap: anywhere; line-height: 1.5; }
 .flo-create-dedication { white-space: pre-wrap; }
 .flo-create-confirmation { background: #e6eddf; padding: 18px; border-radius: 12px; line-height: 1.5; }
+.flo-create-generating { display: flex; gap: 14px; align-items: center; padding: 18px; margin-top: 22px; border: 1px solid var(--flo-line); border-radius: 12px; background: #fffdf7; }
+.flo-create-generating > span { width: 22px; height: 22px; flex: none; border: 2px solid var(--flo-line); border-top-color: var(--flo-sienna-deep); border-radius: 50%; animation: flo-spin .8s linear infinite; }
+.flo-create-generating strong, .flo-create-generating small { display: block; }
+.flo-create-generating small { margin-top: 4px; color: var(--flo-ink-soft); }
+.flo-story-preview { margin-top: 28px; padding-top: 28px; border-top: 1px solid var(--flo-line); }
+.flo-story-preview-head { max-width: 680px; }
+.flo-story-preview-head h3 { margin: 6px 0 10px; font: 400 32px/1.2 var(--font-family-heading); }
+.flo-story-preview-head > p:last-child { color: var(--flo-ink-soft); line-height: 1.6; }
+.flo-story-preview ol { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 18px; }
+.flo-story-preview li { display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: stretch; padding: 14px; border: 1px solid var(--flo-line); border-radius: 14px; background: #fffdf7; }
+.flo-story-preview li p { line-height: 1.65; margin: 8px 0; }
+.flo-story-preview li small { color: var(--flo-ink-soft); line-height: 1.45; }
+.flo-story-art-placeholder { min-height: 130px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; border: 1px dashed #b7a98c; border-radius: 10px; background: linear-gradient(145deg, #f1eadb, #e6dcc8); color: var(--flo-ink-soft); text-align: center; }
+.flo-story-art-placeholder span { font-weight: 700; color: var(--flo-sienna-deep); }
+@keyframes flo-spin { to { transform: rotate(360deg); } }
 @media (max-width: 600px) {
   .flo-cart-layer { padding: 10px; }
   .flo-cart-panel { max-height: calc(100dvh - 20px); border-radius: 18px; }
@@ -1027,4 +1042,5 @@ span.flo-block-caption {
   .flo-create-preview { grid-template-columns: 1fr; }
   .flo-create-actions { padding: 20px; flex-wrap: wrap; }
   .flo-create-actions .flo-btn { flex: 1; }
+  .flo-story-preview li { grid-template-columns: 1fr; }
 }

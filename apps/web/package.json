@@ -13,6 +13,7 @@
   "dependencies": {
     "@astryxdesign/core": "0.6.2",
     "@astryxdesign/theme-neutral": "0.6.2",
+    "@for-little-ones/contracts": "*",
     "@for-little-ones/domain": "*",
     "@stylexjs/stylex": "0.19.1",
     "motion": "13.4.0",
