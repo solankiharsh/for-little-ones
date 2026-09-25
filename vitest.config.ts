@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: [
       "packages/*/test/**/*.spec.ts",
+      "api/**/*.spec.ts",
       "apps/api/src/**/*.spec.ts",
       "apps/web/src/creation/**/*.spec.ts",
       "apps/web/src/commerce/**/*.spec.ts"

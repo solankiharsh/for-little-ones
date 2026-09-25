@@ -60,11 +60,33 @@ async function handle(request: Request): Promise<Response> {
       prompt: storyPrompt(input.data)
     });
 
-    return Response.json({ ...output, generationMetadata: { model, attemptCount: 1 } });
+    return Response.json({
+      ...output,
+      pages: redactStoryPreview(output.pages),
+      generationMetadata: { model, attemptCount: 1 }
+    });
   } catch (error) {
     console.error("story-preview generation failed", error);
     return Response.json({ error: "The story studio is taking a little longer. Please try again." }, { status: 503 });
   }
+}
+
+export function redactStoryPreview(pages: z.infer<typeof StoryPreviewModelSchema>["pages"]) {
+  return pages.map((page, index) => {
+    if (index === 0) return page;
+    if (index === 1) {
+      return {
+        ...page,
+        text: `${page.text.slice(0, 140)}…`,
+        illustrationCue: "Locked until payment is confirmed."
+      };
+    }
+    return {
+      pageNumber: page.pageNumber,
+      text: "Story page ready after payment.",
+      illustrationCue: "Locked until payment is confirmed."
+    };
+  });
 }
 
 export default {
