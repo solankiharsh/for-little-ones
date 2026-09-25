@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  addEntry, checkoutGifts, giftError, itemCount, lineTotal, removeEntry,
+  addEntry, checkoutGifts, giftError, itemCount, lineTotal, removeEntry, toEntry,
   setGift, setQuantity, shippingAddressErrors, totals, type CartEntry, type ShippingAddress,
 } from "./cart";
 import { demoPurchaseOption } from "./approval";
@@ -28,6 +28,16 @@ function entry(overrides: Partial<CartEntry> = {}): CartEntry {
 }
 
 describe("storefront cart model", () => {
+  it("keeps a personalised basket line separate without changing its approved reference", () => {
+    const personalisedOption = { ...option, cartKey: "draft:one", title: "Milo’s Small adventures" };
+    const personalised = toEntry(personalisedOption);
+    expect(personalised.key).toBe("draft:one");
+    expect(personalised.reference.approvedBookRevisionId).toBe("approved_sandbox_1");
+    const basket = addEntry([entry()], personalisedOption);
+    expect(basket).toHaveLength(2);
+    expect(basket[1]!.title).toBe("Milo’s Small adventures");
+  });
+
   it("adds an approved book as one line, then raises its quantity on repeat", () => {
     const once = addEntry([], option);
     expect(once).toHaveLength(1);

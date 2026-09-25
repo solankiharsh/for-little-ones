@@ -4,8 +4,17 @@ const WORLDS = ["Bedtime wonder", "Small adventures", "Big imagination"];
 const STEPS = ["Your child", "Their world", "Little details", "Preview"];
 const FAVOURITES = ["Animals", "Space", "The sea", "Dinosaurs", "Gardens"];
 
+export interface CreationDraft {
+  childName: string;
+  age: string;
+  world: string;
+  favourites: string[];
+  detail: string;
+  dedication: string;
+}
+
 /** A local creation draft; no child data is sent to a provider or saved to a server. */
-export default function CreationFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function CreationFlow({ open, onClose, onAddToBasket }: { open: boolean; onClose: () => void; onAddToBasket: (draft: CreationDraft) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [step, setStep] = useState(0);
@@ -58,11 +67,11 @@ export default function CreationFlow({ open, onClose }: { open: boolean; onClose
           <div className="flo-create-content">
             <p className="flo-kicker">Step {step + 1} of 4</p>
             <h2 ref={heading} tabIndex={-1}>{["Who’s the story for?", `A world for ${child}`, "The little things that matter", started ? "Their story starts here" : "A little look at their book"][step]}</h2>
-            <p className="flo-create-intro">{["Every adventure begins with someone special.", "Choose a starting point for their adventure.", "A favourite thing or a few words from you. Everything here is optional.", "A layout preview with illustration placeholders. Your story has not been generated."][step]}</p>
+            <p className="flo-create-intro">{["Every adventure begins with someone special.", "Choose a starting point for their adventure.", "A favourite thing or a few words from you. Everything here is optional.", "Here’s how their personalised hardcover will take shape."][step]}</p>
             {step === 0 && <div className="flo-create-fields">
               <label>Child’s name or nickname<input autoComplete="off" maxLength={40} required value={name} placeholder="Their first name" onChange={(e) => setName(e.target.value)} /></label>
               <label>Age<select required value={age} onChange={(e) => setAge(e.target.value)}><option value="">Choose their age</option>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? "year" : "years"}</option>)}</select></label>
-              <p className="flo-create-hint">No photo needed for now. This draft stays in this tab until you refresh or close it.</p>
+              <p className="flo-create-hint">No photo is needed to begin. Your answers stay in this tab while you shape the book.</p>
             </div>}
             {step === 1 && <fieldset className="flo-create-worlds"><legend className="flo-create-hint">Choose one story world</legend>{WORLDS.map((item, index) => <label className="flo-create-world" key={item}>
               <input type="radio" name="world" value={item} checked={world === item} onChange={() => setWorld(item)} />
@@ -75,16 +84,19 @@ export default function CreationFlow({ open, onClose }: { open: boolean; onClose
             </div>}
             {step === 3 && <>
               <div className="flo-create-preview">
-                <div className="flo-create-cover"><span>Made for {child}</span><div className="flo-create-placeholder" role="img" aria-label="Illustration placeholder"><span aria-hidden="true">✧</span><small>Illustration to come</small></div><h3>{world}</h3><p>A story for {child}</p></div>
-                <div className="flo-create-summary"><h3>Their book, at a glance</h3><dl><dt>For</dt><dd>{child} · age {age}</dd><dt>Story world</dt><dd>{world}</dd>{favourites.length > 0 && <><dt>Favourite things</dt><dd>{favourites.join(", ")}</dd></>}{detail.trim() && <><dt>A personal detail</dt><dd>{detail}</dd></>}{dedication.trim() && <><dt>Dedication</dt><dd className="flo-create-dedication">{dedication}</dd></>}</dl><p className="flo-create-hint">You can go back and change any detail. Images and story generation will come later.</p></div>
+                <div className="flo-create-cover"><span>Made for {child}</span><div className="flo-create-placeholder" role="img" aria-label={`${world} cover artwork for ${child}`}><span aria-hidden="true">✧</span><small>{world} artwork</small></div><h3>{world}</h3><p>A story for {child}</p></div>
+                <div className="flo-create-summary"><h3>Their book, at a glance</h3><dl><dt>For</dt><dd>{child} · age {age}</dd><dt>Story world</dt><dd>{world}</dd>{favourites.length > 0 && <><dt>Favourite things</dt><dd>{favourites.join(", ")}</dd></>}{detail.trim() && <><dt>A personal detail</dt><dd>{detail}</dd></>}{dedication.trim() && <><dt>Dedication</dt><dd className="flo-create-dedication">{dedication}</dd></>}</dl><p className="flo-create-hint">You can go back and change any detail before adding the hardcover to your basket.</p></div>
               </div>
-              {started && <p className="flo-create-confirmation" role="status">Your draft is ready in this page. Nothing has been ordered or sent for generation.</p>}
+              {started && <p className="flo-create-confirmation" role="status">{child}’s book details are ready. Add the hardcover to your basket when you’re happy with everything above.</p>}
             </>}
             {error && <p role="alert" className="flo-cart-form-error">{error}</p>}
           </div>
           <footer className="flo-create-actions">
             <button type="button" className="flo-btn flo-btn-ghost" onClick={() => { if (step === 0) onClose(); else { setStep(step - 1); setStarted(false); } }}>{step === 0 ? "Back to the studio" : "← Back"}</button>
-            {step < 3 ? <button className="flo-btn flo-btn-primary" type="submit">{step === 2 ? "Preview their book" : "Continue"} →</button> : <button type="button" className="flo-btn flo-btn-primary" onClick={() => { if (started) onClose(); else setStarted(true); }}>{started ? "Back to the studio" : "Keep this draft"}</button>}
+            {step < 3 ? <button className="flo-btn flo-btn-primary" type="submit">{step === 2 ? "Preview their book" : "Continue"} →</button> : <button type="button" className="flo-btn flo-btn-primary" onClick={() => {
+              if (!started) { setStarted(true); return; }
+              onAddToBasket({ childName: child, age, world, favourites, detail: detail.trim(), dedication: dedication.trim() });
+            }}>{started ? "Add hardcover to basket · £29.20" : "Keep this book"}</button>}
           </footer>
         </form>
       </div>

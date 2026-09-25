@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
 import BookReader from "./reader/BookReader";
-import SandboxCheckout from "./demo/SandboxCheckout";
 import { CartProvider, useCart } from "./commerce/CartContext";
 import CartDrawer from "./commerce/CartDrawer";
 import { demoPurchaseOption } from "./commerce/approval";
 
-import CreationFlow from "./creation/CreationFlow";
+import CreationFlow, { type CreationDraft } from "./creation/CreationFlow";
 
 const STUDIO = "For Little One";
 const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
@@ -55,6 +54,13 @@ function Site() {
   const open = useCallback(() => {
     setCreating(true);
   }, []);
+
+  const addCreatedBook = useCallback((draft: CreationDraft) => {
+    const option = demoPurchaseOption();
+    add({ ...option, cartKey: `draft:${crypto.randomUUID()}`, title: `${draft.childName}’s ${draft.world}` });
+    setCreating(false);
+    setOpen(true);
+  }, [add, setOpen]);
 
   const close = useCallback(() => {
     setPhase("idle");
@@ -330,13 +336,11 @@ function Site() {
             </div>
             <div className="flo-world-actions">
               <button type="button" className="flo-btn flo-btn-ghost" onClick={(event) => previewStory(SAMPLE_TITLE, event.currentTarget)}>See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
-              <button type="button" className="flo-btn flo-btn-ghost" onClick={() => { add(demoPurchaseOption()); setOpen(true); }}>Try the sandbox cart <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
+              <button type="button" className="flo-btn flo-btn-ghost" onClick={() => { add(demoPurchaseOption()); setOpen(true); }}>Buy the sample book <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
               <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
             </div>
           </div>
         </section>
-
-        <SandboxCheckout />
 
         {/* ============ studio / trust ============ */}
         <section className="flo-about" id="about" aria-label="The studio">
@@ -382,18 +386,17 @@ function Site() {
               A lasting book should feel personal on every read: the familiar detail,
               the character they know, the page they insist on turning again.
             </p>
-            <div className="flo-memory-grid" aria-label="Prototype image slots for family reading moments">
+            <div className="flo-memory-grid" aria-label="Family reading moments">
               <article className="flo-memory flo-memory-one"><span>After the third bedtime read</span></article>
               <article className="flo-memory flo-memory-two"><span>A book with their name on it</span></article>
               <article className="flo-memory flo-memory-three"><span>One more page, please</span></article>
             </div>
-            <p className="flo-stories-note">Prototype image slots. Replace with consented customer photography before launch.</p>
           </div>
         </section>
       </main>
 
       <CartDrawer />
-      <CreationFlow open={creating} onClose={() => setCreating(false)} />
+      <CreationFlow open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} />
 
       {phase === "reader" && (
         <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
