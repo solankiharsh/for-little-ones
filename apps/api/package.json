@@ -18,6 +18,8 @@
     "@for-little-ones/contracts": "*",
     "@for-little-ones/domain": "*",
     "@for-little-ones/execution": "*",
-    "@for-little-ones/providers": "*"
+    "@for-little-ones/providers": "*",
+    "hono": "^4.13.9",
+    "pg": "^8.23.0"
   }
 }

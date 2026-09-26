@@ -55,6 +55,10 @@ export interface ChildProfile {
   /** F-003: audit of fact confirmations ("I confirmed this fact"). */
   confirmations?: string[];
   consentRecord?: ProfileConsent;
+  /** F-003: `UpdateChildProfile` optimistic-lock token; 0 when never patched. */
+  revision?: number;
+  /** F-003: `CreateChildProfile` idempotency key — a retried create returns this profile. */
+  creationToken?: string;
 }
 
 /** F-003: age is derived at read time from DOB, never frozen at capture. */

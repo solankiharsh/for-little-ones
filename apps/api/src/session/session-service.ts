@@ -12,6 +12,13 @@ export interface SessionStore {
   getSessionByTokenHash(browserTokenHash: string): Promise<AnonymousSession | undefined>;
   saveProject(project: Project): Promise<void>;
   getProject(projectId: string): Promise<Project | undefined>;
+  /** The project a session owns — how every authenticated request finds its scope. */
+  getProjectByOwner(anonymousProjectId: string): Promise<Project | undefined>;
+  /** Appends to a project's id lists without the caller re-reading it first. */
+  addToProject(
+    projectId: string,
+    patch: { childProfileIds?: string[]; bookIds?: string[]; latestActivityAt?: string }
+  ): Promise<void>;
 }
 
 export interface SessionServiceDeps {

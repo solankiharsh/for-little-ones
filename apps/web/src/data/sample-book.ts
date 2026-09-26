@@ -60,7 +60,7 @@ export const sampleBook: Book = {
       styleTokensRef: "tx/fox/sol-v3",
     },
   ],
-  relationships: [{ id: "rel-mira-sol", fromChildId: "child-mira", toChildId: "char-fox", kind: "friend" }],
+  relationships: [{ id: "rel-mira-sol", fromChildId: "child-mira", toChildId: "char-fox", kind: "friend", name: "Sol", label: "Sol the fox" }],
   pages: [
     page(
       1,
