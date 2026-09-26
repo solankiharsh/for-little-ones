@@ -74,7 +74,7 @@ async function handle(request: Request): Promise<Response> {
 
   // The entitlement comes from the payment record the creation service holds, never
   // from the request. Authorised before the job is enqueued, so a refused purchase
-  // never reaches a provider (D023).
+  // never reaches a provider (D025).
   const project = await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}`, { method: "GET" })
     .catch(() => null) as CreationProjectSnapshot | null;
   if (!project) {

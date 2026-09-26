@@ -1,6 +1,6 @@
 # 06_PERSONALISATION.md — Progressive Personalisation (Structured Facts)
 
-> **Spec ID:** F-006 · **Priority:** P0 · **Status:** draft
+> **Spec ID:** F-006 · **Priority:** P0 · **Status:** agreed
 > **Depends on:** F-003 (Child Profile); consumed by F-007 (concepts), F-008 (story generation), F-024 (localisation)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -21,8 +21,14 @@ Two problems shape this feature: (1) a blank-prompt or twenty-field form kills g
 
 ## 3. Current implementation
 
-None (Observed). No application code exists anywhere in the workspace.
-See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
+None before the M1 creation-core slice (D023; the legacy `PersonalFact` demo rail in
+`packages/domain/src/child.ts` predates it). The typed `Fact` model (F-006)
+(`packages/domain/src/fact.ts` + `fact-options.ts`: category + enum/sport/person/pet/custom
+option ids, parentConfirmed/suggested states), and the generation-eligible fact query
+(`GetFactsForStory` — `BookService.getFactsForStory`, confirmed-only, hard-guarded in
+`buildConceptRequest` so a suggested fact thrown into generation is a hard error) are
+implemented (Observed). They are part of the first creation-core slice (D023); fact
+suggestion is out of scope. See `packages/domain/src/fact*.ts` and RESEARCH_LOG.md.
 
 ## 4. Problems with current implementation
 
@@ -89,7 +95,7 @@ Fact
 
 Proposed boundary (proposed shared subsystem `BookService` + a typed-option catalogue; names consistent):
 
-- `GetFactOptions{ type, locale }` → enumerations (catalogue may be code-defined or DB-driven; **Decision needed:** static enums per locale shipped with app vs a small managed catalogue — static preferred at launch, revisit for new locales in F-024).
+- `GetFactOptions{ type, locale }` → enumerations (catalogue may be code-defined or DB-driven; **RESOLVED (D023, 2026-09-25): static typed enums per locale shipped with the app at launch** — a small managed catalogue is revisited for new locales in F-024).
 - `AddFact{ childProfileId, type, value, provenance }` — `provenance` may be `aiSuggested` only from sanctioned suggestion jobs; client cannot set `parentConfirmed` without a confirmation action.
 - `ConfirmFact{ factId }` | `RejectFact{ factId }` | `UpdateFact{ factId, value }` (bumps `confirmedAt`; audit retained).
 - `SuggestFacts{ childProfileId }` → job that emits suggested facts (see §9).
@@ -135,6 +141,7 @@ Feeds (catalogue refs): name mismatch — story must match `Fact`/profile first 
 - Must exist first: F-003 (Child Profile to attach facts), F-004 (photo; optional suggestion source), F-001 (session for confirmedBy).
 - Consumes this spec: F-007 (concepts conditioned on facts + mood), F-008 (immutable fact context), F-024 (locale enumeration rebuilds), F-023 (`person`/`pet` fact refs to Relationships).
 - Parallel: F-005 (appearance confirmation is F-005's, not facts), F-012 (corrections).
+- **Slice note (D023):** the M1 creation-core slice implements the Fact model, the static per-locale option catalogue, and `GetFactsForStory`; the `FactSuggestion` job (§9) is deferred (it is a P2-style enhancement and its acceptance-rate experiment decides whether it ships at all).
 
 ## 16. Priority
 

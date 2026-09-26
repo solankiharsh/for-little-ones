@@ -39,7 +39,7 @@ export default async function seed({ container }: ExecArgs) {
   if (!await db.schema.hasColumn("flo_creation_revision", "concepts")) await db.schema.alterTable("flo_creation_revision", (table) => table.jsonb("concepts").nullable());
   if (!await db.schema.hasColumn("flo_creation_revision", "selected_concept_id")) await db.schema.alterTable("flo_creation_revision", (table) => table.text("selected_concept_id").nullable());
   // The complete generated story stays server-side; `teaser` is what a pre-payment
-  // reader may hold. Only a captured payment unlocks reading `story` (D023).
+  // reader may hold. Only a captured payment unlocks reading `story` (D025).
   if (!await db.schema.hasColumn("flo_creation_revision", "story")) await db.schema.alterTable("flo_creation_revision", (table) => table.jsonb("story").nullable());
   if (!await db.schema.hasTable("flo_generation_job")) await db.schema.createTable("flo_generation_job", (table) => {
     table.text("id").primary(); table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");

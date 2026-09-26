@@ -45,7 +45,7 @@ export function readBearerToken(header: string | undefined): string | null {
  * The purchase is billed through the sandbox system provider and the project row
  * is the only place the payment state is recorded. `payment_state` is written
  * here and by the payment path alone — never by a request body, a cart flag or
- * anything the browser holds. D023 makes it the authority for generation access.
+ * anything the browser holds. D025 makes it the authority for generation access.
  */
 export async function createCreationProject(db: Knex, draft: CreationDraftRecord) {
   const projectId = `project_${randomUUID()}`;
@@ -150,7 +150,7 @@ export async function selectConcept(db: Knex, input: { projectId: string; revisi
  * `teaser` is the entitlement-shaped projection the browser may hold; `story` is
  * the complete generated text, which stays server-side. A read only ever returns
  * the complete story once the project's payment record says captured, so the
- * store API cannot be used to read ahead of payment (D023).
+ * store API cannot be used to read ahead of payment (D025).
  */
 export async function completeStoryJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; teaser: unknown; story?: unknown; generationMetadata?: ProviderUsage }) {
   await db.transaction(async (trx) => {

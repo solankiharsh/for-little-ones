@@ -31,7 +31,7 @@ Not applicable (greenfield). Design risks the spec itself must avoid:
 - **Sibling/profile swaps** and wrong child count → structured subject list per page, validated.
 - **Low-resolution assets** slipping to print → resolution gate at generation time (§25 print); never upscaled silently as "good".
 - **Runaway cost** (image calls are the expensive step) → hard per-page attempt budget + cost telemetry (F-027).
-- **Pre-payment overspend / giving away the complete product** → D023 entitlement gate: at most two low-resolution watermarked teaser assets before payment; production assets, regeneration and studio access require captured payment.
+- **Pre-payment overspend / giving away the complete product** → D025 entitlement gate: at most two low-resolution watermarked teaser assets before payment; production assets, regeneration and studio access require captured payment.
 - **Provider coupling** (D004) → all provider work behind `IllustrationProvider`/`IdentityProvider`/`QualityProvider` interfaces.
 
 ## 5. Desired UX
@@ -111,7 +111,7 @@ Commands via `BookService`/`BookRepository`; image orchestration via `Generation
 Execution owned by F-010 runtime; the step units are **`GenerationStep` contract entries defined here** and consumed by F-010: **`ILLUSTRATION_PLAN`** (bulk, cheap) then **`ILLUSTRATION`** per page (expensive).
 - Idempotency key = `planKey` (plan) and `planKey + attemptNonce` (image). A crashed worker re-enters: plans re-derive deterministically; `READY` pages skip; no duplicate image spend.
 - **Attempt budget (image cost control):** default **2 auto attempts** per page (1 + 1 identity/QA auto-retry). Any further attempt requires an explicit parent or support action ("Try again" / F-012). Budget tracked in `generationMetadata.attemptCount`; exhaustion → `FAILED` with repair routing to F-012.
-- **Pre-payment budget:** maximum 2 assets, 1024×1024 pixel area, 1 attempt each, visibly watermarked. These are separate teaser slots and never count as print-ready assets. Full-book fan-out cannot be enqueued until payment is captured (D023).
+- **Pre-payment budget:** maximum 2 assets, 1024×1024 pixel area, 1 attempt each, visibly watermarked. These are separate teaser slots and never count as print-ready assets. Full-book fan-out cannot be enqueued until payment is captured (D025).
 - Retry: auto-retry 1, backoff, timeout ~120s (image inference is slow); page-level isolation (D010) — other pages continue.
 - Worker heartbeat/lease per F-010/F-028; a dead worker's in-flight page returns to `PENDING` and is re-claimed, never left `GENERATING` forever (lease expiry).
 - Cancellation: a book-regenerate or page-replace supersedes queued image jobs via `planKey` mismatch; orphaned jobs no-op on run.

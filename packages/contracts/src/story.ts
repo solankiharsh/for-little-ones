@@ -1,25 +1,108 @@
 import { z } from "zod";
 import { SCHEMA_VERSION_V1, GenerationMetadataSchema } from "./base";
 
-export const ConceptRequestSchema = z.strictObject({
-  schemaVersion: z.literal(SCHEMA_VERSION_V1),
-  locale: z.string().min(2),
-  interests: z.array(z.string().min(1)).min(1),
-  ageBand: z.string().optional()
+/**
+ * F-007 canonical vocab (contract side; literal enums mirror `packages/domain` —
+ * contracts must never import domain).
+ */
+export const READING_LEVELS = ["0-3", "4-6", "7-9"] as const;
+export const EMOTIONAL_GOALS = [
+  "confidence",
+  "bravery",
+  "kindness",
+  "friendship",
+  "belonging",
+  "bedtime_calm",
+  "fun",
+  "curiosity"
+] as const;
+export const STORY_MOODS = [
+  "adventure",
+  "bedtime",
+  "funny",
+  "confidence",
+  "starting-school",
+  "new-sibling",
+  "kindness",
+  "birthday"
+] as const;
+
+export const CONCEPT_TITLE_MAX = 60;
+export const CONCEPT_PITCH_MAX = 240;
+export const CONCEPTS_PER_BUNDLE = 3;
+
+/** F-006 typed-fact taxonomy (contract mirror of `packages/domain`). */
+export const FACT_TYPES = [
+  "interest",
+  "favouriteAnimal",
+  "favouriteColour",
+  "favouriteToy",
+  "favouriteFood",
+  "pet",
+  "hobby",
+  "person",
+  "sport",
+  "customFact"
+] as const;
+
+/** F-002 §7 structured theme seed — the generation hint contract, never user-facing. */
+export const ThemeSeedSchema = z.strictObject({
+  tone: z.string().min(1),
+  settingHints: z.array(z.string().min(1)).min(1),
+  characterSlots: z.array(z.string().min(1)).min(1),
+  forbidBlocks: z.array(z.string().min(1)).min(1)
 });
 
+/**
+ * F-007 §7 ConceptRequest — input is the parent-chosen Theme seed plus ONLY
+ * generation-eligible (parent-confirmed) typed facts and the child's display
+ * name. The model receives type + value + locale, never a flattened prose blob
+ * (F-006 §7 rule 1) and never a blank prompt; `themeSeedVersion` pins the seed
+ * contract for re-runs. A child with zero confirmed facts still generates
+ * (name + seed + locale), so `facts` may be empty.
+ */
+export const ConceptRequestSchema = z.strictObject({
+  schemaVersion: z.literal(SCHEMA_VERSION_V1),
+  themeId: z.string().min(1),
+  themeSeedVersion: z.string().min(1),
+  themeSeed: ThemeSeedSchema,
+  locale: z.string().min(2),
+  displayName: z.string().min(1),
+  facts: z
+    .array(
+      z.strictObject({
+        type: z.enum(FACT_TYPES),
+        value: z.string().min(1),
+        locale: z.string().min(2)
+      })
+    )
+    .default([]),
+  pronouns: z.string().min(1).optional(),
+  readingLevel: z.enum(READING_LEVELS).optional(),
+  mood: z.enum(STORY_MOODS).optional()
+});
+
+/**
+ * F-007 §4 ConceptResult — a bundle of EXACTLY three distinct pitches for the
+ * parent to choose from. Each carries the emotional goal, theme provenance,
+ * reading level, page-length hint and the subset of book characters it uses.
+ */
 export const ConceptResultSchema = z.strictObject({
   schemaVersion: z.literal(SCHEMA_VERSION_V1),
   concepts: z
     .array(
       z.strictObject({
-        title: z.string().min(1),
-        pitch: z.string().min(1),
-        tags: z.array(z.string().min(1)).default([])
+        title: z.string().min(1).max(CONCEPT_TITLE_MAX),
+        pitch: z.string().min(1).max(CONCEPT_PITCH_MAX),
+        emotionalGoal: z.enum(EMOTIONAL_GOALS),
+        themeId: z.string().min(1),
+        readingLevel: z.enum(READING_LEVELS),
+        approximateLengthPages: z.number().int().min(4).max(12),
+        charactersUsed: z.array(z.string().min(1)).default([]),
+        generationMetadata: GenerationMetadataSchema.optional()
       })
     )
-    .min(1)
-    .max(9)
+    .length(CONCEPTS_PER_BUNDLE)
 });
 
 export const StoryOutlineRequestSchema = z.strictObject({

@@ -20,14 +20,55 @@ import {
 const valid = {
   conceptRequest: {
     schemaVersion: "1",
+    themeId: "space",
+    themeSeedVersion: "2026-09-25T00:00:00.000Z",
+    themeSeed: {
+      tone: "gentle wonder",
+      settingHints: ["a cardboard rocket", "the night sky"],
+      characterSlots: ["Ava"],
+      forbidBlocks: ["scary dark"]
+    },
     locale: "en-GB",
-    interests: ["space", "pirates"],
-    ageBand: "5-7"
+    displayName: "Ava",
+    facts: [
+      { type: "interest", value: "space", locale: "en-GB" },
+      { type: "favouriteColour", value: "purple", locale: "en-GB" }
+    ],
+    pronouns: "she",
+    readingLevel: "4-6",
+    mood: "adventure"
   },
   conceptResult: {
     schemaVersion: "1",
     concepts: [
-      { title: "Ava and the Missing Moon", pitch: "Ava flies her kite to the moon.", tags: ["adventure", "space"] }
+      {
+        title: "The Rocket Made of Cardboard",
+        pitch: "A cardboard rocket takes Ava to a moon made of chalk powder and back in time for breakfast.",
+        emotionalGoal: "curiosity",
+        themeId: "space",
+        readingLevel: "4-6",
+        approximateLengthPages: 8,
+        charactersUsed: ["Ava"],
+        generationMetadata: { model: "conceptpilot", attemptCount: 1, costCents: 2 }
+      },
+      {
+        title: "The Planet That Played Hide and Seek",
+        pitch: "One small planet keeps hiding behind Jupiter, and only Ava can coax it out.",
+        emotionalGoal: "fun",
+        themeId: "space",
+        readingLevel: "4-6",
+        approximateLengthPages: 8,
+        charactersUsed: ["Ava"]
+      },
+      {
+        title: "The Starlight Ferry",
+        pitch: "Ava ferries sleepy starlight to a brand-new constellation that keeps forgetting where it lives.",
+        emotionalGoal: "kindness",
+        themeId: "space",
+        readingLevel: "4-6",
+        approximateLengthPages: 8,
+        charactersUsed: ["Ava"]
+      }
     ]
   },
   outlineRequest: {

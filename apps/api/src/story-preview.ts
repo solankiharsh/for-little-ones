@@ -16,7 +16,7 @@ export type StoryPreviewGenerator = (input: StoryPreviewRequest) => Promise<unkn
  * The caller's own record of its payment state. A command must supply the state it
  * resolved from the payment record; the handler derives the entitlement from it and
  * refuses before the generator runs. Browser-supplied flags are never accepted here
- * (D023) — production resolves `paymentState` from the order record.
+ * (D025) — production resolves `paymentState` from the order record.
  */
 export interface StoryPreviewAuthorization {
   paymentState: PaymentState;

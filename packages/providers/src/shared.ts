@@ -24,6 +24,8 @@ export interface ProviderDataPolicy {
   verifiedAt: string;
   policyVersion: string;
   childDataSent: boolean;
+  /** Optional explicit allow-list of exactly WHAT child-derived data crosses the seam (audit aid). */
+  childDataScope?: string[];
   retentionMode: RetentionMode;
   trainingUse: TrainingUse;
   deletionMechanism: DeletionMechanism;

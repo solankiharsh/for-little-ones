@@ -1,6 +1,6 @@
 # 07_STORY_CONCEPTS.md — Story Concepts (3 Generated Ideas)
 
-> **Spec ID:** F-007 · **Priority:** P0 · **Status:** in-build
+> **Spec ID:** F-007 · **Priority:** P0 · **Status:** agreed
 > **Depends on:** F-002 (theme seed), F-003 (profile), F-006 (personal facts) · **Consumed by:** F-008 (story generation)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -21,7 +21,31 @@ Turn "theme + child facts" into three *distinct, appealing, appropriate* story p
 
 ## 3. Current implementation
 
-PR #25 now provides the first production-shaped slice: one Vercel AI Gateway call returns three strictly validated, distinct concepts; the server caps each revision at three bundles, persists the bundle and selected concept, records provider model/token usage, and falls back to three authored starter ideas when the model fails or violates the safety/shape gate. The five-step customer flow exposes selection before story generation. Per-card editing and a dedicated moderation provider remain outstanding.
+None before the M1 creation-core slice (D023) — the first real consumer of the durable
+runtime. The concept-bundle pipeline is now implemented (Observed): assemble canonical
+facts + theme seed (`BookService.storyInputsFor`/runner `requestFor`) → enqueue a durable
+`GENERATE_CONCEPTS` unit on the DurableExecutionContract (`ConceptBundleRunner`, one unit
+per `(bookId, conceptVersion)`, retry budget 3) → run `StoryProvider` → validate (exactly 3
+distinct titles, canon vocabulary, character subset, age-band reading level) + moderate the
+ACTUAL title+pitch copy (F-007 §10) → persist `PROPOSED` bundle (idempotent per
+`(bookId, conceptVersion)`, resume re-uses the existing bundle) → select (`selectConcept`:
+winner `SELECTED`, siblings `DISCARDED`). Exhausted model path fails non-retryable
+(`CONCEPT_GENERATION_EXHAUSTED`); the API serves catalogue fallbacks
+(`BookService.serveFallbackConcepts`, F-007 §9 — not a second worker pass). See
+`apps/api/src/creation/` and RESEARCH_LOG.md.
+
+A second, narrower concept path also exists from PR #25 and is **not** yet reconciled
+with the pipeline above (Observed): the commerce creation-project route, where one
+Vercel AI Gateway call returns three strictly validated distinct concepts, the server
+caps each revision at three bundles (`flo_generation_job`), persists the bundle and
+selected concept, records provider model/token usage, and falls back to three authored
+starter ideas when the model fails or violates the safety/shape gate
+(`api/generate-concepts.ts`, `apps/commerce/src/lib/creation-projects.ts`). The
+five-step customer flow (`apps/web/src/creation/CreationFlow.tsx`) exposes selection
+before story generation and currently calls that route. Which path is canonical —
+consolidating the browser flow onto the durable `BookService` pipeline, or keeping a
+commerce-scoped path — is **Decision needed**; see OPEN_QUESTIONS.md. Per-card editing
+and a dedicated moderation provider remain outstanding on both paths.
 
 ## 4. Problems with current implementation
 
@@ -109,7 +133,10 @@ Rules: exactly 3 concepts; `title`/`pitch` required non-empty; `readingLevel` de
 
 ## 8. Backend/API requirements
 
-Command/query boundary via `BookService` + `BookRepository`; generation orchestrated by `GenerationJob` (F-010).
+Command/query boundary via `BookService` (`apps/api/src/creation/book-service.ts`), with one durable `GENERATE_CONCEPTS`
+unit per `(bookId, conceptVersion)` on the DurableExecutionContract (D019; `ConceptBundleRunner`, retry budget 3,
+exhausted fail = `CONCEPT_GENERATION_EXHAUSTED` — F-007 §9 fallback is API-served, not a second worker pass).
+Full-book orchestration stays with `GenerationJob` (F-010).
 
 - `POST /books/{id}/concepts` → body `{ regeneratedVersion? }` → creates a concept bundle (idempotent: reuse when one exists and is `PROPOSED`, unless explicit `regenerate`), enqueues the `StoryProvider` call, returns the bundle when ready/queued.
 - `POST /books/{id}/concepts/{conceptId}/select` → sets `Book.selectedConceptId`, transitions Book.state to `CONCEPT_SELECTED`; idempotent re-select returns same result; only one concept can be SELECTED per book.
@@ -119,7 +146,9 @@ Command/query boundary via `BookService` + `BookRepository`; generation orchestr
 
 ## 9. Background jobs
 
-A single `GenerationJob` of kind `CONCEPT_BUNDLE` (F-010 step `GENERATE_CONCEPTS`):
+A single durable `GENERATE_CONCEPTS` step (per guide §5, the step consumes the
+**DurableExecutionContract** — D019 — not F-010; F-010 later implements the runtime over
+the same contract):
 - Trigger: `POST …/concepts` (or regenerate).
 - Inputs: `themeSeed`, canonical facts subset (name/age/display name/pronouns/favourites/relationships/pet, locale) — **photos never enter this call**.
 - Output: validated `StoryConcept[3]` persisted via `BookRepository`.
@@ -163,7 +192,7 @@ Given/When/Then, testable:
 
 ## 15. Dependencies
 
-- **Required first:** F-002 (theme + `conceptSeed`), F-003 (profile base), F-006 (facts), F-010 (durable execution substrate runtime), `StoryProvider` provider interface agreed (architecture v2).
+- **Required first:** F-002 (theme + `conceptSeed`), F-003 (profile base), F-006 (facts), the **DurableExecutionContract** (foundation — D019, implemented in `packages/execution`), `StoryProvider` provider interface agreed (architecture v2).
 - **Consumed by:** F-008 (outline/page text) takes `selectedConceptId` as its narrative contract; F-011 preview and F-012 corrections build on the chosen concept later.
 - **Parallel-safe:** F-004/F-005 (photos/bible) run in parallel — concepts deliberately exclude photos.
 

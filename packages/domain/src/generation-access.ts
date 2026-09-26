@@ -17,7 +17,7 @@ export interface GenerationAccess {
     maximumAttemptsPerAsset: number;
     maximumPixelArea: number;
   };
-  /** The only illustration slots a teaser customer may spend on (D023). */
+  /** The only illustration slots a teaser customer may spend on (D025). */
   teaserImageSlots: readonly IllustrationSlot[];
   maximumConceptAttempts: number;
   maximumStoryPreviews: number;

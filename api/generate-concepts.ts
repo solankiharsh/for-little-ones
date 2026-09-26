@@ -76,7 +76,7 @@ export default {
 
     // Entitlement and attempt budget are resolved from the creation service's own
     // payment record before the job is enqueued, so a refused or exhausted purchase
-    // never reaches the provider (D023).
+    // never reaches the provider (D025).
     const project = await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}`, { method: "GET" })
       .catch(() => null) as { paymentState?: unknown; generation?: { assetsGenerated?: unknown; conceptAttempts?: unknown } } | null;
     if (!project) return Response.json({ error: "Your saved story could not be reached. Please try again." }, { status: 503 });
