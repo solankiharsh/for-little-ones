@@ -34,6 +34,19 @@ winner `SELECTED`, siblings `DISCARDED`). Exhausted model path fails non-retryab
 (`BookService.serveFallbackConcepts`, F-007 §9 — not a second worker pass). See
 `apps/api/src/creation/` and RESEARCH_LOG.md.
 
+A second, narrower concept path also exists from PR #25 and is **not** yet reconciled
+with the pipeline above (Observed): the commerce creation-project route, where one
+Vercel AI Gateway call returns three strictly validated distinct concepts, the server
+caps each revision at three bundles (`flo_generation_job`), persists the bundle and
+selected concept, records provider model/token usage, and falls back to three authored
+starter ideas when the model fails or violates the safety/shape gate
+(`api/generate-concepts.ts`, `apps/commerce/src/lib/creation-projects.ts`). The
+five-step customer flow (`apps/web/src/creation/CreationFlow.tsx`) exposes selection
+before story generation and currently calls that route. Which path is canonical —
+consolidating the browser flow onto the durable `BookService` pipeline, or keeping a
+commerce-scoped path — is **Decision needed**; see OPEN_QUESTIONS.md. Per-card editing
+and a dedicated moderation provider remain outstanding on both paths.
+
 ## 4. Problems with current implementation
 
 Not applicable (greenfield). Design risks the spec itself must avoid:

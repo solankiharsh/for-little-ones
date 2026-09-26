@@ -586,6 +586,7 @@ execution / provenance / policies / storage are foundational: no feature depende
 - "review-required" work surfaces in the DLQ row (bookId, pageNumber,
   sourceRetryCount) for the F-028 rules.
 
+
 ## D023 — M1 Creation-Core Slice Agreed: F-001/F-002/F-003/F-006/F-007 (2026-09-25)
 
 **Status:** ACCEPTED (milestone-1 "stable creation core" scoped to a first vertical
@@ -705,3 +706,23 @@ spec text `02:32-33` relabeled Slice-2; F-007 §3 (Observed) refreshed on implem
   resume — never exactly-once (D022).
 - `Relationship` gains a name/label and a seeded self-relationship — the minimum F-023
   needs later, without building F-023 now.
+
+---
+
+## D025 — Payment-Gated Generation and Preview Budget (2026-09-25)
+
+**Status:** ADOPT
+
+> **ID note:** this decision was originally numbered D023 on the `codex/commerce-deploy-redis`
+> branch. D023 was taken on `main` by the M1 creation-core slice decision on the same date, so
+> this one is renumbered to D025 on merge. Content is unchanged.
+
+The product must demonstrate personal relevance before asking for payment without spending the full illustration budget or giving away the complete generated book. Entitlement is server-authoritative and derived from captured payment state; browser flags and cart presence never unlock generation.
+
+- **Before payment (`TEASER`):** title, synopsis, one complete story page and a 140-character excerpt of the next page. Image work is capped at two low-resolution, watermarked assets (cover + one representative interior), one attempt each, maximum 1024×1024 pixels. No page regeneration and no editor access.
+- **After captured payment (`PAID`):** the complete story, production illustration pipeline, bounded page regeneration and the constrained OpenPolotno studio become eligible. Production defaults are one asset per cover/page, at most two automatic attempts per asset; explicit later repair work remains separately budgeted and observable.
+- **After cancellation/refund (`REVOKED`):** new generation and studio writes fail closed. Retained purchased artifacts follow the refund, retention and statutory-access policy; this decision does not silently delete them.
+
+Every generation command must call the shared `generation-access` policy before enqueueing provider work. Jobs record entitlement snapshot, budget account, asset count, attempt count and cost metadata. Payment webhooks issue/revoke entitlement idempotently. The teaser UI may explain locked value, but hidden browser DOM, local storage or unsigned client state is never an access boundary.
+
+Consequences: M1 can use illustration stand-ins; M2 adds the two teaser image calls only after identity/provider qualification. Full image generation and F-014 editing remain post-payment. This intentionally changes the earlier full-book-before-payment direction recorded from competitor research.

@@ -31,6 +31,7 @@ Not applicable (greenfield). Design risks the spec itself must avoid:
 - **Sibling/profile swaps** and wrong child count → structured subject list per page, validated.
 - **Low-resolution assets** slipping to print → resolution gate at generation time (§25 print); never upscaled silently as "good".
 - **Runaway cost** (image calls are the expensive step) → hard per-page attempt budget + cost telemetry (F-027).
+- **Pre-payment overspend / giving away the complete product** → D025 entitlement gate: at most two low-resolution watermarked teaser assets before payment; production assets, regeneration and studio access require captured payment.
 - **Provider coupling** (D004) → all provider work behind `IllustrationProvider`/`IdentityProvider`/`QualityProvider` interfaces.
 
 ## 5. Desired UX
@@ -103,12 +104,14 @@ Commands via `BookService`/`BookRepository`; image orchestration via `Generation
 - `POST /books/{id}/illustrations/pages/{n}/regenerate` → regenerate **only** page `n` (same `planKey`; or new `planKey` on REVISION_REQUIRED); consumes one attempt of the page budget.
 - `GET /books/{id}/illustrations/{pageId}/asset?token=` → signed, expiring asset URL (short TTL, no public bucket, §7 privacy) for thumbnails/preview/QA renderers only.
 - Validation: `subjects ⊆ Book.characters` (wrong-child-count guard), plan within `printConstraints`, URL token expiry. All image endpoints await `GENERATING → READY/FAILED` polling through F-010 (never a blocking request; §6 pipeline design).
+- Authorization: every generation/regeneration command resolves server-side payment entitlement and calls the shared generation-access policy before enqueueing. `TEASER_IMAGE` accepts only the cover and one representative interior slot within the low-resolution/watermark budget; `PRODUCTION_IMAGE`, page regeneration and studio mutations reject unless entitlement is `PAID`.
 
 ## 9. Background jobs
 
 Execution owned by F-010 runtime; the step units are **`GenerationStep` contract entries defined here** and consumed by F-010: **`ILLUSTRATION_PLAN`** (bulk, cheap) then **`ILLUSTRATION`** per page (expensive).
 - Idempotency key = `planKey` (plan) and `planKey + attemptNonce` (image). A crashed worker re-enters: plans re-derive deterministically; `READY` pages skip; no duplicate image spend.
 - **Attempt budget (image cost control):** default **2 auto attempts** per page (1 + 1 identity/QA auto-retry). Any further attempt requires an explicit parent or support action ("Try again" / F-012). Budget tracked in `generationMetadata.attemptCount`; exhaustion → `FAILED` with repair routing to F-012.
+- **Pre-payment budget:** maximum 2 assets, 1024×1024 pixel area, 1 attempt each, visibly watermarked. These are separate teaser slots and never count as print-ready assets. Full-book fan-out cannot be enqueued until payment is captured (D025).
 - Retry: auto-retry 1, backoff, timeout ~120s (image inference is slow); page-level isolation (D010) — other pages continue.
 - Worker heartbeat/lease per F-010/F-028; a dead worker's in-flight page returns to `PENDING` and is re-claimed, never left `GENERATING` forever (lease expiry).
 - Cancellation: a book-regenerate or page-replace supersedes queued image jobs via `planKey` mismatch; orphaned jobs no-op on run.
@@ -149,6 +152,7 @@ Given/When/Then, testable:
 - **Resolution gate:** Given an asset at 200 DPI, when QA runs, then the verdict is `CONDITIONAL` with a print-softness flag; at 140 DPI → `FAILED`; nothing below the gate is marked `READY`.
 - **Wrong-child-count guard:** Given a plan whose `subjects` include a character not in `Book.characters`, when the plan is validated, then the request rejects with 422 before any image spend.
 - **Budget enforcement:** Given a per-page budget of 2, when the page fails twice, then the third attempt only starts on an explicit parent action and an analytics `illustration_budget_exhausted` fires.
+- **Entitlement enforcement:** Given payment is pending or merely authorized, when full illustration generation, page regeneration or editor access is requested, then the command rejects before enqueue/provider spend; only two bounded teaser slots are available. Given a captured payment webhook is replayed, entitlement is issued once and the production budget does not duplicate.
 - **Sibling swap detection:** Given a two-child page where the QA per-character scores are inverted vs the plan, then `characterQa` flags the swap and the page is `REVISION_REQUIRED`.
 
 ## 15. Dependencies

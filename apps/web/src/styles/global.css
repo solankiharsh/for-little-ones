@@ -998,6 +998,23 @@ span.flo-block-caption {
 .flo-create-world input { width: 20px; height: 20px; accent-color: var(--flo-sienna-deep); }
 .flo-create-world strong, .flo-create-world small { display: block; }
 .flo-create-world small { margin-top: 8px; color: var(--flo-ink-soft); line-height: 1.5; }
+.flo-concepts { display: grid; gap: 20px; }
+.flo-concepts-empty { padding: 34px; text-align: center; border: 1px dashed #b7a98c; border-radius: 16px; background: #fbf6eb; }
+.flo-concepts-empty > span { display: block; margin-bottom: 8px; color: var(--flo-sienna-deep); font-size: 32px; }
+.flo-concepts-empty h3 { margin: 0 0 8px; font: 400 28px/1.2 var(--font-family-heading); }
+.flo-concepts-empty p { margin: 0 auto; max-width: 520px; color: var(--flo-ink-soft); line-height: 1.55; }
+.flo-concept-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.flo-concept-card { position: relative; display: flex; min-height: 260px; flex-direction: column; padding: 22px; border: 1px solid var(--flo-line); border-radius: 16px; background: #fffdf8; cursor: pointer; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.flo-concept-card:has(input:checked) { border-color: var(--flo-sienna-deep); box-shadow: 0 0 0 2px color-mix(in srgb, var(--flo-sienna-deep) 28%, transparent); transform: translateY(-2px); }
+.flo-concept-card input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.flo-concept-card:focus-within { outline: 3px solid color-mix(in srgb, var(--flo-sienna-deep) 35%, transparent); outline-offset: 2px; }
+.flo-concept-choice { align-self: flex-start; margin-bottom: 18px; padding: 5px 9px; border-radius: 999px; background: #eee4d2; color: var(--flo-sienna-deep); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.flo-concept-card:has(input:checked) .flo-concept-choice { background: var(--flo-sienna-deep); color: #fffaf0; }
+.flo-concept-card > strong { font: 400 24px/1.2 var(--font-family-heading); }
+.flo-concept-card > p { flex: 1; margin: 12px 0 20px; color: var(--flo-ink-soft); line-height: 1.55; }
+.flo-concept-card > small { display: flex; flex-wrap: wrap; gap: 6px; }
+.flo-concept-card > small span { padding: 5px 8px; border-radius: 999px; background: #f3eadc; color: var(--flo-ink-soft); }
+.flo-concepts-again { justify-self: start; }
 .flo-create-favourites legend { margin-bottom: 12px; font-weight: 600; }
 .flo-create-favourites div { display: flex; flex-wrap: wrap; gap: 10px; }
 .flo-create-favourites button { min-height: 44px; border: 1px solid var(--flo-line); background: transparent; border-radius: 24px; padding: 10px 18px; color: var(--flo-ink); cursor: pointer; }
@@ -1028,6 +1045,14 @@ span.flo-block-caption {
 .flo-story-preview li small { color: var(--flo-ink-soft); line-height: 1.45; }
 .flo-story-art-placeholder { min-height: 130px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; border: 1px dashed #b7a98c; border-radius: 10px; background: linear-gradient(145deg, #f1eadb, #e6dcc8); color: var(--flo-ink-soft); text-align: center; }
 .flo-story-art-placeholder span { font-weight: 700; color: var(--flo-sienna-deep); }
+.flo-story-page-locked { position: relative; background: #f8f3e9 !important; }
+.flo-story-page-locked .flo-story-art-placeholder { background: repeating-linear-gradient(135deg, #eee4d2, #eee4d2 10px, #f5eddf 10px, #f5eddf 20px); }
+.flo-story-page-locked p { color: var(--flo-ink-soft); }
+.flo-story-excerpt { position: relative; max-height: 3.4em; overflow: hidden; }
+.flo-story-excerpt::after { content: ""; position: absolute; inset: auto 0 0; height: 2em; background: linear-gradient(transparent, #f8f3e9); }
+.flo-story-unlock { margin: 20px 0 12px; padding: 20px; border-radius: 14px; color: #fffaf0; background: var(--flo-sienna-deep); }
+.flo-story-unlock strong { font: 400 24px/1.2 var(--font-family-heading); }
+.flo-story-unlock p { margin: 8px 0 0; line-height: 1.55; }
 @keyframes flo-spin { to { transform: rotate(360deg); } }
 @media (max-width: 600px) {
   .flo-cart-layer { padding: 10px; }
@@ -1045,4 +1070,5 @@ span.flo-block-caption {
   .flo-create-actions { padding: 20px; flex-wrap: wrap; }
   .flo-create-actions .flo-btn { flex: 1; }
   .flo-story-preview li { grid-template-columns: 1fr; }
+  .flo-concept-grid { grid-template-columns: 1fr; }
 }
