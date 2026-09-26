@@ -78,12 +78,18 @@ export interface StoryConcept {
   createdAt: string;
 }
 
-/** Wrong-child-count guard at the concept level (F-007 §11): characters must exist in the Book. */
+/**
+ * Wrong-child-count guard at the concept level (F-007 §11): characters must exist
+ * in the Book. Case-insensitive by contract — vendor output is free to normalise
+ * casing (spec §7 examples show lowercase "ava"), Book bibles store the display
+ * name ("Ava").
+ */
 export function invalidCharacterNames(
   concept: Pick<StoryConcept, "charactersUsed">,
   allowedNames: ReadonlySet<string>
 ): string[] {
-  return concept.charactersUsed.filter((name) => !allowedNames.has(name));
+  const allowed = new Set([...allowedNames].map((name) => name.toLowerCase()));
+  return concept.charactersUsed.filter((name) => !allowed.has(name.toLowerCase()));
 }
 
 /** Duplicate-concept guard: titles in a bundle must be distinct (F-007 §4). */

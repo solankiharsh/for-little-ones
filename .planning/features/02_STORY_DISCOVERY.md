@@ -26,9 +26,12 @@ None before the M1 creation-core slice (D023). The theme catalogue now exists an
 implemented (Observed): content model + seed set (`packages/domain/src/theme.ts`,
 `getTheme(id)` with `conceptSeed` { tone, settingHints, characterSlots, forbidBlocks } and
 catalogue fallback bundles), `Book.themeId` + `Book.themeSeedVersion` selection via
-`BookService.selectTheme` (F-002). Ordering of the catalogue remains out of scope. The M1
-slice was ADD/BUILD over the milestone-0 rails. See `packages/domain/src/theme.ts` and
-RESEARCH_LOG.md.
+`BookService.selectTheme` (F-002). The **rule-based ordering/personalisation rail**
+(age-band overlap + interests + locale, spec §4/§8; `sortThemes`/`listThemes`/`listCategories`
+in `packages/domain/src/theme.ts`, tested in `theme.spec.ts`) ships with the M1 catalogue;
+the HTTP query path that consumes it (`GET /catalogue/themes`, spec §8) is the M2 transport
+slice. The M1 slice was ADD/BUILD over the milestone-0 rails. See
+`packages/domain/src/theme.ts` and RESEARCH_LOG.md.
 
 ## 4. Problems with current implementation
 

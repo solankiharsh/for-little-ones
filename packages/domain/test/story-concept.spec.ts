@@ -74,6 +74,13 @@ describe("domain: story concept (F-007)", () => {
     expect(invalidCharacterNames({ charactersUsed: ["ava"] }, allowed)).toEqual([]);
   });
 
+  it("matches character names case-insensitively (vendor lowercase vs Bible display name)", () => {
+    // Book bibles store "Ava"; vendor output may normalise to "ava" (spec §7).
+    const allowed = new Set(["Ava", "Milo"]);
+    expect(invalidCharacterNames({ charactersUsed: ["ava"] }, allowed)).toEqual([]);
+    expect(invalidCharacterNames({ charactersUsed: ["BRUNO"] }, allowed)).toEqual(["BRUNO"]);
+  });
+
   it("flags duplicate titles inside a bundle (F-007 §4)", () => {
     expect(duplicateTitles([{ title: "A" }, { title: "B" }, { title: "A" }])).toEqual(["A"]);
     expect(duplicateTitles([{ title: "A" }, { title: "B" }, { title: "C" }])).toEqual([]);

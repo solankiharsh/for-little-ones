@@ -6,19 +6,28 @@
 
 ## 0. Status of the product (read first)
 
-**There is no existing application code.** `../codebase/README.md` (RESOLVED finding), `../DECISIONS.md` D013, `../RESEARCH_LOG.md`.
+**Baseline:** the workspace is a greenfield monorepo (D013) on top of the milestone-0
+foundation rails (`packages/domain`, `packages/contracts`, `packages/execution`, `packages/providers`,
+`apps/api`, `apps/web`) and the M1 creation-core slice (D023) — implemented and green.
 
 Consequences for every feature spec:
 
-- Section **3. Current implementation** must state:
+- Section **3. Current implementation** must state the observed reality — never invent
+  files, endpoints, tables, components or providers:
 
   ```text
-  None (Observed). No application code exists anywhere in the workspace.
-  See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
+  None (Observed). No application code exists for this feature.
+  See ../codebase/README.md and RESEARCH_LOG.md. Greenfield for this feature: ADD/BUILD over the rails.
   ```
-
-  Do NOT invent existing files, endpoints, tables, components or providers.
+- Once a slice ships (see D023 running note below), the implemented features' §3 must be
+  updated from the boilerplate to a short (Observed) description citing the exact files,
+  per the AGENTS.md Research Discipline. Do NOT leave "No application code exists" for
+  features that now have code.
 - All other sections are written as the **forward design** for a system we intend to build.
+
+> **Running note (M1, D023, 2026-09-25):** F-001/F-002/F-003/F-006/F-007 ship in the first
+> creation-core slice — their §3s are now implemented (Observed) and cite
+> `apps/api/src/{session,creation,analytics}` + `packages/domain/src/{fact,fact-options,theme,story-concept,session}.ts`.
 
 ---
 
@@ -224,7 +233,8 @@ Every spec in this directory MUST contain the exact headings below, in order. Us
 <Why does the customer care? Tie to product principles: easier / more personal / more confidence / repeat usage / fewer support problems?>
 
 ## 3. Current implementation
-<For all specs: "None (Observed). No application code exists. See ../codebase/README.md, ../RESEARCH_LOG.md, DECISIONS.md D013. Greenfield (ADD/BUILD).">
+<For features without code: boilerplate — "None (Observed). No application code exists for this feature. See ../codebase/README.md, ../RESEARCH_LOG.md, DECISIONS.md D013. Greenfield (ADD/BUILD).">
+<For features with an agreed/implemented slice: a short (Observed) description citing the exact files that implement it, per the AGENTS.md Research Discipline (see §0 running note). Never write "no application code" when code exists.>
 <NEVER invent files. If you genuinely believe part of the spec reuses an intended shared subsystem, name the proposed subsystem explicitly as "proposed".>
 
 ## 4. Problems with current implementation

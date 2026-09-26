@@ -110,6 +110,9 @@ export class BookService {
     const concepts = await this.deps.store.listConceptsByBook(input.bookId);
     const chosen = concepts.find((c) => c.id === input.conceptId);
     if (!chosen) throw new Error(`concept not found: ${input.conceptId}`);
+    // F-007 §8 idempotent re-select: the already-selected concept confirms the
+    // existing state without re-running the transition.
+    if (chosen.status === "SELECTED" && book.selectedConceptId === chosen.id) return book;
     if (chosen.status !== "PROPOSED") throw new Error(`concept ${input.conceptId} is ${chosen.status}, not PROPOSED`);
     await this.deps.store.markConceptSelection(input.bookId, chosen.id);
     const updatedBook: Book = { ...book, selectedConceptId: chosen.id };
@@ -128,7 +131,9 @@ export class BookService {
     if (!book.themeId) throw new Error(`book ${input.bookId} has no theme selected`);
     const theme = getTheme(book.themeId);
     if (!theme) throw new Error(`book ${input.bookId} pins missing theme ${book.themeId}`);
-    const protagonist = book.characters[0]?.name ?? "Ava";
+    // Only name a protagonist the book actually has; never hard-code a child's
+    // name — a fallback bundle for another child must not say "Ava".
+    const protagonist = book.characters[0]?.name;
     const concepts = theme.fallbackConcepts.map((c, index): StoryConcept => ({
       id: `concept:${book.id}:v${input.conceptVersion}:${index}`,
       bookId: book.id,
@@ -140,7 +145,7 @@ export class BookService {
       themeId: theme.id,
       readingLevel: c.readingLevel,
       approximateLengthPages: c.approximateLengthPages,
-      charactersUsed: c.charactersUsed.length > 0 ? c.charactersUsed : [protagonist],
+      charactersUsed: c.charactersUsed.length > 0 ? c.charactersUsed : protagonist ? [protagonist] : [],
       locale: normaliseLocaleString(book.metadata.locale) === "en-US" ? "en-US" : "en-GB",
       source: "fallback",
       status: "PROPOSED",
@@ -173,16 +178,18 @@ export class BookService {
    * Canonical typed facts (F-006). DOB-scoped facts arrive via `factIds`; the
    * legacy `facts: PersonalFact[]` rail carries M0 demo content — mapped to typed
    * Interest facts ONLY when they are generation-blocking (no confirmed typed
-   * facts yet), never persisted back.
+   * facts yet), never persisted back. The demo rail is intentionally marked
+   * `parentConfirmed` (those entries were confirmed at demo import time), never
+   * `suggested`.
    */
   private async factsFor(profile: ChildProfile): Promise<Fact[]> {
     const typed: Fact[] = [];
-    if (!profile.factIds) return legacyFactsFor(profile);
+    if (!profile.factIds) return legacyFactsFor(profile, this.deps.now());
     for (const factId of profile.factIds) {
       const fact = await this.deps.store.getFact(factId);
       if (fact) typed.push(fact);
     }
-    if (typed.length === 0) return legacyFactsFor(profile);
+    if (typed.length === 0) return legacyFactsFor(profile, this.deps.now());
     return typed;
   }
 }
@@ -207,8 +214,7 @@ function characterBibleFor(profile: ChildProfile): Book["characters"][number] {
   };
 }
 
-function legacyFactsFor(profile: ChildProfile): Fact[] {
-  const now = new Date().toISOString();
+function legacyFactsFor(profile: ChildProfile, now: string): Fact[] {
   return profile.facts
     .filter((f: PersonalFact) => f.immutable)
     .map((f: PersonalFact, index: number): Fact => ({

@@ -2,6 +2,7 @@ import {
   ageYearsOn,
   duplicateTitles,
   getTheme,
+  invalidCharacterNames,
   isEmotionalGoal,
   isReadingLevel,
   isValidConceptLength,
@@ -262,14 +263,14 @@ export class ConceptBundleRunner {
   private async isValidAndAllowed(concepts: StoryConcept[], book: Book, request: ConceptRequest): Promise<boolean> {
     if (concepts.length !== 3) return false;
     if (duplicateTitles(concepts).length > 0) return false;
-    const names = new Set(book.characters.map((c) => c.name.toLowerCase()));
+    const names = new Set(book.characters.map((c) => c.name));
     const structurallyValid = concepts.every(
       (c) =>
         isEmotionalGoal(c.emotionalGoal) &&
         isReadingLevel(c.readingLevel) &&
         (request.readingLevel === undefined || c.readingLevel === request.readingLevel) &&
         isValidConceptLength(c.approximateLengthPages) &&
-        c.charactersUsed.every((name) => names.has(name.toLowerCase())) &&
+        invalidCharacterNames(c, names).length === 0 &&
         c.themeId === book.themeId
     );
     if (!structurallyValid) return false;

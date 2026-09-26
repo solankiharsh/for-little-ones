@@ -113,6 +113,15 @@ describe("api: book service (command/query boundary, D023)", () => {
     expect(saved.every((c) => c.source === "fallback")).toBe(true);
   });
 
+  it("never hard-codes a child's name into fallback charactersUsed — empty when the book has none", async () => {
+    const seed = await seededStore();
+    await seed.store.saveBook({ ...draftBook({ id: "book-no-char" }), characters: [] });
+    const svc = service(seed.store);
+    const concepts = await svc.serveFallbackConcepts({ bookId: "book-no-char", conceptVersion: 1, anonymousProjectId: "" });
+    expect(concepts[0]?.charactersUsed).toEqual([]);
+    expect(concepts.some((c) => c.title.includes("Ava"))).toBe(false);
+  });
+
   it("rejects serving fallback concepts for a book without a theme", async () => {
     const seed = await seededStore();
     const { themeId: _t, themeSeedVersion: _s, ...rest } = draftBook({ id: "book-no-theme" });
@@ -121,6 +130,27 @@ describe("api: book service (command/query boundary, D023)", () => {
     await expect(
       svc.serveFallbackConcepts({ bookId: "book-no-theme", conceptVersion: 1, anonymousProjectId: "" })
     ).rejects.toThrow(/no theme/u);
+  });
+
+  it("re-selecting the already-selected concept is idempotent (F-007 §8)", async () => {
+    const seed = await seededStore();
+    await seed.store.saveConcepts({
+      bookId: "book-1",
+      conceptVersion: 1,
+      themeSeedVersion: "2026-09-25T00:00:00.000Z",
+      concepts: [
+        { title: "A", pitch: "Pitch A long enough to pass structural checks.", emotionalGoal: "bravery", themeId: "space", readingLevel: "4-6", approximateLengthPages: 8, charactersUsed: ["Ava"], locale: "en-GB", source: "model" },
+        { title: "B", pitch: "Pitch B long enough to pass structural checks.", emotionalGoal: "kindness", themeId: "space", readingLevel: "4-6", approximateLengthPages: 8, charactersUsed: ["Ava"], locale: "en-GB", source: "model" }
+      ]
+    });
+    const svc = service(seed.store);
+    const first = await svc.selectConcept({ bookId: "book-1", conceptId: "concept:book-1:v1:0", anonymousProjectId: "" });
+    const again = await svc.selectConcept({ bookId: "book-1", conceptId: "concept:book-1:v1:0", anonymousProjectId: "" });
+    expect(again.selectedConceptId).toBe(first.selectedConceptId);
+    // A different, now-DISCARDED concept is still rejected.
+    await expect(
+      svc.selectConcept({ bookId: "book-1", conceptId: "concept:book-1:v1:1", anonymousProjectId: "" })
+    ).rejects.toThrow(/DISCARDED, not PROPOSED/u);
   });
 
   it("rejects selecting a concept that does not exist on the book", async () => {
