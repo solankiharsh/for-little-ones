@@ -41,16 +41,31 @@ export interface StoryAdapter extends ProviderBoundary {
   ): Promise<ParseResult<StoryOutlineResult>>;
 }
 
+/**
+ * Data policy for the example adapter + runnable M1 provider. Honest about what
+ * flows across the seam: the canonical `ConceptRequest` carries the child's
+ * name-derived display name, pronouns, and confirmed enum/relationship fact IDs
+ * (F-006/F-007 allow-list) — so this is `childDataSent: true`. The scope is
+ * deliberately narrow: NO photos, NO free-text user content, NO `suggested`
+ * facts, NO raw profile fields; only the generation-eligible canonical subset.
+ * Retention is zero and training is prohibited (AGENTS.md: a provider without
+ * deletion/training posture can never receive data).
+ */
 const VENDOR_CARD: ProviderCard = {
   dataPolicy: {
     verifiedAt: "2026-09-22",
-    policyVersion: "example-adapter-v1",
-    childDataSent: false,
+    policyVersion: "example-adapter-v2",
+    childDataSent: true,
+    childDataScope: [
+      "name-derived display name",
+      "pronouns",
+      "confirmed enum/sport/person/pet/custom fact ids (generation-eligible subset only)"
+    ],
     retentionMode: "NONE",
     trainingUse: "PROHIBITED",
     deletionMechanism: "CONTRACTUAL_ZERO_RETENTION",
     region: "not-applicable",
-    evidenceRef: "internal://example-adapter/no-child-data"
+    evidenceRef: "internal://example-adapter/name+confirmed-fact-ids-only; no photos, no free-text, no suggested facts"
   },
   idempotency: "per-request idempotency key echoed by vendor; see adapter impl",
   timeoutMs: 15_000,

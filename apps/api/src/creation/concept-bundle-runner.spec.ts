@@ -1,10 +1,28 @@
 import { describe, expect, it } from "vitest";
 import type { ConceptRequest, ConceptResult } from "@for-little-ones/contracts";
 import { InMemoryDurableRuntime, type LeaseHeldResult, type LeaseRefusedResult } from "@for-little-ones/execution";
-import type { ModerationProvider, StoryProvider } from "@for-little-ones/providers";
+import type { ModerationProvider, ProviderCard, StoryProvider } from "@for-little-ones/providers";
 import { ConceptBundleRunner, CONCEPT_BUNDLE_OP, CONCEPT_BUNDLE_UNIT } from "../../src/creation/concept-bundle-runner";
 import { MemoryEventSink } from "../../src/analytics/event-sink";
 import { conceptStub, confirmedFact, draftBook, NOW, seededStore, type Seeded } from "../testing/fixtures";
+
+const TEST_PROVIDER_CARD: ProviderCard = {
+  dataPolicy: {
+    verifiedAt: "2026-09-22",
+    policyVersion: "test-v1",
+    childDataSent: true,
+    childDataScope: ["name-derived display name", "confirmed fact ids"],
+    retentionMode: "NONE",
+    trainingUse: "PROHIBITED",
+    deletionMechanism: "CONTRACTUAL_ZERO_RETENTION",
+    region: "not-applicable",
+    evidenceRef: "internal://test"
+  },
+  idempotency: "none",
+  timeoutMs: 10,
+  retryPolicy: "none",
+  costMetadata: "none"
+};
 
 function conceptResult(overrides: Partial<ConceptResult["concepts"][number]> = {}): ConceptResult {
   const base: ConceptResult["concepts"][number] = {
@@ -69,7 +87,7 @@ function runner(
   const service = new ConceptBundleRunner({
     runtime,
     store: seed.store,
-    storyProvider,
+    storyProvider: { ...storyProvider, card: TEST_PROVIDER_CARD },
     moderation,
     events,
     getFactsForStory: async () => [confirmedFact()],
@@ -245,7 +263,7 @@ describe("api: concept bundle runner (F-007 §9 durable step on D019)", () => {
 
     const job = await runtime.job(service.operationKey("book-1", 1));
     expect(job?.status).toBe("SUCCEEDED");
-    const output = job?.units[0]?.output as { source: string; concepts: { title: string }[] };
+    const output = job?.units[0]?.output as { source: string; concepts: Array<{ title: string; source: string }> };
     expect(output.source).toBe("model");
     expect(output.concepts).toEqual([expect.objectContaining({ title: "The Rocket Made of Cardboard" })]);
     expect(providerCalls).toBe(0);
@@ -277,7 +295,7 @@ describe("api: concept bundle runner (F-007 §9 durable step on D019)", () => {
 
     const job = await runtime.job(service.operationKey("book-1", 1));
     expect(job?.status).toBe("SUCCEEDED");
-    const output = job?.units[0]?.output as { source: string; concepts: { title: string }[] };
+    const output = job?.units[0]?.output as { source: string; concepts: Array<{ title: string; source: string }> };
     expect(output.source).toBe("model");
     expect((output.concepts as { source: string }[]).every((c) => c.source === "model")).toBe(true);
     expect(providerCalls).toBe(1);

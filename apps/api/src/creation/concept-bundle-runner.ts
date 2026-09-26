@@ -61,7 +61,9 @@ export type ConceptBundleResult = {
 export interface ConceptBundleDeps {
   runtime: DurableExecutionRuntime;
   store: CreationStore;
-  storyProvider: Pick<StoryProvider, "generateConcepts">;
+  /** The card is structurally required at the seam — a concept provider without a
+   *  verified data policy cannot be wired in (AGENTS.md provider rule). */
+  storyProvider: Pick<StoryProvider, "generateConcepts" | "card">;
   moderation: ModerationProvider;
   events: EventSink;
   /** The generation-eligible fact query (BookService.getFactsForStory in the shell). */
