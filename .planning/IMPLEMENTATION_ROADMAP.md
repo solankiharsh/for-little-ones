@@ -34,6 +34,13 @@ Customer-visible: a parent can create a complete story and see it.
 
 **Acceptance:** anonymous user → discover story → create profile (no photos) → pick concept → generate (progress UI survives refresh) → reads full story in reader — **text + layout with fixture/placeholder illustrations**. One-page text failure retried without restart. "Printability" gates against the shared contract are checkable even though the real renderer ships in M4.
 
+**Slice-2 (creation-core persistence + HTTP transport, D024):** the M1 command/query
+boundary gains its Postgres tier + Hono HTTP surface + pg-boss worker (see
+`SLICE_2_PLAN.md`). It is a **rail layer inside M1**, not a milestone: it closes the
+M0 exit criterion (Web → API → Postgres in CI) and unblocks the web screens. The
+roadmap **Milestone 2** below remains the separate sensitive-image milestone (photos,
+Character Bible, illustration generation, F-015, F-010 v1).
+
 ## Milestone 2 — Reliable book generation
 
 Customer-visible: the generated child looks like the child on every page (**child photos enter the product here**), and failures are rare + recoverable.
