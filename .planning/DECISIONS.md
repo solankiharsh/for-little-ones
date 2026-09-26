@@ -585,3 +585,123 @@ execution / provenance / policies / storage are foundational: no feature depende
 - No exactly-once claim anywhere in our documentation; recovery = idempotency.
 - "review-required" work surfaces in the DLQ row (bookId, pageNumber,
   sourceRetryCount) for the F-028 rules.
+
+## D023 — M1 Creation-Core Slice Agreed: F-001/F-002/F-003/F-006/F-007 (2026-09-25)
+
+**Status:** ACCEPTED (milestone-1 "stable creation core" scoped to a first vertical
+slice; specs promoted `proposed → agreed`)
+
+**Decision**
+
+- The first M1 vertical slice is **anonymous session core (F-001 v0) + theme discovery
+  (F-002) + child profile (F-003) + typed personalisation facts (F-006) + story
+  concepts on the durable substrate (F-007)**. It is the **first real consumer of the
+  DurableExecutionContract (D019)** in production-shaped code: the concept bundle runs
+  as a leased, retryable, idempotent-enqueued unit on the runtime surface, with the
+  pg-boss substrate (D022) as the production implementation and InMemory for tests.
+- Specs F-001, F-002, F-003, F-006, F-007 are promoted to `agreed` (guide-16-section
+  compliant; header §3s updated to reflect the now-existing M0 rails per the
+  "Observed" discipline).
+- **Fact options are static typed enums per locale shipped with the app at launch**
+  (resolves F-006 §8 "Decision needed"); a managed catalogue reopens with F-024.
+- The concept generation flow may only send the canonical fact subset (name-derived
+  display facts, pronouns, favourites, relationships, pet, locale) — never photos,
+  never `suggested` facts, never free-text prompts (guide §7, F-007 §10/§12).
+- The command/query boundary for the slice is a `BookService` + thin repository
+  interfaces in `apps/api` (the "proposed shared subsystem" named in F-003/F-006/F-007
+  §8); the Postgres persistence + HTTP transport shells are a separate M0-rails PR and
+  are explicitly NOT part of this decision.
+- **Deferred from this slice:** F-010 orchestration runtime wiring (the slice uses the
+  `DurableExecutionContract` seam directly, exactly as guide §5 dictates), F-004/F-005
+  photos and Character Bible, the F-006 `FactSuggestion` job (acceptance-rate
+  experiment decides whether it ever ships), HTTP transport, and the web screens.
+
+**Consequences**
+
+- The slice lays the seams F-008/F-009/F-011 and the persistence rails will build on:
+  `Book.selectedConceptId`/`themeId`/`themeSeedVersion` become Book fields; the Fact
+  model and `GetFactsForStory` (generation-eligible confirmed facts) become the only
+  fact input path for F-008.
+- No feature spec depends on F-010; the DurableExecutionContract (D019) stays the
+  dependency (guide §5), so a runtime swap does not touch generation features.
+
+---
+
+## D024 — Slice-2 Agreed: Creation-Core Persistence + HTTP Transport (2026-09-26)
+
+**Status:** ACCEPTED (the persistence + transport shells D023 deferred; planned via
+`SLICE_2_PLAN.md`; implementation PR to follow)
+
+**Decision**
+
+The second creation-core slice is the Postgres persistence + HTTP transport tier over
+the M1 command/query boundary (`BookService`, `AnonymousSessionService`, the
+`ConceptBundleRunner` durable unit), plus the production worker that answers the
+concept jobs. It satisfies D023's open rail ("Postgres persistence + HTTP transport
+shells are a separate M0-rails PR") and closes the M0 exit criterion ("Web → API →
+Postgres runs in CI"). It is **not** the roadmap "Milestone 2 — Reliable book
+generation" (photos/Character Bible/illustration gen); roadmap milestones stay M0…M6
+and this slice is named **Slice-2** to avoid the collision (fix `02:32-33`'s "M2".
+
+Selected positions (all as recommended during design grilling; recorded so the
+implementation PR does not re-argue them):
+
+1. **Scope — full creation-core transport over Postgres + worker.** Hono server
+   (`apps/api` gains its first HTTP surface): cookie-authenticated sessions, catalogue
+   GET (`/catalogue/themes`, `/catalogue/themes/{id}`, `/catalogue/categories`), book
+   create + theme selection, concept generate/read/select/edit/regenerate (PATCH with
+   re-moderation), child-profile create/update, fact add/confirm/reject/remove/options,
+   facts-for-story, and a private `/_internal/events` analytics batcher.
+   `apps/worker` gains the claim loop wiring `PgBossDurableRuntime` +
+   `ConceptBundleRunner` + Postgres stores, using the same worker pattern proven in the
+   execution test helpers (`worker-entry.ts`). F-007/F-002 gain the read + `POST
+   /books` endpoints the specs never defined (documented additions in the slice plan).
+2. **HTTP framework — Hono** (TS-first, tiny, `app.request()` vitest-friendly,
+   zod-friendly). No Express/Fastify.
+3. **Session token — cookie `flo_session`** (HttpOnly, SameSite=Lax, Secure in prod,
+   Path=/), no CSRF token (SameSite=Lax baseline), sliding renewal (>15 min re-issue),
+   `resolveSession(rawToken)` as middleware; Vite dev proxy `/api/**`. Claim/sweeper
+   stay M6 jobs.
+4. **Book.creationState** — new persisted field `"CREATED" → "THEME_SELECTED" →
+   "CONCEPT_SELECTED"` (extensible toward F-008), keeping `status` (DRAFT/ARCHIVED) and
+   `RevisionStatus` separate; `_SPEC_GUIDE.md` §4 + F-007 updated. The
+   `story_concept_selected` event stays distinct from the state value.
+5. **charactersUsed is relationship-driven** — add `Relationship.name`/`.label`, auto
+   seed a self-relationship per profile (name = displayName), validate charactersUsed
+   against relationship names + primary child displayName. CharacterBible remains the
+   F-005 visual-identity entity. Doc fixes: F-007 §3 "character subset" → relationships;
+   `charactersRequired[]` (seed-slot vocabulary) vs `charactersUsed` (concept field).
+6. **Idempotency — business keys, no header in this slice.** Dedupe on `creationToken`,
+   `factToken`, `bookId:conceptVersion`; return existing entity on collision. No
+   `Idempotency-Key` header yet; full F-028 §8 client-keyed replay is a later slice.
+7. **Retries/budget unified** — durable `maxAttempts = 3` (initial + 2 retries, matches
+   both F-007 wordings), whole-bundle retry, exhaustive-fail = `CONCEPT_GENERATION_
+   EXHAUSTED`; regenerate budget = per-book counter (default 3), edits do NOT consume
+   it; `regeneratedVersion?` body field deleted (never defined). Recorded in F-007 §7/§8.
+8. **Persistence in `apps/api`, raw DDL** — `PostgresCreationStore` +
+   `PostgresSessionStore` sharing one `pg.Pool` (`pg` added as an apps/api dep),
+   idempotent `schema.sql` run by `init()`, `flo_*` tables matching the execution-ledger
+   style. No migration framework; that open M0 item stays open and is tracked here.
+9. **Analytics canonical names now** — adopt F-007 §13 set (`story_concepts_generated`,
+   `story_concept_selected`, `story_concepts_regenerated`, `concept_edit_applied`,
+   `concepts_served_from_fallback`, `concept_generation_failed`,
+   `concept_generation_cost`) + F-006/F-001/F-002 fact/session/theme events; emit from
+   runner + services + transport; flush `TimedEventSink` → `POST /_internal/events`
+   with an allow-list reject (F-027 §8).
+10. **No F-010 promotion** — this PR is M0-rails substrate wiring, not the F-010
+    feature (F-010 stays `proposed`).
+
+**Fold-in doc fixes (no decision, part of the slice):** F-006 `StoryConcept.mood` →
+`emotionalGoal` reference; F-001 §8 `touch` stays internal sliding renewal (no public
+verb); F-002 §8 catalogue endpoints explicitly in this slice; `GET /catalogue/themes`
+spec text `02:32-33` relabeled Slice-2; F-007 §3 (Observed) refreshed on implementation.
+
+**Consequences**
+
+- Lays the DB + transport rails F-008/F-009/F-011 and the web screens build on; a
+  future account/claim layer (M6) re-uses the same cookie/session seams.
+- The F-028 §8 client-keyed replay posture is explicitly deferred, so "idempotency" in
+  the creation-core means deterministic business-key dedupe plus durable natural-key
+  resume — never exactly-once (D022).
+- `Relationship` gains a name/label and a seeded self-relationship — the minimum F-023
+  needs later, without building F-023 now.

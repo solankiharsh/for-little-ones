@@ -137,6 +137,17 @@ export interface Book {
     title?: string;
     locale: string;
   };
+  /** F-001: owning session project. Absent until F-010 wires real backends. */
+  projectId?: string;
+  /**
+   * F-002: the Theme the parent picked. Generation must capture the theme's seed
+   * version (themeSeedVersion) so later migrations can re-rank or re-run without
+   * ambiguity.
+   */
+  themeId?: string;
+  themeSeedVersion?: string;
+  /** F-007: the one concept the parent selected from the concept bundle. */
+  selectedConceptId?: string;
   childProfileIds: string[];
   characters: CharacterBible[];
   relationships: Relationship[];

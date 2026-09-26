@@ -1,6 +1,6 @@
 # 02_STORY_DISCOVERY.md — Story Discovery & Theme Catalogue
 
-> **Spec ID:** F-002 · **Priority:** P0 · **Status:** draft
+> **Spec ID:** F-002 · **Priority:** P0 · **Status:** agreed
 > **Depends on:** F-001 (Onboarding / anonymous session) · **Consumed by:** F-007 (Story Concepts)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -22,7 +22,16 @@ The problem is the blank-text-box moment: most gift buyers and parents cannot in
 
 ## 3. Current implementation
 
-None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
+None before the M1 creation-core slice (D023). The theme catalogue now exists and is
+implemented (Observed): content model + seed set (`packages/domain/src/theme.ts`,
+`getTheme(id)` with `conceptSeed` { tone, settingHints, characterSlots, forbidBlocks } and
+catalogue fallback bundles), `Book.themeId` + `Book.themeSeedVersion` selection via
+`BookService.selectTheme` (F-002). The **rule-based ordering/personalisation rail**
+(age-band overlap + interests + locale, spec §4/§8; `sortThemes`/`listThemes`/`listCategories`
+in `packages/domain/src/theme.ts`, tested in `theme.spec.ts`) ships with the M1 catalogue;
+the HTTP query path that consumes it (`GET /catalogue/themes`, spec §8) is the M2 transport
+slice. The M1 slice was ADD/BUILD over the milestone-0 rails. See
+`packages/domain/src/theme.ts` and RESEARCH_LOG.md.
 
 ## 4. Problems with current implementation
 

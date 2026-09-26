@@ -1,4 +1,4 @@
-export { ExampleVendorStoryAdapter } from "./story";
+export { ExampleVendorStoryAdapter, ExampleVendorStoryProvider } from "./story";
 export type { StoryProvider, StoryAdapter } from "./story";
 export type { IllustrationProvider } from "./illustration";
 export { deriveIdentityReference } from "./identity";
