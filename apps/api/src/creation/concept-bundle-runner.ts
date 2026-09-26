@@ -204,7 +204,12 @@ export class ConceptBundleRunner {
 
   private async existingProposedBundle(payload: ConceptBundleUnitPayload): Promise<StoryConcept[]> {
     const all = await this.deps.store.listConceptsByBook(payload.bookId);
-    return all.filter((c) => c.conceptVersion === payload.conceptVersion && c.status === "PROPOSED");
+    // Resume only a MODEL bundle: an API-served fallback bundle (same deterministic
+    // ids under the same (book, version)) must never be relabelled source "model",
+    // and the job owns the model path — it replaces any fallback bundle on re-run.
+    return all.filter(
+      (c) => c.conceptVersion === payload.conceptVersion && c.status === "PROPOSED" && c.source === "model"
+    );
   }
 
   private async requestFor(

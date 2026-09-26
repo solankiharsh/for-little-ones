@@ -28,6 +28,19 @@ describe("api: ConceptRequest builder (F-007 §7)", () => {
     expect(request.themeId).toBe("space");
   });
 
+  it("sends each fact with its CAPTURED locale, not the request locale (F-006 §10)", () => {
+    const request = buildConceptRequest({
+      displayName: "Ava",
+      locale: "en-US",
+      facts: [confirmedFact({ locale: "en-GB" })],
+      themeId: "space",
+      themeSeedVersion: "v",
+      themeSeed
+    });
+    expect(request.locale).toBe("en-US");
+    expect(request.facts).toEqual([{ type: "interest", value: "space", locale: "en-GB" }]);
+  });
+
   it("normalises the legacy demo locale 'en' to the fact-catalogue idiom 'en-GB'", () => {
     const request = buildConceptRequest({
       displayName: "Ava",

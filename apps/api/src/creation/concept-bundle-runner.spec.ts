@@ -252,4 +252,37 @@ describe("api: concept bundle runner (F-007 §9 durable step on D019)", () => {
     // No second bundle was appended.
     expect(await seed.store.listConceptsByBook("book-1")).toHaveLength(1);
   });
+
+  it("never resumes an API-served fallback bundle as a model bundle — the job replaces it (F-007 §9/§7 source honesty)", async () => {
+    const seed = await seededStore();
+    let providerCalls = 0;
+    const { service, runtime } = runner(
+      seed,
+      {
+        async generateConcepts() {
+          providerCalls += 1;
+          return conceptResult();
+        }
+      },
+      allowAll("ALLOW")
+    );
+    await seed.store.saveConcepts({
+      bookId: "book-1",
+      conceptVersion: 1,
+      themeSeedVersion: "2026-09-25T00:00:00.000Z",
+      concepts: [conceptStub({ source: "fallback", title: "The Rocket Made of Cardboard" })]
+    });
+    await requestBundle(service);
+    await service.runNext("worker-1");
+
+    const job = await runtime.job(service.operationKey("book-1", 1));
+    expect(job?.status).toBe("SUCCEEDED");
+    const output = job?.units[0]?.output as { source: string; concepts: { title: string }[] };
+    expect(output.source).toBe("model");
+    expect((output.concepts as { source: string }[]).every((c) => c.source === "model")).toBe(true);
+    expect(providerCalls).toBe(1);
+    const saved = await seed.store.listConceptsByBook("book-1");
+    expect(saved).toHaveLength(3);
+    expect(saved.every((c) => c.source === "model")).toBe(true);
+  });
 });

@@ -37,7 +37,7 @@ export function buildConceptRequest(input: ConceptRequestInput): ConceptRequest 
     themeSeed: input.themeSeed,
     locale,
     displayName: input.displayName,
-    facts: input.facts.map((fact) => describeFact(fact, locale))
+    facts: input.facts.map((fact) => describeFact(fact))
   };
   if (input.pronouns !== undefined) request.pronouns = input.pronouns;
   if (input.readingLevel !== undefined) {
@@ -55,11 +55,17 @@ export function buildConceptRequest(input: ConceptRequestInput): ConceptRequest 
   return request;
 }
 
-function describeFact(fact: Fact, locale: FactLocale): ConceptRequest["facts"][number] {
+/**
+ * F-006 §10: each structured fact carries the locale it was captured under, NOT
+ * the current book/request locale — an association-football captured as en-GB is
+ * never relabelled "soccer" for an en-US request but sent with "football", and
+ * the provider/adapter decides presentation per its own locale rules.
+ */
+function describeFact(fact: Fact): ConceptRequest["facts"][number] {
   if (!isGenerationEligibleFact(fact)) {
     throw new Error(`fact ${fact.id} is ${fact.state}, not parentConfirmed — only confirmed facts reach generation`);
   }
-  return { type: fact.type, value: factValue(fact), locale };
+  return { type: fact.type, value: factValue(fact), locale: fact.locale };
 }
 
 /** Canonical typed value — the optionId/gameId/relationshipId/claim, never display prose. */
