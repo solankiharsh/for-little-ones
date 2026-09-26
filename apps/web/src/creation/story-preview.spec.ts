@@ -43,17 +43,39 @@ describe("guided creation persistence", () => {
 
     expect(parseStoryProjectSnapshot({
       projectId: "project_123",
+      paymentState: "pending",
       entitlement: "TEASER",
-      revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser },
+      revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser, story: teaser },
       job: { jobId: "job_123", kind: "STORY_PREVIEW", status: "READY", progress: 100, errorCode: null }
     })).toEqual({ entitlement: "TEASER", revisionId: "revision_123", revisionStatus: "TEASER_READY", story: teaser, jobKind: "STORY_PREVIEW", jobStatus: "READY", progress: 100 });
+  });
+
+  it("restores the complete story the service released after payment", () => {
+    const story = {
+      schemaVersion: "1" as const,
+      title: "Milo and the Moonbeam",
+      synopsis: "Milo follows a friendly moonbeam home.",
+      emotionalGoal: "Curiosity becomes confidence.",
+      pages: Array.from({ length: 6 }, (_, index) => ({
+        pageNumber: index + 1, text: `Milo page ${index + 1}.`, illustrationCue: `Scene ${index + 1}`
+      }))
+    };
+
+    expect(parseStoryProjectSnapshot({
+      projectId: "project_123",
+      paymentState: "captured",
+      entitlement: "PAID",
+      revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser: { title: "partial" }, story },
+      job: { jobId: "job_123", kind: "STORY_PREVIEW", status: "READY", progress: 100, errorCode: null }
+    })?.story).toEqual(story);
   });
 
   it("rejects a malformed server-restored teaser", () => {
     expect(parseStoryProjectSnapshot({
       projectId: "project_123",
+      paymentState: "pending",
       entitlement: "TEASER",
-      revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser: { title: "Incomplete" } },
+      revision: { revisionId: "revision_123", version: 1, status: "TEASER_READY", teaser: { title: "Incomplete" }, story: { title: "Incomplete" } },
       job: null
     })).toBeNull();
   });

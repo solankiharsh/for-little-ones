@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paymentEntitlement, type PaymentState } from "@for-little-ones/domain";
 
 export const maxDuration = 15;
 
@@ -26,8 +27,13 @@ export default {
         body: JSON.stringify({ draft: parsed.data })
       });
       const body: unknown = await response.json().catch(() => null);
-      if (!response.ok) return Response.json({ error: "The creation service could not save this draft." }, { status: 502 });
-      return Response.json(body, { status: 201 });
+      if (!response.ok) return Response.json({ error: "Your draft could not be saved." }, { status: 502 });
+      if (typeof body !== "object" || body === null) return Response.json({ error: "Your draft could not be saved." }, { status: 502 });
+      // A newly created project has no payment record yet, so the entitlement the
+      // browser sees is derived here rather than taken from anything it asserted.
+      const record = body as Record<string, unknown>;
+      const paymentState: PaymentState = "pending";
+      return Response.json({ ...record, paymentState, entitlement: paymentEntitlement(paymentState) }, { status: 201 });
     } catch (error) {
       console.error("creation-project request failed", error);
       return Response.json({ error: "The creation service could not be reached." }, { status: 503 });

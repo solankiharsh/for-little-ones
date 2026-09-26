@@ -1,5 +1,6 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { authorizeGenerationCommand, projectStoryForEntitlement, type PaymentState } from "@for-little-ones/domain";
 
 export const maxDuration = 60;
 
@@ -40,6 +41,19 @@ const StoryPreviewModelSchema = z.strictObject({
 
 type StoryPreviewRequest = z.infer<typeof StoryPreviewRequestSchema>;
 
+interface CreationProjectSnapshot {
+  paymentState?: unknown;
+  generation?: { assetsGenerated?: unknown; storyAttempts?: unknown };
+}
+
+function paymentStateOf(value: unknown): PaymentState {
+  return value === "authorized" || value === "captured" || value === "refunded" || value === "cancelled" ? value : "pending";
+}
+
+function counterOf(value: unknown): number {
+  return Number.isSafeInteger(value) && (value as number) >= 0 ? value as number : 0;
+}
+
 async function handle(request: Request): Promise<Response> {
   if (request.method !== "POST") {
     return Response.json({ error: "Method not allowed." }, { status: 405, headers: { Allow: "POST" } });
@@ -56,6 +70,24 @@ async function handle(request: Request): Promise<Response> {
   const input = StoryPreviewRequestSchema.safeParse(body);
   if (!input.success) {
     return Response.json({ error: "Check the story details and try again." }, { status: 400 });
+  }
+
+  // The entitlement comes from the payment record the creation service holds, never
+  // from the request. Authorised before the job is enqueued, so a refused purchase
+  // never reaches a provider (D023).
+  const project = await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}`, { method: "GET" })
+    .catch(() => null) as CreationProjectSnapshot | null;
+  if (!project) {
+    return Response.json({ error: "Your saved story could not be reached. Please try again." }, { status: 503 });
+  }
+  const authorization = authorizeGenerationCommand({
+    paymentState: paymentStateOf(project.paymentState),
+    operation: "STORY_PREVIEW",
+    assetsGenerated: counterOf(project.generation?.assetsGenerated),
+    attempts: counterOf(project.generation?.storyAttempts)
+  });
+  if (!authorization.allowed) {
+    return Response.json({ error: authorization.reason }, { status: 402 });
   }
 
   try {
@@ -82,13 +114,12 @@ async function handle(request: Request): Promise<Response> {
       ...(usage.inputTokens !== undefined ? { inputTokens: usage.inputTokens } : {}),
       ...(usage.outputTokens !== undefined ? { outputTokens: usage.outputTokens } : {})
     };
-    const teaser = {
-      ...output,
-      pages: redactStoryPreview(output.pages),
-      generationMetadata
-    };
+    // The complete story is persisted server-side; only the entitlement's projection
+    // is ever returned, so the response and anything the browser stores hold no
+    // pre-payment page text.
+    const teaser = { ...projectStoryForEntitlement(output, authorization.entitlement), generationMetadata };
     await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/story-jobs/${job.jobId}`, {
-      method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", teaser, generationMetadata }
+      method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", teaser, story: output, generationMetadata }
     });
     return Response.json(teaser);
   } catch (error) {
@@ -102,7 +133,11 @@ async function handle(request: Request): Promise<Response> {
   }
 }
 
-async function projectRequest(input: StoryPreviewRequest, path: string, init: { method: "POST" | "PATCH"; body: unknown }) {
+async function projectRequest(
+  input: StoryPreviewRequest,
+  path: string,
+  init: { method: "GET" | "POST" | "PATCH"; body?: unknown }
+) {
   const baseUrl = process.env.CREATION_API_URL;
   const publishableKey = process.env.VITE_MEDUSA_PUBLISHABLE_KEY;
   if (!baseUrl || !publishableKey) throw new Error("Creation service is not configured");
@@ -113,29 +148,11 @@ async function projectRequest(input: StoryPreviewRequest, path: string, init: { 
       "x-publishable-api-key": publishableKey,
       authorization: `Bearer ${input.ownerToken}`
     },
-    body: JSON.stringify(init.body)
+    ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) })
   });
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(`Creation service failed (${response.status})`);
   return body;
-}
-
-export function redactStoryPreview(pages: z.infer<typeof StoryPreviewModelSchema>["pages"]) {
-  return pages.map((page, index) => {
-    if (index === 0) return page;
-    if (index === 1) {
-      return {
-        ...page,
-        text: `${page.text.slice(0, 140)}…`,
-        illustrationCue: "Locked until payment is confirmed."
-      };
-    }
-    return {
-      pageNumber: page.pageNumber,
-      text: "Story page ready after payment.",
-      illustrationCue: "Locked until payment is confirmed."
-    };
-  });
 }
 
 export default {

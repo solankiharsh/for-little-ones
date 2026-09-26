@@ -165,7 +165,10 @@ export function parseStoryProjectSnapshot(value: unknown): StoryProjectSnapshot 
   if (!isEntitlement(record.entitlement) || typeof record.revision !== "object" || record.revision === null) return null;
   const revision = record.revision as Record<string, unknown>;
   if (typeof revision.revisionId !== "string" || !revision.revisionId.startsWith("revision_") || !isRevisionStatus(revision.status)) return null;
-  const parsedStory = StoryPreviewResultSchema.safeParse(revision.teaser);
+  // The creation service already shaped this for the entitlement, so a pre-payment
+  // reader can only ever hold the teaser. A captured purchase receives the full story.
+  const readable = revision.story ?? revision.teaser;
+  const parsedStory = StoryPreviewResultSchema.safeParse(readable);
   if (revision.status === "TEASER_READY" && !parsedStory.success) return null;
   let jobStatus: StoryProjectSnapshot["jobStatus"];
   let jobKind: StoryProjectSnapshot["jobKind"];

@@ -64,6 +64,7 @@ Repository inspection concluded: **no application code exists**. The workspace i
 - Can migration be incremental? — *n/a; adoption is incremental by design (cart→checkout→order first, regions/tax/promotions later).*
 - Can a Medusa line item reference an immutable approved book revision? — *answered: yes — opaque `approvedBookRevisionId` + `contentHash` metadata, proven 4/4 in Spike C and matching Medusa's documented personalisation recipe.*
 - How should personalised-product configuration be represented? — *answered: line-item `metadata` pointers + our ops projection for lineage; Medusa never receives child/story/page data (guide §6).*
+- How does a completed order get linked to the creation project that generated the draft? — **open.** Cart metadata is fully occupied by the four approved-book reference fields (`approvedBookRevisionId`, `contentHash`, `productFormatId`, `printSpecId` — D013/Spike C), so the project id cannot ride along in the cart, and checkout is unauthenticated so a project id in the checkout body would be browser-asserted. Interim behaviour: `payment_state` is stored server-side on the creation project, defaults to `pending`, and only a server-side payment path may advance it — so `PAID` fails closed until this is resolved. Candidate resolutions: an authenticated account/email identity at checkout, a signed single-use claim token minted server-side at draft creation, or replacing the implicit metadata with an explicit typed line-item field.
 
 ---
 

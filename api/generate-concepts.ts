@@ -1,5 +1,6 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { authorizeGenerationCommand, type PaymentState } from "@for-little-ones/domain";
 
 export const maxDuration = 60;
 
@@ -73,6 +74,20 @@ export default {
     const input = RequestSchema.safeParse(await request.json().catch(() => null));
     if (!input.success) return Response.json({ error: "Check the story details and try again." }, { status: 400 });
 
+    // Entitlement and attempt budget are resolved from the creation service's own
+    // payment record before the job is enqueued, so a refused or exhausted purchase
+    // never reaches the provider (D023).
+    const project = await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}`, { method: "GET" })
+      .catch(() => null) as { paymentState?: unknown; generation?: { assetsGenerated?: unknown; conceptAttempts?: unknown } } | null;
+    if (!project) return Response.json({ error: "Your saved story could not be reached. Please try again." }, { status: 503 });
+    const authorization = authorizeGenerationCommand({
+      paymentState: paymentStateOf(project.paymentState),
+      operation: "CONCEPT_BUNDLE",
+      assetsGenerated: counterOf(project.generation?.assetsGenerated),
+      attempts: counterOf(project.generation?.conceptAttempts)
+    });
+    if (!authorization.allowed) return Response.json({ error: authorization.reason }, { status: 402 });
+
     let jobId: string;
     try {
       const job = await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/concept-jobs`, {
@@ -125,14 +140,26 @@ export default {
   }
 };
 
-async function projectRequest(input: z.infer<typeof RequestSchema>, path: string, init: { method: "POST" | "PATCH"; body: unknown }) {
+function paymentStateOf(value: unknown): PaymentState {
+  return value === "authorized" || value === "captured" || value === "refunded" || value === "cancelled" ? value : "pending";
+}
+
+function counterOf(value: unknown): number {
+  return Number.isSafeInteger(value) && (value as number) >= 0 ? value as number : 0;
+}
+
+async function projectRequest(
+  input: z.infer<typeof RequestSchema>,
+  path: string,
+  init: { method: "GET" | "POST" | "PATCH"; body?: unknown }
+) {
   const baseUrl = process.env.CREATION_API_URL;
   const publishableKey = process.env.VITE_MEDUSA_PUBLISHABLE_KEY;
   if (!baseUrl || !publishableKey) throw new Error("Creation service is not configured");
   const response = await fetch(`${baseUrl}${path}`, {
     method: init.method,
     headers: { "content-type": "application/json", "x-publishable-api-key": publishableKey, authorization: `Bearer ${input.ownerToken}` },
-    body: JSON.stringify(init.body)
+    ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) })
   });
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(`Creation service failed (${response.status})`);

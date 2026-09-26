@@ -24,9 +24,12 @@ export default async function seed({ container }: ExecArgs) {
     table.text("key").primary(); table.text("order_id").notNullable().defaultTo("");
   });
   if (!await db.schema.hasTable("flo_creation_project")) await db.schema.createTable("flo_creation_project", (table) => {
-    table.text("id").primary(); table.text("owner_token_hash").notNullable(); table.text("entitlement").notNullable().defaultTo("TEASER");
+    table.text("id").primary(); table.text("owner_token_hash").notNullable(); table.text("payment_state").notNullable().defaultTo("pending");
     table.timestamp("created_at").notNullable().defaultTo(db.fn.now()); table.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
   });
+  if (!await db.schema.hasColumn("flo_creation_project", "payment_state")) {
+    await db.schema.alterTable("flo_creation_project", (table) => table.text("payment_state").notNullable().defaultTo("pending"));
+  }
   if (!await db.schema.hasTable("flo_creation_revision")) await db.schema.createTable("flo_creation_revision", (table) => {
     table.text("id").primary(); table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");
     table.integer("version").notNullable(); table.text("status").notNullable(); table.jsonb("draft").notNullable(); table.jsonb("teaser").nullable();
@@ -35,6 +38,9 @@ export default async function seed({ container }: ExecArgs) {
   });
   if (!await db.schema.hasColumn("flo_creation_revision", "concepts")) await db.schema.alterTable("flo_creation_revision", (table) => table.jsonb("concepts").nullable());
   if (!await db.schema.hasColumn("flo_creation_revision", "selected_concept_id")) await db.schema.alterTable("flo_creation_revision", (table) => table.text("selected_concept_id").nullable());
+  // The complete generated story stays server-side; `teaser` is what a pre-payment
+  // reader may hold. Only a captured payment unlocks reading `story` (D023).
+  if (!await db.schema.hasColumn("flo_creation_revision", "story")) await db.schema.alterTable("flo_creation_revision", (table) => table.jsonb("story").nullable());
   if (!await db.schema.hasTable("flo_generation_job")) await db.schema.createTable("flo_generation_job", (table) => {
     table.text("id").primary(); table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");
     table.text("revision_id").notNullable().references("id").inTable("flo_creation_revision").onDelete("CASCADE");
