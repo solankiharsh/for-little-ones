@@ -1,6 +1,6 @@
 # 01_ONBOARDING.md — Landing & First Run (Anonymous Session)
 
-> **Spec ID:** F-001 · **Priority:** P0 · **Status:** draft
+> **Spec ID:** F-001 · **Priority:** P0 · **Status:** agreed
 > **Depends on:** — (foundational); feeds F-002 Story Discovery and every creation feature
 > **Scope note:** the **anonymous session identity** (opaque `anonymous_project_id` + ownership token/cookie, server-side ownership enforcement, refresh-safe, claimable later) is P0 and ships with the M0/M1 foundation. The **full account layer** (magic-link claim, customer profile, cross-device library) is a later milestone (M6) but is described in this same file as the forward design.
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
@@ -19,10 +19,13 @@ A gift buyer who lands after midnight shouldn't need a password to feel the magi
 
 ## 3. Current implementation
 
-```text
-None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md.
-Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
-```
+None before the M1 creation-core slice (D023). The anonymous-session core now exists and
+is implemented (Observed): `anonymous_project_id` + browser-token hash (stored digest only,
+never the raw token) in `apps/api/src/session/` (`AnonymousSessionService` — `startSession`,
+`touch`, `resolveSession(rawToken)` by digest, `assertCanAccessProject` owner guard F-001 §8),
+with `Book.projectId` ownership scoping threaded through `BookService` and the bundle runner.
+Purge/claim (durable email-claim recovery, spec §20) remains out of scope. The M1 slice was
+ADD/BUILD over the milestone-0 rails. See `apps/api/src/session/*` and RESEARCH_LOG.md.
 
 ## 4. Problems with current implementation
 

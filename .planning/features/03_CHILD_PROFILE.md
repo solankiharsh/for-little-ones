@@ -1,6 +1,6 @@
 # 03_CHILD_PROFILE.md — Reusable Child Profile
 
-> **Spec ID:** F-003 · **Priority:** P0 · **Status:** draft
+> **Spec ID:** F-003 · **Priority:** P0 · **Status:** agreed
 > **Depends on:** F-001 (onboarding/anonymous session); consumed by F-004, F-005, F-006, F-023, F-024
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -21,8 +21,16 @@ A parent must not re-enter the same child details for every book (spec §13: "A 
 
 ## 3. Current implementation
 
-None (Observed). No application code exists anywhere in the workspace.
-See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
+The milestone-0 minimal `ChildProfile` now carries the M1 face
+(`packages/domain/src/child.ts`: name, displayName, dateOfBirth, pronouns, locale,
+interests, facts, consent, retentionClass, factIds). The typed `Fact` model (F-006), the
+locale-aware option catalogue, and the generation-eligible fact query (`GetFactsForStory` —
+`BookService.getFactsForStory`, confirmed-only, hard-guarded in `buildConceptRequest`) are
+implemented (Observed) in `packages/domain/src/fact*.ts`,
+`packages/domain/src/fact-options.ts` and `apps/api/src/creation/`. The full profile —
+status, confirmations audit, photo/relationship refs, profile service with idempotent
+create/update — remains out of scope. The M1 slice was ADD/BUILD over the rails. See
+`packages/domain/src/child.ts` and RESEARCH_LOG.md.
 
 ## 4. Problems with current implementation
 

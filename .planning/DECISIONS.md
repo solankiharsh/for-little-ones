@@ -585,3 +585,42 @@ execution / provenance / policies / storage are foundational: no feature depende
 - No exactly-once claim anywhere in our documentation; recovery = idempotency.
 - "review-required" work surfaces in the DLQ row (bookId, pageNumber,
   sourceRetryCount) for the F-028 rules.
+
+## D023 — M1 Creation-Core Slice Agreed: F-001/F-002/F-003/F-006/F-007 (2026-09-25)
+
+**Status:** ACCEPTED (milestone-1 "stable creation core" scoped to a first vertical
+slice; specs promoted `proposed → agreed`)
+
+**Decision**
+
+- The first M1 vertical slice is **anonymous session core (F-001 v0) + theme discovery
+  (F-002) + child profile (F-003) + typed personalisation facts (F-006) + story
+  concepts on the durable substrate (F-007)**. It is the **first real consumer of the
+  DurableExecutionContract (D019)** in production-shaped code: the concept bundle runs
+  as a leased, retryable, idempotent-enqueued unit on the runtime surface, with the
+  pg-boss substrate (D022) as the production implementation and InMemory for tests.
+- Specs F-001, F-002, F-003, F-006, F-007 are promoted to `agreed` (guide-16-section
+  compliant; header §3s updated to reflect the now-existing M0 rails per the
+  "Observed" discipline).
+- **Fact options are static typed enums per locale shipped with the app at launch**
+  (resolves F-006 §8 "Decision needed"); a managed catalogue reopens with F-024.
+- The concept generation flow may only send the canonical fact subset (name-derived
+  display facts, pronouns, favourites, relationships, pet, locale) — never photos,
+  never `suggested` facts, never free-text prompts (guide §7, F-007 §10/§12).
+- The command/query boundary for the slice is a `BookService` + thin repository
+  interfaces in `apps/api` (the "proposed shared subsystem" named in F-003/F-006/F-007
+  §8); the Postgres persistence + HTTP transport shells are a separate M0-rails PR and
+  are explicitly NOT part of this decision.
+- **Deferred from this slice:** F-010 orchestration runtime wiring (the slice uses the
+  `DurableExecutionContract` seam directly, exactly as guide §5 dictates), F-004/F-005
+  photos and Character Bible, the F-006 `FactSuggestion` job (acceptance-rate
+  experiment decides whether it ever ships), HTTP transport, and the web screens.
+
+**Consequences**
+
+- The slice lays the seams F-008/F-009/F-011 and the persistence rails will build on:
+  `Book.selectedConceptId`/`themeId`/`themeSeedVersion` become Book fields; the Fact
+  model and `GetFactsForStory` (generation-eligible confirmed facts) become the only
+  fact input path for F-008.
+- No feature spec depends on F-010; the DurableExecutionContract (D019) stays the
+  dependency (guide §5), so a runtime swap does not touch generation features.

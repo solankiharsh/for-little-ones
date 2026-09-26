@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@for-little-ones/contracts": "*",
-    "@for-little-ones/domain": "*"
+    "@for-little-ones/domain": "*",
+    "@for-little-ones/execution": "*",
+    "@for-little-ones/providers": "*"
   }
 }

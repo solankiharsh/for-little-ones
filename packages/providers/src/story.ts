@@ -7,7 +7,14 @@ import type {
   StoryOutlineRequest,
   StoryOutlineResult
 } from "@for-little-ones/contracts";
-import { CONTRACT_NAMES, StoryOutlineResultSchema, parseContract } from "@for-little-ones/contracts";
+import {
+  CONTRACT_NAMES,
+  ConceptResultSchema,
+  EMOTIONAL_GOALS,
+  READING_LEVELS,
+  StoryOutlineResultSchema,
+  parseContract
+} from "@for-little-ones/contracts";
 import type { ProviderBoundary, ProviderCard } from "./shared";
 
 /**
@@ -27,6 +34,7 @@ export interface StoryProvider extends ProviderBoundary {
  * structured failure — never a silent best-effort fix.
  */
 export interface StoryAdapter extends ProviderBoundary {
+  generateConcepts(request: ConceptRequest, vendorPayload: unknown): Promise<ParseResult<ConceptResult>>;
   generateOutline(
     request: StoryOutlineRequest,
     vendorPayload: unknown
@@ -87,6 +95,161 @@ export class ExampleVendorStoryAdapter implements StoryAdapter {
     };
     return parseContract(CONTRACT_NAMES.storyOutlineResult, StoryOutlineResultSchema, canonical);
   }
+
+  async generateConcepts(
+    request: ConceptRequest,
+    vendorPayload: unknown
+  ): Promise<ParseResult<ConceptResult>> {
+    const vendor = asVendorConceptBundle(vendorPayload);
+    if (vendor === null) {
+      return {
+        ok: false,
+        contract: CONTRACT_NAMES.conceptResult,
+        issues: [
+          {
+            path: "<vendor>",
+            message: "adapter received a non-object vendor payload (expected concept bundle JSON)"
+          }
+        ]
+      };
+    }
+    if (vendor.ideas.length !== 3) {
+      return {
+        ok: false,
+        contract: CONTRACT_NAMES.conceptResult,
+        issues: [{ path: "<vendor>ideas", message: `vendor returned ${vendor.ideas.length} ideas; canonical requires exactly 3` }]
+      };
+    }
+    const concepts: Array<Record<string, unknown>> = [];
+    for (let index = 0; index < vendor.ideas.length; index += 1) {
+      const idea = vendor.ideas[index]!;
+      const emotionalGoal = EMOTIONAL_GOAL_VIBES[idea.vibe];
+      if (!emotionalGoal) {
+        return {
+          ok: false,
+          contract: CONTRACT_NAMES.conceptResult,
+          issues: [{ path: `<vendor>ideas[${index}].vibe`, message: `unknown vendor vibe "${idea.vibe}"` }]
+        };
+      }
+      if (!(READING_LEVELS as readonly string[]).includes(vendor.level)) {
+        return {
+          ok: false,
+          contract: CONTRACT_NAMES.conceptResult,
+          issues: [{ path: "<vendor>level", message: `unknown vendor reading level "${vendor.level}"` }]
+        };
+      }
+      concepts.push({
+        title: idea.headline,
+        pitch: idea.blurb,
+        emotionalGoal,
+        themeId: vendor.themeRef,
+        readingLevel: vendor.level,
+        approximateLengthPages: idea.pages,
+        charactersUsed: idea.cast,
+        generationMetadata: {
+          model: "example-vendor/concept",
+          attemptCount: 1,
+          costCents: 2
+        }
+      });
+    }
+    return parseContract(CONTRACT_NAMES.conceptResult, ConceptResultSchema, {
+      schemaVersion: "1",
+      concepts
+    });
+  }
+}
+
+/**
+ * M1 runnable StoryProvider backed by the example adapter (no HTTP vendor yet).
+ * Deterministic concept bundles built from the request so the durable runner has a
+ * real seam to drive. Only concept generation is implemented; outline/page-text
+ * stay with the future vendor wiring.
+ */
+export class ExampleVendorStoryProvider implements Pick<StoryProvider, "generateConcepts" | "card"> {
+  readonly card: ProviderCard = VENDOR_CARD;
+  private readonly adapter = new ExampleVendorStoryAdapter();
+
+  async generateConcepts(request: ConceptRequest): Promise<ConceptResult> {
+    const parsed = await this.adapter.generateConcepts(request, buildVendorConcepts(request));
+    if (!parsed.ok) {
+      throw new Error(`concept generation failed contract validation: ${parsed.issues.map((i) => i.message).join("; ")}`);
+    }
+    return parsed.value;
+  }
+}
+
+/** Vendor's reading of an emotional goal. Unknown vibes are a strict failure. */
+const EMOTIONAL_GOAL_VIBES: Record<string, (typeof EMOTIONAL_GOALS)[number]> = {
+  wonder: "curiosity",
+  brave: "bravery",
+  kind: "kindness",
+  cozy: "bedtime_calm",
+  giggle: "fun",
+  pal: "friendship",
+  home: "belonging",
+  sure: "confidence"
+};
+
+function buildVendorConcepts(request: ConceptRequest): VendorConceptBundle {
+  const hero = request.displayName;
+  const theme = request.themeId;
+  const fact = request.facts[0] ? `${request.facts[0].value} (${request.facts[0].type})` : `${hero} is wonderfully themselves`;
+  return {
+    themeRef: theme,
+    level: request.readingLevel ?? "4-6",
+    ideas: [
+      {
+        headline: `${hero} and the Pinch of Starlight`,
+        blurb: `${hero} befriends a tiny star that has lost its glow. With one real fact — ${fact} — they find the way to light it again.`,
+        vibe: "wonder",
+        pages: 8,
+        cast: [hero]
+      },
+      {
+        headline: `${hero}'s Brave Little Voyage`,
+        blurb: `A short, brave journey shaped around ${theme} and ${fact}. ${hero} learns that courage is small steps taken kindly.`,
+        vibe: "brave",
+        pages: 8,
+        cast: [hero]
+      },
+      {
+        headline: `The Kindest Thing ${hero} Did`,
+        blurb: `A gentle chain of kindness that begins with ${hero} and ends with the whole neighbourhood smiling — powered by ${fact}.`,
+        vibe: "kind",
+        pages: 8,
+        cast: [hero]
+      }
+    ]
+  };
+}
+
+interface VendorConceptBundle {
+  themeRef: string;
+  level: string;
+  ideas: Array<{ headline: string; blurb: string; vibe: string; pages: number; cast: string[] }>;
+}
+
+function asVendorConceptBundle(input: unknown): VendorConceptBundle | null {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return null;
+  }
+  const o = input as Record<string, unknown>;
+  if (!Array.isArray(o.ideas)) return null;
+  return {
+    themeRef: typeof o.themeRef === "string" ? o.themeRef : "",
+    level: typeof o.level === "string" ? o.level : "",
+    ideas: o.ideas.map((idea) => {
+      const i = idea as Record<string, unknown>;
+      return {
+        headline: typeof i.headline === "string" ? i.headline : "",
+        blurb: typeof i.blurb === "string" ? i.blurb : "",
+        vibe: typeof i.vibe === "string" ? i.vibe : "",
+        pages: typeof i.pages === "number" ? i.pages : 0,
+        cast: Array.isArray(i.cast) ? (i.cast as unknown[]).filter((c): c is string => typeof c === "string") : []
+      };
+    })
+  };
 }
 
 interface VendorOutline {
