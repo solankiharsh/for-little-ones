@@ -30,7 +30,7 @@ export type { ChildProfileServiceDeps, CreateProfileInput } from "./profile/chil
 export { FactService } from "./fact/fact-service";
 export type { FactServiceDeps } from "./fact/fact-service";
 export { InMemorySessionStore } from "./session/in-memory-session-store";
-export { createPostgresStores, closePostgresStores } from "./persistence/postgres-stores";
+export { createPostgresStores, closePostgresStores, createPool, applySchema, postgresStores } from "./persistence/postgres-stores";
 export type { PostgresStores } from "./persistence/postgres-stores";
 export { InMemoryCreationStore } from "./creation/creation-store";
 export type { CreationStore, SaveConceptInput } from "./creation/creation-store";
@@ -48,3 +48,6 @@ export type {
   ConceptBundleResult,
   ConceptBundleDeps
 } from "./creation/concept-bundle-runner";
+
+export { composeApi, productionProviderCard } from "./compose";
+export type { ComposedApi, ComposeOptions, ComposeProviders } from "./compose";

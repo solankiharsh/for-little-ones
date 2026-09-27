@@ -55,7 +55,7 @@ Subsequent books: all Useful + custom facts pre-filled from the profile; parent 
 
 - **Facts card:** one column on mobile (D012); each chip row: label + selected value pill + "change". Completed rows collapse; un-tapped rows stay visible but small. Primary CTA **"Write Ava's story"** (enabled always); secondary "Skip the details".
 - **Choice chips:** locale-aware typed pickers — a sport row renders the locale's sport list (en-GB: association football, cricket...; en-US: soccer, football ✓ elsewhere) so the string can never be "football/US" ambiguity (spec §11 literal fix). Colour/toy/animal lists likewise typed enums.
-- **Mood chips:** single-select story-specific mood; affects F-007 concept generation only, not stored as a fact.
+- **Mood chips:** single-select story-specific mood; affects F-007 concept generation only, not stored as a fact. In the domain the selection is `StoryConcept.emotionalGoal` — the chip label may read "mood" in the UI, but `mood` is not a field name.
 - **Deep details:** 1–3 text fields, each with example placeholder ("Teddy is called Mr Bear"), char limit 200, validated by parse (§7). Visible labels explain what will happen: "We'll weave this into the story."
 - **Anytime-edit:** "Your details" sheet from anywhere in creation — add/change/remove facts (confirm on change) — plus the inline Facts card.
 
@@ -81,7 +81,7 @@ Fact
 
 **Typed taxonomy (spec §6 mapped):**
 - *Useful* → `interest`, `favouriteAnimal`, `favouriteColour`, `favouriteToy`, `person` (people they love), `pet`, `hobby`.
-- *Story-specific* → not a Fact; it is `StoryConcept.mood` (see F-007).
+- *Story-specific* → not a Fact; it is `StoryConcept.emotionalGoal` (see F-007).
 - *Optional deep* → `customFact` (1–3, free-text but structured: `{subject, claim}`).
 - `sport` is a first-class typed fact (association football example, spec §11) with locale binding.
 
@@ -99,7 +99,7 @@ Proposed boundary (proposed shared subsystem `BookService` + a typed-option cata
 - `AddFact{ childProfileId, type, value, provenance }` — `provenance` may be `aiSuggested` only from sanctioned suggestion jobs; client cannot set `parentConfirmed` without a confirmation action.
 - `ConfirmFact{ factId }` | `RejectFact{ factId }` | `UpdateFact{ factId, value }` (bumps `confirmedAt`; audit retained).
 - `SuggestFacts{ childProfileId }` → job that emits suggested facts (see §9).
-- `GetFactsForStory{ childProfileId, mood }` → the generation-eligible, parentConfirmed fact set, typed, locale-bound — the sole fact input to F-007/F-008 (adapter guard: no other fact query path).
+- `GetFactsForStory{ childProfileId }` → the generation-eligible, parentConfirmed fact set, typed, locale-bound — the sole fact input to F-007/F-008 (adapter guard: no other fact query path).
 - Validation: type-allowed value shapes; customFact ≤ ~200 chars; ≤3 customFacts; sport requires game∈enum + optional team; person/pet must reference valid Relationship ids. Idempotency: `factToken` on `AddFact`.
 
 ## 9. Background jobs

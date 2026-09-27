@@ -642,7 +642,8 @@ concept jobs. It satisfies D023's open rail ("Postgres persistence + HTTP transp
 shells are a separate M0-rails PR") and closes the M0 exit criterion ("Web → API →
 Postgres runs in CI"). It is **not** the roadmap "Milestone 2 — Reliable book
 generation" (photos/Character Bible/illustration gen); roadmap milestones stay M0…M6
-and this slice is named **Slice-2** to avoid the collision (fix `02:32-33`'s "M2".
+and this slice is named **Slice-2** to avoid the collision (the old "M2" label on the
+`GET /catalogue/themes` spec text is relabelled Slice-2 in `02_STORY_DISCOVERY.md` §8).
 
 Selected positions (all as recommended during design grilling; recorded so the
 implementation PR does not re-argue them):

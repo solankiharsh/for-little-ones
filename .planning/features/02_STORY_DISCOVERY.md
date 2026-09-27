@@ -103,7 +103,7 @@ Conceptual rule: `conceptSeed` is a *generation hint* contract with F-007 (struc
 
 Proposed boundary — a `BookService` (commands/queries) with a `BookRepository` (persistence) behind it; catalogue reads are plain queries over content tables.
 
-- `GET /catalogue/themes?category=&locale=&childId=` → ordered `Theme[]` (+ categories). Anonymous-safe (no auth required; `childId` optional and only used for ordering). `locale` selects en-GB/en-US catalogue copy (F-024 field from day one).
+- `GET /catalogue/themes?category=&locale=&childId=` → ordered `Theme[]` (+ categories). Anonymous-safe (no auth required; `childId` optional and only used for ordering). `locale` selects en-GB/en-US catalogue copy (F-024 field from day one). Shipped in **Slice-2** (D024) alongside the creation-core transport; the catalogue is a content table read, not part of the durable-runtime slice.
 - `GET /catalogue/themes/{id}` → single theme detail (card view).
 - `GET /catalogue/categories` → category list for chips.
 - `POST /books/{bookId}/theme` body `{ themeId, categoryId? }` → 200 with Book's `themeId`, `themeSeedVersion`; idempotent — same payload returns same state; re-selecting overwrites cleanly. Book ownership enforced via session claim (F-001); 404 if the session does not own the book.

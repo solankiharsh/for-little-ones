@@ -54,6 +54,14 @@ export interface ConceptBundleUnitPayload {
   themeId: string;
   themeSeedVersion: string;
   childProfileId: string;
+  /**
+   * The requesting anonymous session, carried in the durable payload so `execute` can
+   * re-assert ownership at claim time. Enqueue-time authorisation alone is not enough:
+   * a unit can be claimed much later (crash recovery, retry backoff, queue wait), by
+   * which point the session may be gone or the project reassigned — and generating then
+   * would spend provider budget on a request that is no longer authorised.
+   */
+  anonymousProjectId: string;
 }
 
 export type ConceptBundleResult = {
@@ -71,8 +79,12 @@ export interface ConceptBundleDeps {
   storyProvider: Pick<StoryProvider, "generateConcepts" | "card">;
   moderation: ModerationProvider;
   events: EventSink;
-  /** The generation-eligible fact query (BookService.getFactsForStory in the shell). */
-  getFactsForStory: (input: { childProfileId: string }) => Promise<Fact[]>;
+  /**
+   * The generation-eligible fact query (BookService.getFactsForStory in the shell).
+   * Takes the owning session so the read is scoped the same way every other route is;
+   * a `childProfileId` alone would let any claimant read any child's facts.
+   */
+  getFactsForStory: (input: { anonymousProjectId: string; childProfileId: string }) => Promise<Fact[]>;
   /** F-001 §8 owner guard — the transport has already resolved the browser token. */
   assertProjectAccess: (anonymousProjectId: string, projectId: string) => Promise<unknown>;
   now: () => string;
@@ -118,7 +130,8 @@ export class ConceptBundleRunner {
             conceptVersion: input.conceptVersion,
             themeId: book.themeId,
             themeSeedVersion: book.themeSeedVersion,
-            childProfileId
+            childProfileId,
+            anonymousProjectId: input.anonymousProjectId
           }
         }
       ]
@@ -167,6 +180,27 @@ export class ConceptBundleRunner {
     const theme = getTheme(payload.themeId);
     if (!theme) {
       return { ok: "fail", failure: { code: "THEME_MISSING", message: `theme ${payload.themeId} not in catalogue`, retryable: false } };
+    }
+
+    if (!book.projectId) {
+      return { ok: "fail", failure: { code: "PROJECT_MISSING", message: `book ${payload.bookId} has no owning project`, retryable: false } };
+    }
+
+    // Re-assert ownership immediately before any provider spend. Non-retryable on
+    // purpose: a session that no longer resolves, or a project it no longer owns, is a
+    // settled fact, so retrying would only burn the attempt budget on a unit that can
+    // never succeed.
+    try {
+      await this.deps.assertProjectAccess(payload.anonymousProjectId, book.projectId);
+    } catch (err) {
+      return {
+        ok: "fail",
+        failure: {
+          code: "PROJECT_ACCESS_DENIED",
+          message: err instanceof Error ? err.message : String(err),
+          retryable: false
+        }
+      };
     }
 
     const request = await this.requestFor(payload, theme.conceptSeed);
@@ -263,7 +297,10 @@ export class ConceptBundleRunner {
     payload: ConceptBundleUnitPayload,
     themeSeed: ConceptRequest["themeSeed"]
   ): Promise<ConceptRequest> {
-    const facts = await this.deps.getFactsForStory({ childProfileId: payload.childProfileId });
+    const facts = await this.deps.getFactsForStory({
+      anonymousProjectId: payload.anonymousProjectId,
+      childProfileId: payload.childProfileId
+    });
     const profile = await this.deps.store.getProfile(payload.childProfileId);
     const age = profile ? ageYearsOn(profile.dateOfBirth, this.deps.now().slice(0, 10)) : undefined;
     return buildConceptRequest({

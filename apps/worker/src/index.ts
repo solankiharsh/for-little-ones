@@ -12,3 +12,6 @@ export const version = "0.0.0";
  * domain only, per the apps → domain direction.
  */
 export type WorkerStep = GenerationStep;
+
+export { startConceptWorker, runOnce } from "./concept-worker";
+export type { ConceptWorkerOptions, ConceptWorkerHandle } from "./concept-worker";

@@ -119,6 +119,17 @@ Revision exceptional states: `GENERATION_FAILED · RENDER_FAILED · CANCELLED`. 
 `ORDERED`, `IN_PRODUCTION`, `SHIPPED`, `DELIVERED`, `PAYMENT_FAILED` or `FULFILMENT_FAILED` on a
 Book or revision.
 
+**1b. Book pre-generation progress — `Book.creationState` (D024, code truth in `packages/domain/src/book.ts`):**
+
+```text
+CREATED → THEME_SELECTED → CONCEPT_SELECTED
+```
+
+A separate, strictly-forward axis from `BookStatus`: it records how far the parent got in
+choosing *what* to make, and is what the creation screens read to resume after a refresh. It
+never rolls back — re-picking a theme or concept leaves the furthest state reached — and it is
+independent of `DRAFT`/`ARCHIVED`, so a Book can be `DRAFT` at any point in this sequence.
+
 **2. Order (commerce) — Medusa order/payment state (D006; owned by `apps/commerce`):**
 
 ```text
