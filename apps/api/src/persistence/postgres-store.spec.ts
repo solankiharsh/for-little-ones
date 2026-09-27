@@ -1,9 +1,9 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Pool } from "pg";
 import type { Book, ChildProfile, Fact, StoryConcept } from "@for-little-ones/domain";
 import { PostgresCreationStore } from "./postgres-creation-store";
 import { PostgresSessionStore } from "./postgres-session-store";
-import { closePostgresStores, createPostgresStores } from "./postgres-stores";
+import { createPostgresStores } from "./postgres-stores";
 import type { PostgresStores } from "./postgres-stores";
 import { resetFloTables, testDatabaseUrl } from "./test-database";
 import { conceptStub, confirmedFact, draftBook, sampleProfile } from "../testing/fixtures";
@@ -42,8 +42,10 @@ describe("api: postgres stores (Slice-2 persistence rail)", () => {
     await stores.creation.saveBook(draftBook());
   });
 
-  afterAll(async () => {
-    await closePostgresStores();
+  afterEach(async () => {
+    // Each test owns a fresh pool (resetFloTables returns one), so it must be closed
+    // per test — `closePostgresStores` targets the process-global store, not this one.
+    await stores.close();
   });
 
   it("replaying the DDL over a populated database changes nothing (no migration step needed)", async () => {

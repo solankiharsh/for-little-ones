@@ -116,6 +116,10 @@ export class InMemoryCreationStore implements CreationStore {
 
   async markConceptSelection(bookId: string, selectedConceptId: string): Promise<void> {
     const current = await this.listConceptsByBook(bookId);
+    const chosen = current.find((c) => c.id === selectedConceptId);
+    // Same guard as the Postgres adapter: only a current-bundle member of this book wins,
+    // and nothing is discarded until we know the winner is real.
+    if (!chosen) throw new Error(`concept not found in current bundle: ${selectedConceptId}`);
     for (const concept of current) {
       this.concepts.set(concept.id, { ...concept, status: concept.id === selectedConceptId ? "SELECTED" : "DISCARDED" });
     }

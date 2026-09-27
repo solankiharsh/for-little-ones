@@ -1,5 +1,6 @@
 import {
   ageYearsOn,
+  allowedCharacterNames,
   duplicateTitles,
   getTheme,
   invalidCharacterNames,
@@ -179,6 +180,13 @@ export class ConceptBundleRunner {
           failure: { code: "CONCEPT_GENERATION_FAILED", message: "concept provider unavailable or invalid output", retryable: true }
         };
       }
+      // F-007 §13 `concept_generation_failed` fires once, on the exhaustive failure —
+      // not on every retry, which would triple-count one incident.
+      await this.deps.events.push({
+        name: "concept_generation_failed",
+        at: this.deps.now(),
+        attributes: { bookId: payload.bookId, conceptVersion: payload.conceptVersion, reason: "model-path-exhausted" }
+      });
       return {
         ok: "fail",
         failure: {
@@ -197,9 +205,15 @@ export class ConceptBundleRunner {
     });
 
     await this.deps.events.push({
-      name: "concepts.generated",
+      name: "story_concepts_generated",
       at: this.deps.now(),
-      attributes: { bookId: payload.bookId, conceptVersion: payload.conceptVersion, source: "model" }
+      attributes: {
+        bookId: payload.bookId,
+        conceptVersion: payload.conceptVersion,
+        source: "model",
+        count: modelConcepts.length,
+        attempts: claimed.attempts + 1
+      }
     });
 
     return { ok: "ok", output: { kind: CONCEPT_BUNDLE_OP, source: "model", conceptVersion: payload.conceptVersion, concepts: modelConcepts } };
@@ -263,7 +277,10 @@ export class ConceptBundleRunner {
   private async isValidAndAllowed(concepts: StoryConcept[], book: Book, request: ConceptRequest): Promise<boolean> {
     if (concepts.length !== 3) return false;
     if (duplicateTitles(concepts).length > 0) return false;
-    const names = new Set(book.characters.map((c) => c.name));
+    // D024 §5: a concept may only name the book's relationships (which include the
+    // seeded self-relationship for the primary child) — never a CharacterBible row,
+    // which is a visual-identity record and not a name vocabulary.
+    const names = allowedCharacterNames(book);
     const structurallyValid = concepts.every(
       (c) =>
         isEmotionalGoal(c.emotionalGoal) &&

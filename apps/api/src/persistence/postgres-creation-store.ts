@@ -279,9 +279,16 @@ export class PostgresCreationStore {
           WHERE book_id = $1 AND concept_version = (SELECT max(concept_version) FROM flo_concepts WHERE book_id = $1) AND status <> 'DISCARDED'`,
         [bookId]
       );
-      const { rowCount } = await client.query(`UPDATE flo_concepts SET status = 'SELECTED' WHERE concept_id = $1`, [
-        selectedConceptId
-      ]);
+      // The winner must belong to THIS book and to its current bundle: a stale or
+      // foreign concept id would otherwise be promoted while its real siblings got
+      // discarded by the UPDATE above.
+      const { rowCount } = await client.query(
+        `UPDATE flo_concepts SET status = 'SELECTED'
+          WHERE concept_id = $1
+            AND book_id = $2
+            AND concept_version = (SELECT max(concept_version) FROM flo_concepts WHERE book_id = $2)`,
+        [selectedConceptId, bookId]
+      );
       if ((rowCount ?? 0) === 0) {
         await client.query("ROLLBACK");
         throw new Error(`concept not found: ${selectedConceptId}`);

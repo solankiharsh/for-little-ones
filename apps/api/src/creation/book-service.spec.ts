@@ -1,6 +1,39 @@
 import { describe, expect, it } from "vitest";
+import type { ModerationProvider, ProviderCard, StoryProvider } from "@for-little-ones/providers";
 import { BookService } from "../../src/creation/book-service";
+import { MemoryEventSink } from "../../src/analytics/event-sink";
 import { draftBook, NOW, seededStore, type Seeded } from "../testing/fixtures";
+
+const TEST_CARD: ProviderCard = {
+  dataPolicy: {
+    verifiedAt: "2026-09-22",
+    policyVersion: "test-v1",
+    childDataSent: false,
+    retentionMode: "NONE",
+    trainingUse: "PROHIBITED",
+    deletionMechanism: "CONTRACTUAL_ZERO_RETENTION",
+    region: "not-applicable",
+    evidenceRef: "internal://test"
+  },
+  idempotency: "none",
+  timeoutMs: 10,
+  retryPolicy: "none",
+  costMetadata: "none"
+};
+
+const ALLOWING_MODERATION: ModerationProvider = {
+  card: TEST_CARD,
+  async screen() {
+    return { verdict: "ALLOW", findings: [] };
+  }
+};
+
+const NO_OP_STORY: Pick<StoryProvider, "generateConcepts" | "card"> = {
+  card: TEST_CARD,
+  async generateConcepts() {
+    return { schemaVersion: "1", concepts: [] };
+  }
+};
 
 function service(
   store: Seeded["store"],
@@ -11,7 +44,10 @@ function service(
     store,
     assertProjectAccess,
     now: () => NOW,
-    newId: (prefix) => `${prefix}-${++counter}`
+    newId: (prefix) => `${prefix}-${++counter}`,
+    events: new MemoryEventSink(),
+    moderation: ALLOWING_MODERATION,
+    storyProvider: NO_OP_STORY
   });
 }
 

@@ -147,7 +147,7 @@ describe("api: concept bundle runner (F-007 §9 durable step on D019)", () => {
     const saved = await seed.store.listConceptsByBook("book-1");
     expect(saved).toHaveLength(3);
     expect(saved.every((c) => c.source === "model" && c.status === "PROPOSED")).toBe(true);
-    expect(events.events.some((e) => e.name === "concepts.generated" && e.attributes.source === "model")).toBe(true);
+    expect(events.events.some((e) => e.name === "story_concepts_generated" && e.attributes.source === "model")).toBe(true);
   });
 
   it("exhausts with a non-retryable CONCEPT_GENERATION_EXHAUSTED after the model path fails twice (F-007 §9 fallback is API-served)", async () => {
@@ -176,7 +176,7 @@ describe("api: concept bundle runner (F-007 §9 durable step on D019)", () => {
 
     // No catalogue bundle was persisted by the worker — the API serves it (F-007 §9).
     expect(await seed.store.listConceptsByBook("book-1")).toHaveLength(0);
-    expect(events.events.some((e) => e.name === "concepts.generated")).toBe(false);
+    expect(events.events.some((e) => e.name === "story_concepts_generated")).toBe(false);
   });
 
   it("treats a moderation BLOCK as a failed model path and exhausts (no second worker pass)", async () => {
@@ -302,5 +302,88 @@ describe("api: concept bundle runner (F-007 §9 durable step on D019)", () => {
     const saved = await seed.store.listConceptsByBook("book-1");
     expect(saved).toHaveLength(3);
     expect(saved.every((c) => c.source === "model")).toBe(true);
+  });
+});
+
+describe("api: concept bundle runner — relationship-driven charactersUsed (D024 §5)", () => {
+  const RELATIONSHIPS = [
+    { id: "rel:self:child-ava", fromChildId: "child-ava", toChildId: "child-ava", kind: "self", name: "Ava", label: "Ava" },
+    { id: "rel-bruno", fromChildId: "child-ava", toChildId: "pet-bruno", kind: "pet", name: "Bruno", label: "the dog" }
+  ];
+
+  async function bookWith(names: string[]) {
+    const seed = await seededStore();
+    await seed.store.saveBook({ ...seed.book, relationships: RELATIONSHIPS });
+    return seed;
+  }
+
+  it("accepts characters named by a relationship the book actually has", async () => {
+    const seed = await bookWith(["Ava", "Bruno"]);
+    const { service, runtime } = runner(
+      seed,
+      { async generateConcepts() { return conceptResult({ charactersUsed: ["Ava", "Bruno"] }); } },
+      allowAll("ALLOW")
+    );
+    await requestBundle(service);
+    await service.runNext("worker-1");
+    expect((await runtime.job(service.operationKey("book-1", 1)))?.status).toBe("SUCCEEDED");
+    expect(await seed.store.listConceptsByBook("book-1")).toHaveLength(3);
+  });
+
+  it("rejects the whole bundle when a concept names a person the book does not have", async () => {
+    const seed = await bookWith(["Ava", "Bruno"]);
+    const { service, runtime } = runner(
+      seed,
+      { async generateConcepts() { return conceptResult({ charactersUsed: ["Ava", "Someone Else"] }); } },
+      allowAll("ALLOW")
+    );
+    await requestBundle(service);
+    await service.runNext("worker-1");
+    await service.runNext("worker-1");
+    await service.runNext("worker-1");
+    const job = await runtime.job(service.operationKey("book-1", 1));
+    expect(job?.units[0]?.status).toBe("DEAD");
+    expect(job?.units[0]?.lastFailure?.code).toBe("CONCEPT_GENERATION_EXHAUSTED");
+    expect(await seed.store.listConceptsByBook("book-1")).toHaveLength(0);
+  });
+
+  it("does not accept a CharacterBible-only name that is not a relationship", async () => {
+    // draftBook() ships one bible row ("Ava") and NO relationships. The primary
+    // child stays legitimate; a bible-only sibling does not become vocabulary.
+    const seed = await seededStore();
+    const { service, runtime } = runner(
+      seed,
+      { async generateConcepts() { return conceptResult({ charactersUsed: ["Ava", "Ava's mum"] }); } },
+      allowAll("ALLOW")
+    );
+    await requestBundle(service);
+    await service.runNext("worker-1");
+    await service.runNext("worker-1");
+    await service.runNext("worker-1");
+    expect((await runtime.job(service.operationKey("book-1", 1)))?.units[0]?.status).toBe("DEAD");
+  });
+
+  it("accepts the primary child even before the self-relationship is seeded", async () => {
+    const seed = await seededStore();
+    const { service, runtime } = runner(
+      seed,
+      { async generateConcepts() { return conceptResult({ charactersUsed: ["Ava"] }); } },
+      allowAll("ALLOW")
+    );
+    await requestBundle(service);
+    await service.runNext("worker-1");
+    expect((await runtime.job(service.operationKey("book-1", 1)))?.status).toBe("SUCCEEDED");
+  });
+
+  it("matches character names case-insensitively, as the vendor contract allows", async () => {
+    const seed = await bookWith(["Ava", "Bruno"]);
+    const { service, runtime } = runner(
+      seed,
+      { async generateConcepts() { return conceptResult({ charactersUsed: ["ava", "bruno"] }); } },
+      allowAll("ALLOW")
+    );
+    await requestBundle(service);
+    await service.runNext("worker-1");
+    expect((await runtime.job(service.operationKey("book-1", 1)))?.status).toBe("SUCCEEDED");
   });
 });
