@@ -10,11 +10,33 @@ export { AnonymousSessionService } from "./session/session-service";
 export type { SessionStore, SessionServiceDeps } from "./session/session-service";
 export { NoopEventSink, MemoryEventSink, TimedEventSink } from "./analytics/event-sink";
 export type { EventSink, AnalyticsEvent } from "./analytics/event-sink";
+export { createApiApp } from "./http/app";
+export type { ApiDeps } from "./http/app";
+export { createInternalEventFlusher } from "./http/event-flusher";
+export { classifyError, errorBody } from "./http/errors";
+export type { ErrorBody } from "./http/errors";
+export { SESSION_COOKIE, sessionCookieOptions, shouldRenew } from "./http/session-cookie";
+export {
+  ConflictError,
+  ModerationBlockedError,
+  OwnershipError,
+  ResourceNotFoundError,
+  UnauthenticatedError,
+  ValidationError
+} from "./errors";
+export { EVENT_ALLOW_LIST, F027_FUNNEL_EVENT_NAMES, SLICE_2_EVENT_NAMES, isAllowListedEvent } from "./analytics/event-names";
+export { ChildProfileService } from "./profile/child-profile-service";
+export type { ChildProfileServiceDeps, CreateProfileInput } from "./profile/child-profile-service";
+export { FactService } from "./fact/fact-service";
+export type { FactServiceDeps } from "./fact/fact-service";
+export { InMemorySessionStore } from "./session/in-memory-session-store";
+export { createPostgresStores, closePostgresStores } from "./persistence/postgres-stores";
+export type { PostgresStores } from "./persistence/postgres-stores";
 export { InMemoryCreationStore } from "./creation/creation-store";
 export type { CreationStore, SaveConceptInput } from "./creation/creation-store";
 export { buildConceptRequest, normaliseLocale } from "./creation/concept-request";
 export type { ConceptRequestInput } from "./creation/concept-request";
-export { BookService } from "./creation/book-service";
+export { BookService, REGENERATE_BUDGET_DEFAULT } from "./creation/book-service";
 export type { BookServiceDeps } from "./creation/book-service";
 export {
   ConceptBundleRunner,

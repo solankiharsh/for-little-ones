@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { ChildProfile, Project } from "@for-little-ones/domain";
+import { OwnershipError, ResourceNotFoundError, UnauthenticatedError } from "../errors";
 import { InMemoryCreationStore } from "../creation/creation-store";
 import { InMemorySessionStore } from "../session/in-memory-session-store";
 import { AnonymousSessionService } from "../session/session-service";
@@ -27,11 +27,12 @@ export async function ownedProject(): Promise<{
 export function projectGuard(sessions: InMemorySessionStore) {
   return async (anonymousProjectId: string, projectId: string): Promise<Project> => {
     const session = await sessions.getSession(anonymousProjectId);
-    if (!session) throw new Error(`unknown anonymous session: ${anonymousProjectId}`);
+    // Same typed failures the real guard throws, so specs and transport agree on 401/403/404.
+    if (!session) throw new UnauthenticatedError(`unknown anonymous session: ${anonymousProjectId}`);
     const project = await sessions.getProject(projectId);
-    if (!project) throw new Error(`project not found: ${projectId}`);
+    if (!project) throw new ResourceNotFoundError(`project not found: ${projectId}`);
     if (project.owner.kind !== "anonymous" || project.owner.anonymousProjectId !== session.anonymousProjectId) {
-      throw new Error(`session does not own project: ${projectId}`);
+      throw new OwnershipError(`session does not own project: ${projectId}`);
     }
     return project;
   };

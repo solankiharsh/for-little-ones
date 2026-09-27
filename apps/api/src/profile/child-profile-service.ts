@@ -1,4 +1,5 @@
 import { ageYearsOn, type ChildProfile, type ProfileConsent } from "@for-little-ones/domain";
+import { ConflictError, OwnershipError, ResourceNotFoundError, ValidationError } from "../errors";
 import type { CreationStore } from "../creation/creation-store";
 import type { SessionStore } from "../session/session-service";
 
@@ -48,7 +49,7 @@ export class ChildProfileService {
 
     validateProfileFields({ ...input, today: this.deps.now().slice(0, 10) });
     if (!input.consent.parentConfirmed) {
-      throw new Error("recorded parent consent is required before a profile may be stored (F-003 §12)");
+      throw new ValidationError("recorded parent consent is required before a profile may be stored (F-003 §12)");
     }
 
     const now = this.deps.now();
@@ -123,10 +124,11 @@ export class ChildProfileService {
   }
 }
 
-export class ProfileNotFoundError extends Error {}
-export class ProfileForbiddenError extends Error {}
-export class ProjectForbiddenError extends Error {}
-export class StaleRevisionError extends Error {}
+export class ProfileNotFoundError extends ResourceNotFoundError {}
+export class ProfileForbiddenError extends OwnershipError {}
+export class ProjectForbiddenError extends OwnershipError {}
+/** The parent held a stale revision; the client must re-read before retrying. */
+export class StaleRevisionError extends ConflictError {}
 
 /**
  * F-003 §6 + §8: names and pronouns are mandatory and the date of birth must be a

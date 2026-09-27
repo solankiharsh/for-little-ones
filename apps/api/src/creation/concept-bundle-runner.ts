@@ -12,6 +12,9 @@ import {
   type Fact,
   type StoryConcept
 } from "@for-little-ones/domain";
+import { CONTRACT_NAMES, ConceptResultSchema, parseContract } from "@for-little-ones/contracts";
+import { ValidationError } from "../errors";
+import { BookNotFoundError } from "./book-service";
 import type { ConceptRequest, ConceptResult } from "@for-little-ones/contracts";
 import type {
   ClaimedUnit,
@@ -82,6 +85,15 @@ export class ConceptBundleRunner {
     return `${CONCEPT_BUNDLE_OP}:${bookId}:v${conceptVersion}`;
   }
 
+  /**
+   * The transport's read side of the same seam: is the bundle for this version queued,
+   * running, landed, or dead? Kept here so `operationKey` construction stays in one
+   * place rather than being re-derived by every caller.
+   */
+  async jobFor(bookId: string, conceptVersion: number): Promise<JobView | undefined> {
+    return this.deps.runtime.job(this.operationKey(bookId, conceptVersion));
+  }
+
   /** F-007: persist-flow entrypoint — enqueue one idempotent unit; observe via `job()`. */
   async requestBundle(input: {
     bookId: string;
@@ -89,12 +101,12 @@ export class ConceptBundleRunner {
     anonymousProjectId: string;
   }): Promise<JobView> {
     const book = await this.deps.store.getBook(input.bookId);
-    if (!book) throw new Error(`book not found: ${input.bookId}`);
-    if (!book.themeId || !book.themeSeedVersion) throw new Error(`book ${input.bookId} has no theme selected`);
-    if (!book.projectId) throw new Error(`book ${input.bookId} has no owning project`);
+    if (!book) throw new BookNotFoundError(`book not found: ${input.bookId}`);
+    if (!book.themeId || !book.themeSeedVersion) throw new ValidationError(`book ${input.bookId} has no theme selected`);
+    if (!book.projectId) throw new ValidationError(`book ${input.bookId} has no owning project`);
     await this.deps.assertProjectAccess(input.anonymousProjectId, book.projectId);
     const childProfileId = book.childProfileIds[0];
-    if (!childProfileId) throw new Error(`book ${input.bookId} has no child profile`);
+    if (!childProfileId) throw new ValidationError(`book ${input.bookId} has no child profile`);
     const request: EnqueueRequest = {
       operationKey: this.operationKey(input.bookId, input.conceptVersion),
       units: [
@@ -164,10 +176,28 @@ export class ConceptBundleRunner {
 
     let modelConcepts: StoryConcept[] | undefined;
     try {
-      const result = await this.deps.storyProvider.generateConcepts(request);
-      const mapped = this.toDomainConcepts(result, payload, request.locale);
-      if (await this.isValidAndAllowed(mapped, book, request)) {
-        modelConcepts = mapped;
+      // A malformed vendor payload is a structured failure, never a silent
+      // best-effort fix: parseContract is the only way a ConceptResult becomes
+      // domain data, and `ok: false` takes the same invalid-output path as a
+      // thrown transport error (retryable, then EXHAUSTED).
+      const raw: unknown = await this.deps.storyProvider.generateConcepts(request);
+      const parsed = parseContract(CONTRACT_NAMES.conceptResult, ConceptResultSchema, raw);
+      if (parsed.ok) {
+        const mapped = this.toDomainConcepts(parsed.value, payload, request.locale);
+        if (await this.isValidAndAllowed(mapped, book, request)) {
+          modelConcepts = mapped;
+        }
+      } else {
+        await this.deps.events.push({
+          name: "concept_generation_contract_violation",
+          at: this.deps.now(),
+          attributes: {
+            bookId: payload.bookId,
+            conceptVersion: payload.conceptVersion,
+            contract: parsed.contract,
+            issueCount: parsed.issues.length
+          }
+        });
       }
     } catch {
       modelConcepts = undefined;

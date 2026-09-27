@@ -1,3 +1,5 @@
+import { ConflictError, OwnershipError, ResourceNotFoundError, ValidationError } from "../errors";
+import type { EventSink } from "../analytics/event-sink";
 import {
   checkCustomFactQuota,
   generationEligibleFacts,
@@ -31,6 +33,22 @@ export interface FactServiceDeps {
   sessions: Pick<SessionStore, "getProjectByOwner" | "addToProject">;
   now: () => string;
   newId: (prefix: string) => string;
+  /** F-027 §8 rail: the audited F-006 transitions are observable, never raw facts. */
+  events: EventSink;
+}
+
+/** Emits the audited F-006 transition. `factId` is bucketed, never a raw id. */
+function factEvent(name: string, fact: Fact, at: string) {
+  return {
+    name,
+    at,
+    attributes: { factId: bucketOfFact(fact.id), type: fact.type, state: fact.state }
+  };
+}
+
+/** F-007 §13 discipline applied to facts: analytics carry a bucket, not an identity. */
+function bucketOfFact(factId: string): string {
+  return `fact:${factId.length}`;
 }
 
 export class FactService {
@@ -58,10 +76,10 @@ export class FactService {
     const profile = await this.requireOwnedProfile(input.anonymousProjectId, input.childProfileId);
 
     if (input.state !== undefined && input.state !== "suggested") {
-      throw new Error(`a client cannot write fact state ${input.state}; parentConfirmed requires the confirm verb (F-006 §8)`);
+      throw new ValidationError(`a client cannot write fact state ${input.state}; parentConfirmed requires the confirm verb (F-006 §8)`);
     }
     const issues = validateFactValue({ type: input.type, value: input.value }, { relationshipIds: profile.relationshipIds ?? [] });
-    if (issues.length > 0) throw new Error(`invalid fact: ${issues.join("; ")}`);
+    if (issues.length > 0) throw new ValidationError(`invalid fact: ${issues.join("; ")}`);
 
     const existingId = await this.deps.store.findFactByToken(input.factToken);
     if (existingId) {
@@ -72,7 +90,7 @@ export class FactService {
     if (input.type === "customFact") {
       const custom = (await this.deps.store.listFactsByProfile(profile.id)).filter((fact) => fact.type === "customFact");
       const quota = checkCustomFactQuota(custom.length);
-      if (quota.length > 0) throw new Error(quota.join("; "));
+      if (quota.length > 0) throw new ValidationError(quota.join("; "));
     }
 
     const fact: Fact = {
@@ -88,6 +106,7 @@ export class FactService {
       factToken: input.factToken
     };
     await this.deps.store.saveFact(fact);
+    await this.deps.events.push(factEvent("fact_added", fact, fact.createdAt));
     // A newly added fact is always `suggested` until the parent confirms it, so it is
     // parked in `suggestedFactIds`. `factIds` is the generation-eligible bucket, and
     // only `confirmFact` may write there.
@@ -99,7 +118,9 @@ export class FactService {
   async confirmFact(input: { anonymousProjectId: string; factId: string }): Promise<Fact> {
     const fact = await this.requireOwnedFact(input.anonymousProjectId, input.factId);
     if (fact.state === "parentConfirmed") return fact;
-    if (fact.state === "rejected") throw new Error(`fact ${fact.id} was rejected; add it again to ask once more`);
+    if (fact.state === "rejected") {
+      throw new ConflictError(`fact ${fact.id} was rejected; add it again to ask once more`);
+    }
 
     const now = this.deps.now();
     const confirmed: Fact = {
@@ -108,6 +129,7 @@ export class FactService {
       confirmedBy: { sessionOwnerId: input.anonymousProjectId, recordedAt: now }
     };
     await this.deps.store.saveFact(confirmed);
+    await this.deps.events.push(factEvent("fact_confirmed", confirmed, now));
     await this.audit(fact.childProfileId, `I confirmed this fact: ${fact.id}`);
     await this.moveBetweenProfileBuckets(fact.childProfileId, fact.id, "confirm");
     return confirmed;
@@ -119,6 +141,7 @@ export class FactService {
     if (fact.state === "rejected") return fact;
     const rejected: Fact = { ...fact, state: "rejected" };
     await this.deps.store.saveFact(rejected);
+    await this.deps.events.push(factEvent("fact_rejected", rejected, this.deps.now()));
     await this.audit(fact.childProfileId, `I rejected this fact: ${fact.id}`);
     await this.moveBetweenProfileBuckets(fact.childProfileId, fact.id, "reject");
     return rejected;
@@ -131,6 +154,7 @@ export class FactService {
   async removeFact(input: { anonymousProjectId: string; factId: string }): Promise<void> {
     const fact = await this.requireOwnedFact(input.anonymousProjectId, input.factId);
     await this.deps.store.removeFact(fact.id);
+    await this.deps.events.push(factEvent("fact_removed", fact, this.deps.now()));
     await this.audit(fact.childProfileId, `I removed this fact: ${fact.id}`);
     await this.detachFromProfile(fact.childProfileId, fact.id);
   }
@@ -217,5 +241,5 @@ export class FactService {
 
   }
 
-export class FactNotFoundError extends Error {}
-export class FactForbiddenError extends Error {}
+export class FactNotFoundError extends ResourceNotFoundError {}
+export class FactForbiddenError extends OwnershipError {}

@@ -12,6 +12,7 @@ import {
   type PersonalFact,
   type StoryConcept
 } from "@for-little-ones/domain";
+import { ConflictError, ModerationBlockedError, ResourceNotFoundError, ValidationError } from "../errors";
 import type { ModerationProvider } from "@for-little-ones/providers";
 import type { EventSink } from "../analytics/event-sink";
 import type { CreationStore } from "./creation-store";
@@ -44,10 +45,14 @@ export interface BookServiceDeps {
 /** Only the concept half of StoryProvider is needed here; generation lives in the runner. */
 type StoryConceptStoryProvider = import("@for-little-ones/providers").StoryProvider;
 
-export class BookNotFoundError extends Error {}
-export class ConceptNotFoundError extends Error {}
-export class ConceptEditBlockedError extends Error {}
-export class RegenerateBudgetError extends Error {}
+export class BookNotFoundError extends ResourceNotFoundError {}
+export class ConceptNotFoundError extends ResourceNotFoundError {}
+export class ConceptEditBlockedError extends ModerationBlockedError {}
+/** The regenerate budget is a bound on the book's state, so it is a 409, not a 4xx of the request. */
+export class RegenerateBudgetError extends ConflictError {}
+export class ChildProfileNotFoundError extends ResourceNotFoundError {}
+/** The plan's 404 set includes themes, so an unknown themeId is not a 500. */
+export class ThemeNotFoundError extends ResourceNotFoundError {}
 
 export class BookService {
   constructor(private readonly deps: BookServiceDeps) {}
@@ -61,7 +66,7 @@ export class BookService {
   }): Promise<Book> {
     await this.deps.assertProjectAccess(input.anonymousProjectId, input.projectId);
     const profile = await this.deps.store.getProfile(input.childProfileId);
-    if (!profile) throw new Error(`child profile not found: ${input.childProfileId}`);
+    if (!profile) throw new ChildProfileNotFoundError(`child profile not found: ${input.childProfileId}`);
     const locale = normaliseLocaleString(input.locale ?? profile.locale);
     const book: Book = {
       id: this.deps.newId("book"),
@@ -91,7 +96,7 @@ export class BookService {
   async selectTheme(input: { bookId: string; themeId: string; anonymousProjectId: string }): Promise<Book> {
     const book = await this.requireBookOwned(input.bookId, input.anonymousProjectId);
     const theme = getTheme(input.themeId);
-    if (!theme) throw new Error(`unknown theme: ${input.themeId}`);
+    if (!theme) throw new ThemeNotFoundError(`unknown theme: ${input.themeId}`);
     // Idempotent: re-pinning the same theme is a no-op, and creationState only advances.
     const updated: Book = {
       ...book,
@@ -130,7 +135,7 @@ export class BookService {
     const book = await this.requireBookOwned(input.bookId, input.anonymousProjectId);
     if (!book.themeId || !book.themeSeedVersion) throw new Error(`book ${input.bookId} has no theme selected`);
     const theme = getTheme(book.themeId);
-    if (!theme) throw new Error(`book ${input.bookId} pins missing theme ${book.themeId}`);
+    if (!theme) throw new ThemeNotFoundError(`book ${input.bookId} pins missing theme ${book.themeId}`);
     const facts = await this.getFactsForStory({ childProfileId: profile.id });
     const age = ageYearsOn(profile.dateOfBirth, this.deps.now().slice(0, 10));
     return {
@@ -154,7 +159,9 @@ export class BookService {
     // F-007 §8 idempotent re-select: the already-selected concept confirms the
     // existing state without re-running the transition.
     if (chosen.status === "SELECTED" && book.selectedConceptId === chosen.id) return book;
-    if (chosen.status !== "PROPOSED") throw new Error(`concept ${input.conceptId} is ${chosen.status}, not PROPOSED`);
+    if (chosen.status !== "PROPOSED") {
+      throw new ConflictError(`concept ${input.conceptId} is ${chosen.status}, not PROPOSED`);
+    }
     await this.deps.store.markConceptSelection(input.bookId, chosen.id);
     const updatedBook: Book = {
       ...book,
@@ -179,9 +186,9 @@ export class BookService {
    */
   async serveFallbackConcepts(input: { bookId: string; conceptVersion: number; anonymousProjectId: string }): Promise<StoryConcept[]> {
     const book = await this.requireBookOwned(input.bookId, input.anonymousProjectId);
-    if (!book.themeId) throw new Error(`book ${input.bookId} has no theme selected`);
+    if (!book.themeId) throw new ValidationError(`book ${input.bookId} has no theme selected`);
     const theme = getTheme(book.themeId);
-    if (!theme) throw new Error(`book ${input.bookId} pins missing theme ${book.themeId}`);
+    if (!theme) throw new ThemeNotFoundError(`book ${input.bookId} pins missing theme ${book.themeId}`);
     // Only name a protagonist the book actually has; never hard-code a child's
     // name — a fallback bundle for another child must not say "Ava".
     const protagonist = book.characters[0]?.name;
@@ -240,10 +247,10 @@ export class BookService {
 
     const title = input.patch.title ?? current.title;
     const pitch = input.patch.pitch ?? current.pitch;
-    if (title.trim().length === 0) throw new Error("concept title is required");
-    if (title.length > CONCEPT_TITLE_MAX) throw new Error(`concept title exceeds ${CONCEPT_TITLE_MAX} characters`);
-    if (pitch.trim().length === 0) throw new Error("concept pitch is required");
-    if (pitch.length > CONCEPT_PITCH_MAX) throw new Error(`concept pitch exceeds ${CONCEPT_PITCH_MAX} characters`);
+    if (title.trim().length === 0) throw new ValidationError("concept title is required");
+    if (title.length > CONCEPT_TITLE_MAX) throw new ValidationError(`concept title exceeds ${CONCEPT_TITLE_MAX} characters`);
+    if (pitch.trim().length === 0) throw new ValidationError("concept pitch is required");
+    if (pitch.length > CONCEPT_PITCH_MAX) throw new ValidationError(`concept pitch exceeds ${CONCEPT_PITCH_MAX} characters`);
 
     const moderation = input.moderation ?? this.deps.moderation;
     const verdict = await moderation.screen({
@@ -297,7 +304,7 @@ export class BookService {
   async regenerateConcepts(input: { anonymousProjectId: string; bookId: string }): Promise<{ conceptVersion: number; spent: number }> {
     const book = await this.requireBookOwned(input.bookId, input.anonymousProjectId);
     if (!book.themeId || !book.themeSeedVersion) {
-      throw new Error(`book ${input.bookId} has no theme selected`);
+      throw new ValidationError(`book ${input.bookId} has no theme selected`);
     }
     const spent = (await this.deps.store.regenerateCount(book.id)) + 1;
     if (spent > REGENERATE_BUDGET_DEFAULT) {
@@ -335,7 +342,7 @@ export class BookService {
 
   private async requireProfile(profileId: string): Promise<ChildProfile> {
     const profile = await this.deps.store.getProfile(profileId);
-    if (!profile) throw new Error(`child profile not found: ${profileId}`);
+    if (!profile) throw new ChildProfileNotFoundError(`child profile not found: ${profileId}`);
     return profile;
   }
 
