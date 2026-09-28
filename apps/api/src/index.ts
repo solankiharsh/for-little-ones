@@ -30,8 +30,8 @@ export type { ChildProfileServiceDeps, CreateProfileInput } from "./profile/chil
 export { FactService } from "./fact/fact-service";
 export type { FactServiceDeps } from "./fact/fact-service";
 export { InMemorySessionStore } from "./session/in-memory-session-store";
-export { createPostgresStores, closePostgresStores, createPool, applySchema, postgresStores } from "./persistence/postgres-stores";
-export type { PostgresStores } from "./persistence/postgres-stores";
+export { createPostgresStores, closePostgresStores, createPool, applySchema, postgresStores, MIGRATIONS, migrate } from "./persistence/postgres-stores";
+export type { PostgresStores, Migration, MigrateOptions, MigrateResult } from "./persistence/postgres-stores";
 export { InMemoryCreationStore } from "./creation/creation-store";
 export type { CreationStore, SaveConceptInput } from "./creation/creation-store";
 export { buildConceptRequest, normaliseLocale } from "./creation/concept-request";

@@ -1,5 +1,5 @@
 import pg, { type Pool } from "pg";
-import { applySchema } from "./postgres-stores";
+import { migrate } from "./migrations";
 
 /**
  * Test-database access for the Postgres-backed specs. The embedded cluster is booted
@@ -27,8 +27,9 @@ export function testDatabaseUrl(): string {
 
 /**
  * Truncates every `flo_*` table so each spec starts from a known-empty database.
- * Applies the (idempotent) schema first, so a spec never has to order itself
- * around whether the tables exist yet.
+ * Runs the versioned migrations first, so a spec never has to order itself
+ * around whether the schema exists yet. The ledger table itself is never
+ * truncated — migration history survives resets by design.
  *
  * The pg-boss ledger is cleared too. A durable job is keyed by its operation key
  * (`concept-bundle:book-1:v1`), and pg-boss will not create a second job under a name
@@ -38,7 +39,7 @@ export function testDatabaseUrl(): string {
  */
 export async function resetFloTables(): Promise<Pool> {
   const pool = new pg.Pool({ connectionString: testDatabaseUrl() });
-  await applySchema(pool);
+  await migrate(pool);
   await pool.query(`TRUNCATE ${FLO_TABLES.join(", ")} CASCADE`);
   return pool;
 }

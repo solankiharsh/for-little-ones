@@ -1,31 +1,27 @@
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { applySchema, migrate } from "./migrations";
 import { PostgresCreationStore } from "./postgres-creation-store";
 import { PostgresSessionStore } from "./postgres-session-store";
 
+export { applySchema } from "./migrations";
+export { MIGRATIONS, migrate } from "./migrations";
+export type { Migration, MigrateOptions, MigrateResult } from "./migrations";
+
 /**
- * Slice-2 persistence seam wiring (D024 §8): ONE `pg.Pool` shared by the session and
- * creation adapters, created once per process. The raw `flo_*` DDL is replayed by
- * `init()` and is idempotent, so booting the API and the worker against the same
- * database needs no migration step (the migration-framework item stays open).
+ * Slice-2 persistence seam wiring (D024 §8, D027): ONE `pg.Pool` shared by the
+ * session and creation adapters, created once per process. `init()` runs the
+ * versioned migrations (baseline = the idempotent `flo_*` DDL, then any pending
+ * ALTER/backfill change in order under an advisory lock), so booting the API and
+ * the worker against the same database is safe and needs no manual step.
  */
 
 export interface PostgresStores {
   pool: pg.Pool;
   sessions: PostgresSessionStore;
   creation: PostgresCreationStore;
-  /** Replays `schema.sql`. Safe to call on every boot and concurrently. */
+  /** Runs pending migrations (baseline first). Safe to call on every boot and concurrently. */
   init(): Promise<void>;
   close(): Promise<void>;
-}
-
-const SCHEMA_URL = new URL("./schema.sql", import.meta.url);
-
-/** Replays the idempotent `flo_*` DDL. Safe on every boot and against an existing schema. */
-export async function applySchema(db: Pick<pg.Pool, "query">): Promise<void> {
-  const ddl = await readFile(fileURLToPath(SCHEMA_URL), "utf8");
-  await db.query(ddl);
 }
 
 export function createPostgresStores(pool: pg.Pool): PostgresStores {
@@ -36,7 +32,7 @@ export function createPostgresStores(pool: pg.Pool): PostgresStores {
     sessions,
     creation,
     async init() {
-      await applySchema(pool);
+      await migrate(pool);
     },
     async close() {
       await pool.end();

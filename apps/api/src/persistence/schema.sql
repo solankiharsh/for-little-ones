@@ -1,6 +1,7 @@
--- Slice-2 creation-core schema (D024 §8): raw, idempotent DDL. No migration
--- framework in this slice — `init()` replays this file, so every statement must be
--- safe to run against a database that already has the tables.
+-- Slice-2 creation-core schema (D024 §8, D027): the version-1 baseline. It is replayed
+-- by `migrations.ts` (idempotent — every statement must stay safe against a database
+-- that already has the tables) and recorded in `flo_schema_migrations`. Later changes
+-- land as new ordered migrations, never edits to this file.
 --
 -- Timestamps are TEXT holding the canonical ISO-8601 strings the domain uses
 -- everywhere (`now()`), so a save/read round-trip is byte-identical to the
