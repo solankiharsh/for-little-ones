@@ -1053,6 +1053,21 @@ span.flo-block-caption {
 .flo-story-unlock { margin: 20px 0 12px; padding: 20px; border-radius: 14px; color: #fffaf0; background: var(--flo-sienna-deep); }
 .flo-story-unlock strong { font: 400 24px/1.2 var(--font-family-heading); }
 .flo-story-unlock p { margin: 8px 0 0; line-height: 1.55; }
+.flo-reader-tabs { display: flex; gap: 8px; margin: 20px 0 4px; }
+.flo-reader-tabs [role="tab"] { padding: 9px 18px; border: 1px solid var(--flo-line); border-radius: 999px; background: #fbf6eb; color: var(--flo-ink-soft); font-weight: 700; font-size: 13px; letter-spacing: .04em; cursor: pointer; }
+.flo-reader-tabs [role="tab"][aria-selected="true"] { background: var(--flo-sienna-deep); border-color: var(--flo-sienna-deep); color: #fffaf0; }
+.flo-reader-dedication { max-width: 560px; margin: 24px auto; padding: 40px 32px; text-align: center; border: 1px solid var(--flo-line); border-radius: 14px; background: #fffdf7; }
+.flo-reader-dedication p:not(.flo-kicker) { font: 400 24px/1.5 var(--font-family-heading); margin: 12px 0 0; }
+.flo-reader-story { margin-top: 20px; }
+.flo-reader-rail { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+.flo-reader-rail button { width: 44px; height: 44px; border: 1px solid var(--flo-line); border-radius: 12px; background: #fffdf8; font-weight: 700; cursor: pointer; }
+.flo-reader-rail button[aria-current="page"] { background: var(--flo-sienna-deep); border-color: var(--flo-sienna-deep); color: #fffaf0; }
+.flo-reader-rail button:disabled { cursor: not-allowed; opacity: .65; }
+.flo-reader-page { display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: stretch; padding: 14px; border: 1px solid var(--flo-line); border-radius: 14px; background: #fffdf7; }
+.flo-reader-page p { line-height: 1.65; margin: 8px 0; }
+.flo-reader-page small { color: var(--flo-ink-soft); line-height: 1.45; }
+.flo-reader-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.flo-reader-nav > span { color: var(--flo-ink-soft); font-size: 13px; }
 @keyframes flo-spin { to { transform: rotate(360deg); } }
 @media (max-width: 600px) {
   .flo-cart-layer { padding: 10px; }
@@ -1070,5 +1085,6 @@ span.flo-block-caption {
   .flo-create-actions { padding: 20px; flex-wrap: wrap; }
   .flo-create-actions .flo-btn { flex: 1; }
   .flo-story-preview li { grid-template-columns: 1fr; }
+  .flo-reader-page { grid-template-columns: 1fr; }
   .flo-concept-grid { grid-template-columns: 1fr; }
 }

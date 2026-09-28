@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import { generationAccessFor } from "@for-little-ones/domain";
 import { createStoryProject, generateStoryConcepts, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, selectStoryConcept, type CreationDraft, type StoryConcept, type StoryProjectCredential } from "./story-preview";
+import StoryReader from "./StoryReader";
 
 const WORLDS = ["Bedtime wonder", "Small adventures", "Big imagination"];
 const STEPS = ["Your child", "Their world", "Little details", "Story ideas", "Preview"];
@@ -201,19 +202,11 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
               {restoring && <p className="flo-create-confirmation" role="status">Restoring your saved story…</p>}
               {started && !story && !restoring && <p className="flo-create-confirmation" role="status">The details are ready. We’ll now write a six-page story preview for you to review before checkout.</p>}
               {generating && <div className="flo-create-generating" role="status"><span aria-hidden="true" /> <div><strong>Writing {child}’s story…</strong><small>Creating the title, story arc and six page drafts. This can take around a minute.</small></div></div>}
-              {story && <section className="flo-story-preview" aria-label="Generated story preview">
-                <div className="flo-story-preview-head"><p className="flo-kicker">Story preview</p><h3>{story.title}</h3><p>{story.synopsis}</p></div>
-                <ol>{story.pages.map((page, index) => {
-                  const unlocked = visiblePages === "ALL" || index < visiblePages;
-                  const excerpt = visiblePages !== "ALL" && index === visiblePages;
-                  return <li key={page.pageNumber} className={!unlocked ? "flo-story-page-locked" : undefined}>
-                    <div className="flo-story-art-placeholder" role="img" aria-label={unlocked ? `Artwork placeholder for page ${page.pageNumber}` : `Locked artwork for page ${page.pageNumber}`}><span>{unlocked ? `Page ${page.pageNumber}` : "Locked"}</span><small>{unlocked ? "Illustration artwork comes next" : "Unlocks after payment"}</small></div>
-                    <div><strong>Page {page.pageNumber}</strong>{unlocked ? <><p>{page.text}</p><small>{page.illustrationCue}</small></> : excerpt ? <><p className="flo-story-excerpt">{page.text}</p><small>Continue with the finished book</small></> : <><p>Story page ready</p><small>Full text and finished artwork unlock after payment.</small></>}</div>
-                  </li>;
-                })}</ol>
+              {story && <>
+                <StoryReader story={story} childName={child} world={world} dedication={dedication.trim()} visiblePages={visiblePages} />
                 {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse before you buy</strong><p>Your title, synopsis, first page and a little of what follows are ready to review. Payment unlocks the complete story, finished illustrations, page regeneration and the editing studio.</p></div>}
                 <p className="flo-create-hint">Image generation will be limited to two low-resolution, watermarked previews before payment. Production artwork starts only after payment is confirmed.</p>
-              </section>}
+              </>}
             </>}
             {error && <p role="alert" className="flo-cart-form-error">{error}</p>}
           </div>
