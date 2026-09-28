@@ -155,7 +155,12 @@ export const PageTextRequestSchema = z.strictObject({
   bibleVersion: z.string().min(1),
   factsVersion: z.string().min(1),
   locale: z.string().min(2),
-  policySetVersion: z.string().min(1)
+  policySetVersion: z.string().min(1),
+  // Continuity context (F-008 §10): who the page is for and what came before.
+  // Optional so older producers still validate; the runner always fills it.
+  heroName: z.string().min(1).max(40).optional(),
+  storyTitle: z.string().min(1).max(100).optional(),
+  priorLines: z.array(z.string().min(1).max(280)).max(12).optional()
 });
 
 export const PageTextResultSchema = z.strictObject({

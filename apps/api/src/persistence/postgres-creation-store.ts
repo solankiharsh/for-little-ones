@@ -1,4 +1,4 @@
-import type { Book, ChildProfile, Fact, StoryConcept } from "@for-little-ones/domain";
+import type { Book, ChildProfile, Fact, Story, StoryConcept, StoryPage } from "@for-little-ones/domain";
 import type { Pool } from "pg";
 
 /**
@@ -301,6 +301,78 @@ export class PostgresCreationStore {
       client.release();
     }
   }
+
+  /** Upsert by story id; the outline lands on the same row the OUTLINE unit created. */
+  async saveStory(story: Story): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO flo_stories
+         (story_id, book_id, story_version, concept_id, locale, reading_level,
+          facts_version, outline, status, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       ON CONFLICT (story_id) DO UPDATE SET
+         outline = EXCLUDED.outline,
+         status = EXCLUDED.status`,
+      [
+        story.id,
+        story.bookId,
+        story.storyVersion,
+        story.conceptId,
+        story.locale,
+        story.readingLevel,
+        story.factsVersion,
+        story.outline ? JSON.stringify(story.outline) : null,
+        story.status,
+        story.createdAt
+      ]
+    );
+  }
+
+  async getStory(bookId: string, storyVersion: number): Promise<Story | undefined> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM flo_stories WHERE book_id = $1 AND story_version = $2`,
+      [bookId, storyVersion]
+    );
+    return rows[0] ? toStory(rows[0]) : undefined;
+  }
+
+  /** Upsert by pageKey: a same-key rewrite replaces, never appends (F-008 §14). */
+  async savePage(page: StoryPage): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO flo_pages
+         (page_key, story_id, book_id, page_number, text_blocks, illustration_cue,
+          status, attempt_count, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (page_key) DO UPDATE SET
+         text_blocks = EXCLUDED.text_blocks,
+         illustration_cue = EXCLUDED.illustration_cue,
+         status = EXCLUDED.status,
+         attempt_count = EXCLUDED.attempt_count`,
+      [
+        page.pageKey,
+        page.storyId,
+        page.bookId,
+        page.pageNumber,
+        JSON.stringify(page.textBlocks),
+        page.illustrationCue ?? null,
+        page.status,
+        page.attemptCount,
+        page.createdAt
+      ]
+    );
+  }
+
+  async getPage(pageKey: string): Promise<StoryPage | undefined> {
+    const { rows } = await this.pool.query(`SELECT * FROM flo_pages WHERE page_key = $1`, [pageKey]);
+    return rows[0] ? toPage(rows[0]) : undefined;
+  }
+
+  async listPagesByStory(storyId: string): Promise<StoryPage[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM flo_pages WHERE story_id = $1 ORDER BY page_number`,
+      [storyId]
+    );
+    return rows.map(toPage);
+  }
 }
 
 type Queryable = Pick<Pool, "query">;
@@ -444,8 +516,7 @@ function toBook(row: Row): Book {
   return book;
 }
 
-function toConcept(row: Row): StoryConcept {
-  return {
+function toConcept(row: Row): StoryConcept {  return {
     id: String(row.concept_id),
     bookId: String(row.book_id),
     conceptVersion: Number(row.concept_version),
@@ -462,4 +533,35 @@ function toConcept(row: Row): StoryConcept {
     status: String(row.status) as StoryConcept["status"],
     createdAt: String(row.created_at)
   };
+}
+
+function toStory(row: Row): Story {
+  const story: Story = {
+    id: String(row.story_id),
+    bookId: String(row.book_id),
+    storyVersion: Number(row.story_version),
+    conceptId: String(row.concept_id),
+    locale: String(row.locale),
+    readingLevel: String(row.reading_level) as Story["readingLevel"],
+    factsVersion: String(row.facts_version),
+    status: String(row.status) as Story["status"],
+    createdAt: String(row.created_at)
+  };
+  if (row.outline) story.outline = row.outline as NonNullable<Story["outline"]>;
+  return story;
+}
+
+function toPage(row: Row): StoryPage {
+  const page: StoryPage = {
+    pageKey: String(row.page_key),
+    storyId: String(row.story_id),
+    bookId: String(row.book_id),
+    pageNumber: Number(row.page_number),
+    textBlocks: (row.text_blocks ?? []) as StoryPage["textBlocks"],
+    status: String(row.status) as StoryPage["status"],
+    attemptCount: Number(row.attempt_count ?? 0),
+    createdAt: String(row.created_at)
+  };
+  if (row.illustration_cue) page.illustrationCue = String(row.illustration_cue);
+  return page;
 }

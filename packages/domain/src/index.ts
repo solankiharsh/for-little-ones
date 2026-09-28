@@ -78,6 +78,16 @@ export {
 } from "./story-concept";
 export type { SessionOwnerProject, AnonymousSession, Project } from "./session";
 export { sessionAllowsProject, emptyProject } from "./session";
+export type { Story, StoryPage, StoryStatus, StoryPageStatus } from "./story";
+export {
+  STORY_STATUSES,
+  isStoryStatus,
+  STORY_PAGE_STATUSES,
+  isStoryPageStatus,
+  STORY_PAGE_COUNT,
+  storyIdFor,
+  pageKeySeed
+} from "./story";
 export type {
   Book,
   BookStatus,

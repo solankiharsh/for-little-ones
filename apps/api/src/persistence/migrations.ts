@@ -49,7 +49,39 @@ export const BASELINE_MIGRATION: Migration = {
 };
 
 /** Ordered migration registry. Append-only: never edit an applied migration. */
-export const MIGRATIONS: Migration[] = [BASELINE_MIGRATION];
+export const MIGRATIONS: Migration[] = [
+  BASELINE_MIGRATION,
+  {
+    version: 2,
+    name: "story-pipeline",
+    sql: `CREATE TABLE IF NOT EXISTS flo_stories (
+            story_id TEXT PRIMARY KEY,
+            book_id TEXT NOT NULL REFERENCES flo_books (book_id) ON DELETE CASCADE,
+            story_version INTEGER NOT NULL,
+            concept_id TEXT NOT NULL,
+            locale TEXT NOT NULL,
+            reading_level TEXT NOT NULL,
+            facts_version TEXT NOT NULL,
+            outline JSONB,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE (book_id, story_version)
+          );
+          CREATE TABLE IF NOT EXISTS flo_pages (
+            page_key TEXT PRIMARY KEY,
+            story_id TEXT NOT NULL REFERENCES flo_stories (story_id) ON DELETE CASCADE,
+            book_id TEXT NOT NULL,
+            page_number INTEGER NOT NULL,
+            text_blocks JSONB NOT NULL DEFAULT '[]'::jsonb,
+            illustration_cue TEXT,
+            status TEXT NOT NULL,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            UNIQUE (story_id, page_number)
+          );
+          CREATE INDEX IF NOT EXISTS flo_pages_story_key ON flo_pages (story_id);`
+  }
+];
 
 export interface MigrateOptions {
   migrations?: Migration[];

@@ -1,9 +1,12 @@
 import { assertDevOnly, devProviders } from "@for-little-ones/api/dev";
 import { startConceptWorker } from "./concept-worker";
+import { startStoryWorker } from "./story-worker";
 
 /**
- * Dev concept worker. Run with `npm run dev:worker` against the same `DATABASE_URL` as
- * `npm run dev:api` — the worker claims units the API enqueues.
+ * Dev workers. Run with `npm run dev:worker` against the same `DATABASE_URL` as
+ * `npm run dev:api` — the loops claim the units the API enqueues. Concept and
+ * story loops share one process locally; production may split them (separate
+ * lease/throughput tuning) without changing either runner.
  */
 async function main(): Promise<void> {
   assertDevOnly("dev:worker");
@@ -11,23 +14,31 @@ async function main(): Promise<void> {
   if (!connectionString) throw new Error("DATABASE_URL is not set");
 
   const providers = devProviders();
-  const handle = await startConceptWorker({
+  const workerId = `worker-${process.pid}`;
+  const concepts = await startConceptWorker({
     connectionString,
-    workerId: `concept-worker-${process.pid}`,
+    workerId: `${workerId}-concepts`,
+    storyProvider: providers.story,
+    moderation: providers.moderation
+  });
+  const stories = await startStoryWorker({
+    connectionString,
+    workerId: `${workerId}-stories`,
     storyProvider: providers.story,
     moderation: providers.moderation
   });
 
-  process.stdout.write("flo concept worker (dev) started\n");
+  process.stdout.write("flo workers (dev) started: concepts + stories\n");
 
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, () => {
-      handle.stop();
+      concepts.stop();
+      stories.stop();
     });
   }
-  // Drain the loop before exiting so an in-flight unit is completed or failed rather
-  // than left leased until expiry.
-  await handle.done;
+  // Drain both loops before exiting so in-flight units complete or fail rather
+  // than being left leased until expiry.
+  await Promise.all([concepts.done, stories.done]);
 }
 
 void main().catch((err: unknown) => {

@@ -47,6 +47,14 @@ Partially — the seams exist, the pipeline does not (Observed):
 
 The greenfield-era reading (D013) no longer applies to this feature.
 
+**Built 2026-09-28 (D030):** the durable story runner (`StoryRunner`: OUTLINE gate
+→ PAGE_TEXT fan-out on the contract, per-page isolation, same-key rewrite), the §8
+HTTP endpoints on the Slice-2 transport, `flo_stories`/`flo_pages` persistence
+(migration v2), the story claim loop on the `flo-story` queue, and dev
+outline/pageText on the example provider — verified live (outline → six READY
+pages, regen heals failed pages). Remaining: vendor outline/pageText quality,
+Path B `api/generate-story.ts` retirement, F-009/F-011 consumption of these rows.
+
 ## 4. Problems with current implementation
 
 Not applicable (greenfield). Design risks the spec itself must avoid:

@@ -4,6 +4,7 @@ import type { ModerationProvider, ProviderCard, StoryProvider } from "@for-littl
 import { FactService } from "./fact/fact-service";
 import { BookService } from "./creation/book-service";
 import { ConceptBundleRunner } from "./creation/concept-bundle-runner";
+import { StoryRunner } from "./creation/story-runner";
 import { ChildProfileService } from "./profile/child-profile-service";
 import { AnonymousSessionService } from "./session/session-service";
 import { NoopEventSink, type EventSink } from "./analytics/event-sink";
@@ -24,7 +25,7 @@ import { createApiApp, type ApiDeps } from "./http/app";
 
 /** D024 §2: child data must not reach a provider whose policy cannot account for it. */
 export interface ComposeProviders {
-  story: Pick<StoryProvider, "generateConcepts" | "card">;
+  story: Pick<StoryProvider, "generateConcepts" | "generateOutline" | "generatePageText" | "card">;
   moderation: ModerationProvider;
 }
 
@@ -45,6 +46,7 @@ export interface ComposedApi {
   deps: ApiDeps;
   app: ReturnType<typeof createApiApp>;
   runtime: PgBossDurableRuntime;
+  storyRuntime: PgBossDurableRuntime;
   /** Order matters: stop accepting work, then release the pool. */
   close(): Promise<void>;
 }
@@ -78,6 +80,18 @@ export async function composeApi(options: ComposeOptions): Promise<ComposedApi> 
     ...options.runtime
   }).init();
 
+  // Story units live on their own queue (D029): the concept and story claim loops
+  // must never see each other's units — a shared queue let the concept loop claim
+  // story pages and kill them as THEME_MISSING (observed live 2026-09-28). Queue
+  // separation is substrate-native in pg-boss and needs no contract change; the
+  // InMemory runtime isolates per instance, so tests mirror this with two runtimes.
+  const storyRuntime = await new PgBossDurableRuntime({
+    connectionString: options.connectionString ?? process.env.DATABASE_URL ?? "",
+    queue: "flo-story",
+    deadLetterQueue: "flo-story-bad",
+    ...options.runtime
+  }).init();
+
   // The services take the session *store*, not the session service: they re-check scope
   // themselves. One `facts` instance is shared, including with the runner below, so a
   // story never reads a different fact set than the screen that displayed it.
@@ -108,6 +122,16 @@ export async function composeApi(options: ComposeOptions): Promise<ComposedApi> 
       assertProjectAccess,
       now
     }),
+    stories: new StoryRunner({
+      runtime: storyRuntime,
+      store: stores.creation,
+      storyProvider: options.providers.story,
+      moderation: options.providers.moderation,
+      events,
+      getFactsForStory: (input) => facts.getFactsForStory(input),
+      assertProjectAccess,
+      now
+    }),
     events,
     now,
     // `Secure` off only for the plain-http Vite dev proxy; production is https.
@@ -118,8 +142,10 @@ export async function composeApi(options: ComposeOptions): Promise<ComposedApi> 
     deps,
     app: createApiApp(deps),
     runtime,
+    storyRuntime,
     close: async () => {
       await runtime.close();
+      await storyRuntime.close();
       await closePostgresStores();
     }
   };

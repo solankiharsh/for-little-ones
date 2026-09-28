@@ -213,8 +213,39 @@ describe("api: concept bundle runner (F-007 §9 durable step on D019)", () => {
     expect(final?.units[0]?.lastFailure?.retryable).toBe(false);
   });
 
-  it("requires a theme before a bundle can be requested", async () => {
+  it("refuses a foreign-kind unit instead of mis-executing it (shared-queue backstop)", async () => {
     const seed = await seededStore();
+    const calls = { n: 0 };
+    const { service, runtime } = runner(
+      seed,
+      {
+        async generateConcepts() {
+          calls.n += 1;
+          return conceptResult();
+        }
+      },
+      allowAll("ALLOW")
+    );
+    // A story-shaped unit landing on the concept loop (the live misclaim that
+    // once killed pages as THEME_MISSING): refused outright, provider untouched.
+    await runtime.enqueue({
+      operationKey: "story/pages:book-1:v1",
+      units: [
+        {
+          unitKey: "page:1",
+          maxAttempts: 2,
+          payload: { kind: "page", bookId: "book-1", storyVersion: 1, pageNumber: 1, pageKey: "k", childProfileId: "child-ava", anonymousProjectId: "project-1" }
+        }
+      ]
+    });
+    await service.runNext("worker-1");
+    const final = await runtime.job("story/pages:book-1:v1");
+    expect(final?.units[0]?.status).toBe("DEAD");
+    expect(final?.units[0]?.lastFailure?.code).toBe("UNKNOWN_UNIT");
+    expect(calls.n).toBe(0);
+  });
+
+  it("requires a theme before a bundle can be requested", async () => {    const seed = await seededStore();
     const { service } = runner(seed, { async generateConcepts() { return conceptResult(); } }, allowAll("ALLOW"));
     const { themeId: _t, themeSeedVersion: _s, ...rest } = draftBook({ id: "book-no-theme" });
     await seed.store.saveBook({ ...rest, id: "book-no-theme" });
