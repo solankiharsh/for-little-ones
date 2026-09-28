@@ -185,43 +185,60 @@ export class PgBossDurableRuntime implements DurableExecutionRuntime {
       maintenanceIntervalSeconds: this.options.maintenanceIntervalSeconds
     });
     boss.on("error", () => {});
-    this.pool = new pg.Pool({ connectionString: this.options.connectionString });
-    this.boss = boss;
-    // pg-boss's own bootstrap DDL is not safe under concurrent boot: two
-    // processes starting against a fresh database race on the same CREATE TYPE
-    // and one fails with a duplicate-key error (observed: API + worker started
-    // together). The schema converges after the winner commits, so retrying the
-    // whole start is the correct recovery — never invent partial state here.
-    await startBossWithBootstrapRetry(boss);
-    await boss.createQueue(this.options.deadLetterQueue, { retentionSeconds: 3600 });
-    await boss.createQueue(this.options.queue, {
-      expireInSeconds: this.options.expireInSeconds,
-      retentionSeconds: 3600,
-      deadLetter: this.options.deadLetterQueue
-    });
-    await this.pool.query(
-      `CREATE TABLE IF NOT EXISTS ${JOBS_TABLE} (
-         operation_key text PRIMARY KEY,
-         cancelled boolean NOT NULL DEFAULT false
-       )`
-    );
-    await this.pool.query(
-      `CREATE TABLE IF NOT EXISTS ${UNIT_TABLE} (
-         unit_id text PRIMARY KEY,
-         operation_key text NOT NULL,
-         unit_key text NOT NULL,
-         job_id text NOT NULL,
-         max_attempts int NOT NULL,
-         unit_order int NOT NULL DEFAULT 0,
-         attempts int NOT NULL DEFAULT 0,
-         dead boolean NOT NULL DEFAULT false,
-         last_failure jsonb,
-         holder_id text,
-         leased_until bigint,
-         reclaimed int NOT NULL DEFAULT 0
-       )`
-    );
-    return this;
+    // Published only after the whole setup succeeds: if any step below throws,
+    // the next init() retries from scratch instead of returning a half-built
+    // runtime behind the `if (this.boss)` guard while leaking pool connections.
+    try {
+      // pg-boss's own bootstrap DDL is not safe under concurrent boot: two
+      // processes starting against a fresh database race on the same CREATE TYPE
+      // and one fails with a duplicate-key error (observed: API + worker started
+      // together). The schema converges after the winner commits, so retrying the
+      // whole start is the correct recovery — never invent partial state here.
+      await startBossWithBootstrapRetry(boss);
+      await boss.createQueue(this.options.deadLetterQueue, { retentionSeconds: 3600 });
+      await boss.createQueue(this.options.queue, {
+        expireInSeconds: this.options.expireInSeconds,
+        retentionSeconds: 3600,
+        deadLetter: this.options.deadLetterQueue
+      });
+      const pool = new pg.Pool({ connectionString: this.options.connectionString });
+      try {
+        await pool.query(
+          `CREATE TABLE IF NOT EXISTS ${JOBS_TABLE} (
+             operation_key text PRIMARY KEY,
+             cancelled boolean NOT NULL DEFAULT false
+           )`
+        );
+        await pool.query(
+          `CREATE TABLE IF NOT EXISTS ${UNIT_TABLE} (
+             unit_id text PRIMARY KEY,
+             operation_key text NOT NULL,
+             unit_key text NOT NULL,
+             job_id text NOT NULL,
+             max_attempts int NOT NULL,
+             unit_order int NOT NULL DEFAULT 0,
+             attempts int NOT NULL DEFAULT 0,
+             dead boolean NOT NULL DEFAULT false,
+             last_failure jsonb,
+             holder_id text,
+             leased_until bigint,
+             reclaimed int NOT NULL DEFAULT 0
+           )`
+        );
+      } catch (error) {
+        await pool.end().catch(() => {});
+        throw error;
+      }
+      this.pool = pool;
+      this.boss = boss;
+      return this;
+    } catch (error) {
+      // Never leave a half-built runtime behind: stop the boss so its
+      // supervisors do not hold connections, and let the next init() start
+      // clean (this.boss/this.pool stay unset until success).
+      await boss.stop({ close: true }).catch(() => {});
+      throw error;
+    }
   }
 
   async close(): Promise<void> {
