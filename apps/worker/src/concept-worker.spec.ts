@@ -175,14 +175,18 @@ describe("worker: concept claim loop (D024 §6)", () => {
 
     // maxAttempts = 3 (D024 §7): two retries, then a non-retryable exhaustive failure.
     // pg-boss parks a retryable failure in READY for `retryDelaySeconds` before it is
-    // claimable again, so each attempt has to wait for the schedule rather than spin.
+    // claimable again, so poll each attempt until the lease lands rather than assuming
+    // a fixed monitor cadence.
     const outcomes: unknown[] = [];
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      outcomes.push(...(await runOnce({ runtime: f.runtime, runner: f.runner, workerId: "worker-1", leaseForMs: 30_000 })));
+      const deadline = Date.now() + 20_000;
+      for (;;) {
+        outcomes.push(...(await runOnce({ runtime: f.runtime, runner: f.runner, workerId: "worker-1", leaseForMs: 30_000 })));
+        if (outcomes.filter((o) => (o as { ok: string }).ok === "leased").length === attempt + 1) break;
+        if (Date.now() > deadline) break;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
       expect(outcomes.filter((o) => (o as { ok: string }).ok === "leased")).toHaveLength(attempt + 1);
-      // `retryBackoff: true` means the waits are 1s then 2s, and the job only becomes
-      // fetchable after a monitor pass, so the gap is deliberately generous.
-      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 3_500));
     }
     const settled = await f.runtime.job(f.runner.operationKey(f.bookId, 1));
     expect(settled?.units[0]?.status).toBe("DEAD");
