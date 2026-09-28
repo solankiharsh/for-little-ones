@@ -1,6 +1,6 @@
 # 08_STORY_GENERATION.md — Story Text Generation Pipeline
 
-> **Spec ID:** F-008 · **Priority:** P0 · **Status:** draft
+> **Spec ID:** F-008 · **Priority:** P0 · **Status:** agreed (D029, 2026-09-28)
 > **Depends on:** F-007 (selected concept), F-006 (facts), F-003 (profile), the foundational **DurableExecutionContract** / `GenerationStepExecution` interface (guide §3/§5, D019 — F-010 implements the runtime; this spec depends on the contract, never on the F-010 feature), F-024 (locale fields). **Exposes** the `OUTLINE`/`PAGE_TEXT` `GenerationStep` units consumed by F-010. · **Consumed by:** F-009 (illustrations), F-011 (preview)
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
@@ -23,7 +23,29 @@ Transform a chosen concept into a complete, coherent, parent-fact-faithful story
 
 ## 3. Current implementation
 
-None (Observed). No application code exists. See ../codebase/README.md and RESEARCH_LOG.md. Greenfield (ADD/BUILD per D013).
+Partially — the seams exist, the pipeline does not (Observed):
+
+- **KEEP:** canonical contracts `StoryOutlineRequest/Result` and
+  `PageTextRequest/Result` (`packages/contracts/src/story.ts`, versioned); the
+  `StoryProvider` interface (`generateOutline`/`generatePageText`,
+  `packages/providers/src/story.ts`); the `text.v1` policy set
+  (`policies/age/reading-age.md`, `policies/localisation/en-gb-en-us.md`,
+  `policies/story/story-tone.md`, `packages/policies/src/manifest.ts`).
+- **KEEP until replaced:** the Path B six-page preview (`api/generate-story.ts` via
+  Vercel AI Gateway) — the live interim that proves the provider path works. No new
+  Path B surface after D026.
+- **ADD:** a durable story runner exposing the `OUTLINE`/`PAGE_TEXT` units on the
+  `DurableExecutionContract`, following the proven `ConceptBundleRunner` pattern
+  (leased, retryable, idempotent enqueue, claim-time ownership re-check); the §8
+  HTTP endpoints on the Slice-2 transport; Postgres story/page persistence via D027
+  migrations; worker claim-loop wiring.
+- **MODIFY:** extend the dev story provider to outline/pageText (currently
+  concepts-only) so the local stack (D028) can run the pipeline without keys.
+- **REPLACE on completion:** Path B `api/generate-story.ts` retires once the durable
+  pipeline serves previews; D025 teaser gating and D026-style moderation wiring
+  carry over unchanged.
+
+The greenfield-era reading (D013) no longer applies to this feature.
 
 ## 4. Problems with current implementation
 
@@ -129,7 +151,9 @@ Commands via `BookService`/`BookRepository`; orchestration via `GenerationJob` (
 
 ## 9. Background jobs
 
-Execution owned by F-010 runtime; the step units are **`GenerationStep` contract entries defined here** and consumed by F-010, two dependent steps: **`OUTLINE`** then **`PAGE_TEXT`** per page.
+The step units are **`GenerationStep` contract entries defined here** that consume the
+`DurableExecutionContract` (D019) — never the F-010 feature; F-010 runtimes claim and
+supervise them. Two dependent steps: **`OUTLINE`** then **`PAGE_TEXT`** per page.
 - `OUTLINE`: input = concept + facts slice + locale + age band; output = validated outline; gate — if outline validation fails, the job stays `FAILED` at the outline step and nothing downstream runs (retry re-enters step, idempotent).
 - `PAGE_TEXT`: per-page; **`pageKey = sha256(bookId|conceptVersion|pageNumber|factsVersion|locale)`** — the same key always produces the same page intent, so a crashed worker or a duplicate request cannot double-generate or diverge; `POST …/pages/{n}/regenerate` reuses the same key (identical deterministic inputs) or a `revisionNonce` on REVISION_REQUIRED (different intent). Each regeneration writes a **new `GenerationProvenance`** (attempt bumped, `createdAt` refreshed — GENERATION_PROVENANCE §2); provenance is immutable, never overwritten in place.
 - Retry: up to 2 auto retries/page with exponential backoff, 45s timeout; a page `FAILED` after that never blocks other pages (D010).

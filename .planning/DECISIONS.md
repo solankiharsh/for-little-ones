@@ -807,3 +807,49 @@ replay, synthetic ALTER + backfill + NOT NULL, concurrent-boot-serializes).
 in `apps/commerce/src/scripts/seed.ts` until Path B retires — migrating tables
 that convergence deletes would be waste. New `flo_*` changes go through
 `MIGRATIONS`, never through seed guards or edits to `schema.sql`.
+
+---
+
+## D028 — Path A Hosting: Local-First Now, Cloud Run at Retirement (2026-09-28)
+
+**Status:** ADOPT
+
+Path A (Slice-2 Hono API + concept worker + pg-boss on Postgres) has no production
+host: Vercel serverless cannot run it (long-lived pool, pg-boss supervisors, worker
+claim loop). Verified live end-to-end locally 2026-09-28 (session → profile → book
+→ enqueue → worker-claimed 3 model concepts).
+
+**Decision**
+
+- **Local dev (now):** `flo_slice2` database on the commerce Postgres (`:5434`),
+  `npm run dev:api` (`:8787`) + `npm run dev:worker` against the same
+  `DATABASE_URL`, vite `/api` prefix proxy (dev only — the Hono routes carry the
+  `/api` prefix, so no rewrite; same-origin keeps the `flo_session` cookie under
+  the existing SameSite=Lax). No browser traffic moves in production until the
+  host below exists; Vercel preview keeps serving Path B.
+- **Production (at retirement):** Cloud Run service following the commerce
+  precedent (Dockerfile + cloudbuild + secrets) with its own Postgres database.
+  Cookie SameSite and CORS are re-decided then — D024 assumed same-origin, which
+  a split Vercel-web/Cloud Run-API topology breaks.
+- **Concurrent boot:** `PgBossDurableRuntime.init` retries the bootstrap DDL race
+  (`duplicate key … pg_type_typname_nsp_index`, observed with API + worker started
+  together against a fresh DB). Recommended boot order remains migrate → api →
+  worker, but any order now converges.
+
+---
+
+## D029 — F-008 Story Generation Agreed (2026-09-28)
+
+**Status:** ADOPT (spec `draft → agreed`; `00_FEATURE_MAP.md` updated)
+
+Blocking evidence is in place: the provider path is proven by the live Path B
+six-page preview; the durability pattern is proven by the F-007 runner + Slice-2;
+the contracts (`StoryOutline`/`PageText` schemas), the `StoryProvider` seam
+(`generateOutline`/`generatePageText`) and the `text.v1` policy set all exist.
+
+**Build scope:** a durable story runner exposing `OUTLINE`/`PAGE_TEXT` units on
+the `DurableExecutionContract` following `ConceptBundleRunner`; the §8 HTTP
+endpoints on the Slice-2 transport; Postgres story/page persistence via D027
+migrations; worker claim-loop wiring; retire Path B `api/generate-story.ts`
+after. **Out of scope:** illustration (F-009), likeness-threshold calibration
+(stays OPEN per D020), any new Path B surface.
