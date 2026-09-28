@@ -432,6 +432,7 @@ export class StoryRunner {
         factsVersion: story.factsVersion,
         locale: story.locale,
         policySetVersion: "for-little-ones/text/v1",
+        maxWords: WORD_CAPS[story.readingLevel],
         ...(profile?.displayName ? { heroName: profile.displayName } : {}),
         ...(story.outline.title ? { storyTitle: story.outline.title } : {}),
         ...(priorLines.length > 0 ? { priorLines } : {})

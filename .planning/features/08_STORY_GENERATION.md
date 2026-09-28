@@ -52,8 +52,11 @@ The greenfield-era reading (D013) no longer applies to this feature.
 HTTP endpoints on the Slice-2 transport, `flo_stories`/`flo_pages` persistence
 (migration v2), the story claim loop on the `flo-story` queue, and dev
 outline/pageText on the example provider — verified live (outline → six READY
-pages, regen heals failed pages). Remaining: vendor outline/pageText quality,
-Path B `api/generate-story.ts` retirement, F-009/F-011 consumption of these rows.
+pages, regen heals failed pages). Vendor quality follows on the same seam:
+`GeminiStoryProvider` (direct Gemini REST, strict-JSON contracts, personalised
+prompts) selected in dev by `FLO_STORY_PROVIDER=gemini` — verified live with
+genuinely personalised concepts and pages. Remaining: Path B
+`api/generate-story.ts` retirement, F-009/F-011 consumption of these rows.
 
 ## 4. Problems with current implementation
 
