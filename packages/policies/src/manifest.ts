@@ -12,7 +12,8 @@ export const POLICY_SET_FILES: Record<PolicySetId, readonly string[]> = {
   "text.v1": [
     "age/reading-age.md",
     "story/story-tone.md",
-    "localisation/en-gb-en-us.md"
+    "localisation/en-gb-en-us.md",
+    "safety/content-rules.md"
   ],
   "illustration.v1": [
     "age/reading-age.md",

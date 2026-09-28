@@ -12,7 +12,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (!project) return res.status(404).json({ message: "Project not found." });
   const revision = await db("flo_creation_revision").where({ id: revisionId, project_id: req.params.id }).first();
   if (!revision) return res.status(404).json({ message: "Revision not found." });
-  const attempts = await db("flo_generation_job").where({ revision_id: revisionId, kind: "CONCEPT_BUNDLE" }).count<{ count: string }>("id as count").first();
+  const attempts = await db("flo_generation_job").where({ revision_id: revisionId, kind: "CONCEPT_BUNDLE" }).whereIn("status", ["READY", "FAILED"]).count<{ count: string }>("id as count").first();
   if (Number(attempts?.count ?? 0) >= 3) return res.status(429).json({ message: "Concept idea limit reached." });
   try {
     return res.status(201).json(await startConceptJob(db, req.params.id, revisionId, parsePaymentState(project.payment_state)));

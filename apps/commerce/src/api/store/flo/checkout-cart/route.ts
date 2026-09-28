@@ -10,6 +10,7 @@ import {
 import { database, validateCart } from "../../../../lib/approvals";
 import { envelopeToAddress, parseCheckoutEnvelope } from "../../../../lib/checkout-envelope";
 import { claimCheckoutKey, markCheckoutDone, orderSummary, releaseCheckoutClaim } from "../../../../lib/checkout";
+import { parseClaimId, redeemCreationClaim } from "../../../../lib/creation-projects";
 import { drainFakePrinter, reconcileOrders } from "../../../../lib/handoff";
 
 /**
@@ -33,8 +34,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (typeof body.cart_id !== "string" || !body.cart_id.trim()) {
     return res.status(400).json({ message: "Missing cart_id" });
   }
-  if (Object.keys(body).some((key) => !["cart_id", "shipping_address", "gifts"].includes(key))) {
+  if (Object.keys(body).some((key) => !["cart_id", "shipping_address", "gifts", "creation_claim_id"].includes(key))) {
     return res.status(400).json({ message: "Unexpected checkout field" });
+  }
+  // The payment claim is the only thing that can move a creation project to
+  // captured. It rides top-level in the checkout request — never on a cart line —
+  // and is validated before anything is charged.
+  const claimId = body.creation_claim_id === undefined ? null : parseClaimId(body.creation_claim_id);
+  if (body.creation_claim_id !== undefined && !claimId) {
+    return res.status(400).json({ message: "Invalid creation claim" });
   }
   let envelope;
   try {
@@ -47,10 +55,21 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const claim = await claimCheckoutKey(db, key);
   if (claim.kind === "done") {
+    // A replay that already captured must still leave the project captured: redeem
+    // again (a no-op once consumed) rather than returning an order for a project
+    // that is still pending.
+    if (claimId) await redeemCreationClaim(db, claimId);
     return res.json({ ...(await orderSummary(container, db, claim.orderId)), deduped: true });
   }
   if (claim.kind === "busy") {
     return res.status(409).json({ message: "Checkout already in progress for this key" });
+  }
+  if (claimId) {
+    const project = await db("flo_creation_project").where({ claim_id: claimId }).first();
+    if (!project || project.claim_consumed_at) {
+      await releaseCheckoutClaim(db, key, claim.token);
+      return res.status(409).json({ message: "Creation claim is unknown or already spent" });
+    }
   }
 
   try {
@@ -97,10 +116,17 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (!payment) throw new Error("Payment missing after checkout");
     await capturePaymentWorkflow(container).run({ input: { payment_id: payment.id } });
     // Delivery + gift details live on the order only — never on cart line
-    // metadata (the four opaque approved-revision fields stay untouched).
+    // metadata (the four opaque approved-revision fields stay untouched). The
+    // claim rides beside the envelope so the order says which project it paid for.
     await container.resolve(Modules.ORDER).updateOrders(order.id, {
-      metadata: { flo_envelope: { shippingAddress: envelope.shippingAddress, gifts: envelope.gifts } },
+      metadata: {
+        flo_envelope: { shippingAddress: envelope.shippingAddress, gifts: envelope.gifts },
+        ...(claimId ? { creation_claim_id: claimId } : {})
+      },
     });
+    if (claimId && !await redeemCreationClaim(db, claimId)) {
+      throw new Error("Creation claim could not be redeemed after capture");
+    }
     await reconcileOrders(container);
     await drainFakePrinter(container);
     await markCheckoutDone(db, key, order.id);

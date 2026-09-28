@@ -171,6 +171,36 @@ describe("StorefrontCommerceClient", () => {
     expect(address.address_2).toBeUndefined();
   });
 
+  it("carries the project payment claim beside the envelope, never on a line", async () => {
+    const { client, calls } = clientWith(defaultRoute);
+    const claim = `claim_${"ab".repeat(32)}`;
+    await client.beginCheckout({
+      cartId: "cart_demo_1", idempotencyKey: "key_6",
+      shippingAddress: SHIPPING_ADDRESS, gifts: [], creationClaimId: claim,
+    });
+    const raw = JSON.parse(calls.at(-1)!.init.body!) as Record<string, unknown>;
+    expect(raw.creation_claim_id).toBe(claim);
+  });
+
+  it("leaves the claim off the wire body when the basket has no project", async () => {
+    const { client, calls } = clientWith(defaultRoute);
+    await client.beginCheckout({
+      cartId: "cart_demo_1", idempotencyKey: "key_7",
+      shippingAddress: SHIPPING_ADDRESS, gifts: [],
+    });
+    const raw = JSON.parse(calls.at(-1)!.init.body!) as Record<string, unknown>;
+    expect("creation_claim_id" in raw).toBe(false);
+  });
+
+  it("fails closed on a malformed claim with no request sent", async () => {
+    const { client, calls } = clientWith(defaultRoute);
+    await expect(client.beginCheckout({
+      cartId: "cart_demo_1", idempotencyKey: "key_8",
+      shippingAddress: SHIPPING_ADDRESS, gifts: [], creationClaimId: "claim_nope",
+    })).rejects.toThrow();
+    expect(calls.length).toBe(0);
+  });
+
   it.each([
     [{ ...SHIPPING_ADDRESS, postalCode: "NOPE" }, "delivery details"],
     [{ ...SHIPPING_ADDRESS, firstName: "" }, "delivery details"],

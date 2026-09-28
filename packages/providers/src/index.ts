@@ -5,6 +5,7 @@ export { deriveIdentityReference } from "./identity";
 export type { ChildPhotoInputs, IdentityProvider, IdentityReference } from "./identity";
 export type { QualityProvider } from "./quality";
 export type { ModerationProvider, ModerationInput, ModerationResult } from "./moderation";
+export { PolicyTextModerationProvider, TEXT_MODERATION_POLICY_SET } from "./text-moderation";
 export { assertEligibleForChildPhotos, isEligibleForChildPhotos } from "./shared";
 export type {
   ProviderCard,

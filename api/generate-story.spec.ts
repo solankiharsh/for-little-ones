@@ -141,3 +141,75 @@ describe("age-specific story policy", () => {
     expect(storyPolicyForAge(12).band).toBe("10-12");
   });
 });
+
+/** A copy that trips the hard-block tier, with the rest of the story left intact. */
+function storyWithUnsafePage() {
+  return {
+    ...generated,
+    pages: generated.pages.map((page, index) =>
+      index === 2 ? { ...page, text: `Milo found a gun in the shed and felt trapped and terrified.` } : page)
+  };
+}
+const paidProject = { paymentState: "pending", generation: { assetsGenerated: 0, storyAttempts: 0, conceptAttempts: 0 } };
+
+/**
+ * F-007 §10 applies to the story as much as the concept. There is no authored
+ * fallback for a story, so a blocked copy is retried once with the finding named
+ * and then surfaced as retryable — never shipped, never invented around.
+ */
+describe("story generation moderation", () => {
+  it("screens the whole story, including illustration cues", async () => {
+    generateText.mockResolvedValue({
+      output: { ...generated, pages: generated.pages.map((page, index) => index === 0 ? { ...page, illustrationCue: "A painted scene of Elsa" } : page) },
+      usage: {}
+    });
+    const { response, calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+
+    expect(response.status).toBe(200);
+    const completion = calls.find((call) => call.path.endsWith("/story-jobs/job_1234"));
+    const body = completion?.body as { moderation?: { verdict: string } } | undefined;
+    expect(body?.moderation?.verdict).toBe("FLAG");
+  });
+
+  it("retries once with the finding named, then accepts the corrected story", async () => {
+    generateText
+      .mockResolvedValueOnce({ output: storyWithUnsafePage(), usage: {} })
+      .mockResolvedValueOnce({ output: generated, usage: {} });
+    const { response, calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+
+    expect(response.status).toBe(200);
+    expect(generateText).toHaveBeenCalledTimes(2);
+    expect(String(generateText.mock.calls[1]?.[0]?.prompt)).toMatch(/rewrite|safety/i);
+    const completion = calls.find((call) => call.path.endsWith("/story-jobs/job_1234"));
+    const body = completion?.body as { moderation?: { verdict: string } } | undefined;
+    expect(body?.moderation?.verdict).toBe("ALLOW");
+  });
+
+  it("spends one story attempt for a blocked-then-retried command", async () => {
+    generateText
+      .mockResolvedValueOnce({ output: storyWithUnsafePage(), usage: {} })
+      .mockResolvedValueOnce({ output: generated, usage: {} });
+    const { calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+
+    // One user command must start exactly one job, or a TEASER parent's single
+    // preview would be burned by a moderation retry.
+    expect(calls.filter((call) => call.path.endsWith("/story-jobs") && call.body !== undefined)).toHaveLength(1);
+  });
+
+  it("fails the job and returns a retryable error when the retry is blocked too", async () => {
+    generateText.mockResolvedValue({ output: storyWithUnsafePage(), usage: {} });
+    const { response, calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+
+    expect(response.status).toBe(503);
+    expect(generateText).toHaveBeenCalledTimes(2);
+    const failure = calls.find((call) => call.path.endsWith("/story-jobs/job_1234"));
+    expect((failure?.body as { status?: string } | undefined)?.status).toBe("FAILED");
+  });
+
+  it("never ships blocked story text to the browser", async () => {
+    generateText.mockResolvedValue({ output: storyWithUnsafePage(), usage: {} });
+    const { response } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+
+    expect(await response.json()).not.toHaveProperty("pages");
+  });
+});

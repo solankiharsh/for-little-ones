@@ -5,6 +5,11 @@ export interface ModerationInput {
   contentRef: string;
   /** The actual payload to moderate — F-007 §10 gates real copy, not a synthetic ref. */
   content?: string;
+  /**
+   * The child's display name, when the caller knows it. Lets a text rule spot claims
+   * asserting things about the *real* child; without it that rule stays silent.
+   */
+  childDisplayName?: string;
   policySetVersion: string;
 }
 
