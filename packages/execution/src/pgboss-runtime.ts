@@ -119,6 +119,33 @@ const unitIdFor = (operationKey: BusinessOperationKey, unitKey: string): UnitId 
   `${operationKey}|${unitKey}`;
 
 /**
+ * Maximum `boss.start()` attempts when the pg-boss bootstrap collides with a
+ * concurrent boot. The retry budget is deliberately small: the only retried
+ * failure is the bootstrap DDL race, which resolves as soon as the winning
+ * process commits. Anything else (bad connection string, missing database)
+ * fails on the first attempt without pointless waiting.
+ */
+const BOOTSTRAP_ATTEMPTS = 5;
+const BOOTSTRAP_RETRY_MS = 500;
+
+function isBootstrapRace(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /duplicate key|already exists|pg_type_typname_nsp_index/i.test(message);
+}
+
+async function startBossWithBootstrapRetry(boss: PgBoss): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await boss.start();
+      return;
+    } catch (error) {
+      if (!isBootstrapRace(error) || attempt >= BOOTSTRAP_ATTEMPTS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_MS * attempt));
+    }
+  }
+}
+
+/**
  * A durable implementation of DurableExecutionRuntime backed by PostgreSQL +
  * pg-boss. Create, call `init()`, then use the contract surface. `close()`
  * releases the pg-boss instance and the app-side pool.
@@ -160,7 +187,12 @@ export class PgBossDurableRuntime implements DurableExecutionRuntime {
     boss.on("error", () => {});
     this.pool = new pg.Pool({ connectionString: this.options.connectionString });
     this.boss = boss;
-    await boss.start();
+    // pg-boss's own bootstrap DDL is not safe under concurrent boot: two
+    // processes starting against a fresh database race on the same CREATE TYPE
+    // and one fails with a duplicate-key error (observed: API + worker started
+    // together). The schema converges after the winner commits, so retrying the
+    // whole start is the correct recovery — never invent partial state here.
+    await startBossWithBootstrapRetry(boss);
     await boss.createQueue(this.options.deadLetterQueue, { retentionSeconds: 3600 });
     await boss.createQueue(this.options.queue, {
       expireInSeconds: this.options.expireInSeconds,

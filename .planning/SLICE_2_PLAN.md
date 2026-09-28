@@ -139,3 +139,13 @@ The moderation boundary has an interface but **no adapter yet**, so the dev entr
 wire an explicitly-labelled ALLOW stub behind `assertDevOnly`, which refuses to run
 under `NODE_ENV=production`. A missing moderation adapter is a hard stop, not something
 to default around: every concept bundle passes that gate before it is persisted.
+
+## 11. Local stack (verified 2026-09-28, D028)
+
+`flo_slice2` database on the commerce Postgres (`:5434`, same server the Medusa
+sandbox uses — one fewer moving part); `DATABASE_URL` pointed at it for both
+`npm run dev:api` (`:8787`) and `npm run dev:worker`; the browser reaches Path A
+through the vite `/api` prefix proxy (dev only). Boot order migrate → api →
+worker is recommended because pg-boss's own bootstrap DDL races on a fresh DB
+(`PgBossDurableRuntime.init` now retries it, so any order converges). Smoke:
+anonymous session → profile → book → concepts enqueue → worker-claimed bundle.

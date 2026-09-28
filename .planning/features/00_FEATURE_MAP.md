@@ -73,7 +73,7 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 | F-005 | 05_CHARACTER_BIBLE.md | Canonical visual identity + global corrections | P1 | F-003, F-004 | proposed |
 | F-006 | 06_PERSONALISATION.md | Progressive personal details (facts, immutable) | P0 | F-003 | agreed |
 | F-007 | 07_STORY_CONCEPTS.md | 3 generated concepts, select/regenerate | P0 | F-002, F-003, F-006 | agreed |
-| F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003, DurableExecutionContract (foundation — D019) | proposed |
+| F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003, DurableExecutionContract (foundation — D019) | agreed |
 | F-009 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 | F-005, F-008, DurableExecutionContract (foundation — D019) | proposed |
 | F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P0 | F-008/F-009 GenerationStep units, DurableExecutionContract/F-028 principles | proposed |
 | F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, canonical layout, F-010 (v0, M1); F-009 (illustrated preview, M2) | proposed |
