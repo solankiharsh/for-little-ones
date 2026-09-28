@@ -782,3 +782,28 @@ listing, dead `storyInputsFor`, unexported max attempts, duplicate locale,
 errors outside `try`, lease expiry); D025's persisted attempt-count/cost columns
 remain unmet (usage is counted from the job log instead); `assetsGenerated`
 stays 0. Enforced `assertCanAccessProject` is a blocking Slice-2 exit criterion.
+
+---
+
+## D027 — Versioned Migrations for the `flo_*` Schema (2026-09-28)
+
+**Status:** ADOPT
+
+The bare `schema.sql` replay (D024 §8) could only express `CREATE IF NOT EXISTS`.
+The D026 columns proved the gap: ALTER + backfill + constraint over existing rows
+needs ordering and a ledger, not guarded seed DDL.
+
+**Decision:** `apps/api/src/persistence/migrations.ts` owns the `flo_*` schema as
+an append-only registry (`MIGRATIONS`, version 1 = the Slice-2 baseline replay,
+recorded in `flo_schema_migrations`). `migrate()` applies pending migrations in
+order inside one transaction under `pg_advisory_xact_lock`, so the API and the
+worker boot concurrently without racing. Forward-only, no down migrations; never
+edit an applied migration. `createPostgresStores.init()` and the test
+`resetFloTables` both run `migrate()`. Proven by
+`apps/api/src/persistence/migrations.spec.ts` (baseline-on-old-DB, idempotent
+replay, synthetic ALTER + backfill + NOT NULL, concurrent-boot-serializes).
+
+**Scope boundary:** the commerce `flo_creation_*` / `flo_generation_job` DDL stays
+in `apps/commerce/src/scripts/seed.ts` until Path B retires — migrating tables
+that convergence deletes would be waste. New `flo_*` changes go through
+`MIGRATIONS`, never through seed guards or edits to `schema.sql`.

@@ -113,8 +113,8 @@ scripts: run API + worker against the same Postgres.
 ## 8. Out of scope (deferred, documented)
 
 F-004/F-005 photos + Character Bible · F-006 `FactSuggestion` job · F-010 promotion ·
-F-028 §8 client-keyed replay · claim/sweeper jobs · migration tooling framework ·
-web screens · commerce.
+F-028 §8 client-keyed replay · claim/sweeper jobs · web screens · commerce.
+(Migration tooling left this list via D027: `migrations.ts` + ledger + spec.)
 
 ## 9. Fold-in doc fixes (done)
 
