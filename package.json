@@ -11,7 +11,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev:api": "tsx apps/api/src/dev-server.ts",
+    "dev:worker": "tsx apps/worker/src/dev-worker.ts"
   },
   "engines": {
     "node": ">=22"
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0"
   },

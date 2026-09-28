@@ -113,11 +113,29 @@ scripts: run API + worker against the same Postgres.
 ## 8. Out of scope (deferred, documented)
 
 F-004/F-005 photos + Character Bible · F-006 `FactSuggestion` job · F-010 promotion ·
-F-028 §8 client-keyed replay · claim/sweeper jobs · migration tooling framework ·
-web screens · commerce.
+F-028 §8 client-keyed replay · claim/sweeper jobs · web screens · commerce.
+(Migration tooling left this list via D027: `migrations.ts` + ledger + spec.)
 
-## 9. Fold-in doc fixes
+## 9. Fold-in doc fixes (done)
 
-`_SPEC_GUIDE.md` §4 (Book.creationState), F-007 §3/§5/§7/§8 (relationships, PATCH,
-budget, drop `regeneratedVersion?`), F-006 `mood`→`emotionalGoal`, F-002 `02:32-33`
-label, F-007 §3 (Observed) refresh, `IMPLEMENTATION_ROADMAP.md` Slice-2 note.
+`_SPEC_GUIDE.md` §4 gained the `Book.creationState` axis · F-007 §7 drops
+`regeneratedVersion?` (version is server-derived; `?regenerate=true` / the dedicated
+regenerate route are the intent) and documents the PATCH moderation-on-actual-copy +
+complete-new-bundle behaviour · F-007 §3 (Observed) refreshed, including the
+claim-time ownership re-check and the loop guard · F-006 `mood`→`emotionalGoal` on the
+`StoryConcept` field and `GetFactsForStory` · F-002 §8 marks the catalogue endpoints as
+Slice-2 · `IMPLEMENTATION_ROADMAP.md` already labels this a M1 rail, not Milestone 2.
+
+## 10. Composition root and dev entry points
+
+`apps/api/src/compose.ts` is the single definition of how the seams fit together in
+production (one memoized `pg.Pool`, Postgres stores, the real durable runtime). Every
+spec injects fakes, so without it the production wiring would only ever be exercised
+against in-memory doubles; `apps/api/src/compose.spec.ts` covers it against real
+Postgres. `npm run dev:api` / `npm run dev:worker` run the two processes against one
+`DATABASE_URL`.
+
+The moderation boundary has an interface but **no adapter yet**, so the dev entry points
+wire an explicitly-labelled ALLOW stub behind `assertDevOnly`, which refuses to run
+under `NODE_ENV=production`. A missing moderation adapter is a hard stop, not something
+to default around: every concept bundle passes that gate before it is persisted.

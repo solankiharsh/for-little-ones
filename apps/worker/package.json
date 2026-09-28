@@ -15,6 +15,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@for-little-ones/domain": "*"
+    "@for-little-ones/api": "*",
+    "@for-little-ones/domain": "*",
+    "@for-little-ones/execution": "*",
+    "@for-little-ones/providers": "*",
+    "pg": "^8.23.0"
   }
 }

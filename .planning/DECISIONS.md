@@ -642,7 +642,8 @@ concept jobs. It satisfies D023's open rail ("Postgres persistence + HTTP transp
 shells are a separate M0-rails PR") and closes the M0 exit criterion ("Web → API →
 Postgres runs in CI"). It is **not** the roadmap "Milestone 2 — Reliable book
 generation" (photos/Character Bible/illustration gen); roadmap milestones stay M0…M6
-and this slice is named **Slice-2** to avoid the collision (fix `02:32-33`'s "M2".
+and this slice is named **Slice-2** to avoid the collision (the old "M2" label on the
+`GET /catalogue/themes` spec text is relabelled Slice-2 in `02_STORY_DISCOVERY.md` §8).
 
 Selected positions (all as recommended during design grilling; recorded so the
 implementation PR does not re-argue them):
@@ -781,3 +782,28 @@ listing, dead `storyInputsFor`, unexported max attempts, duplicate locale,
 errors outside `try`, lease expiry); D025's persisted attempt-count/cost columns
 remain unmet (usage is counted from the job log instead); `assetsGenerated`
 stays 0. Enforced `assertCanAccessProject` is a blocking Slice-2 exit criterion.
+
+---
+
+## D027 — Versioned Migrations for the `flo_*` Schema (2026-09-28)
+
+**Status:** ADOPT
+
+The bare `schema.sql` replay (D024 §8) could only express `CREATE IF NOT EXISTS`.
+The D026 columns proved the gap: ALTER + backfill + constraint over existing rows
+needs ordering and a ledger, not guarded seed DDL.
+
+**Decision:** `apps/api/src/persistence/migrations.ts` owns the `flo_*` schema as
+an append-only registry (`MIGRATIONS`, version 1 = the Slice-2 baseline replay,
+recorded in `flo_schema_migrations`). `migrate()` applies pending migrations in
+order inside one transaction under `pg_advisory_xact_lock`, so the API and the
+worker boot concurrently without racing. Forward-only, no down migrations; never
+edit an applied migration. `createPostgresStores.init()` and the test
+`resetFloTables` both run `migrate()`. Proven by
+`apps/api/src/persistence/migrations.spec.ts` (baseline-on-old-DB, idempotent
+replay, synthetic ALTER + backfill + NOT NULL, concurrent-boot-serializes).
+
+**Scope boundary:** the commerce `flo_creation_*` / `flo_generation_job` DDL stays
+in `apps/commerce/src/scripts/seed.ts` until Path B retires — migrating tables
+that convergence deletes would be waste. New `flo_*` changes go through
+`MIGRATIONS`, never through seed guards or edits to `schema.sql`.

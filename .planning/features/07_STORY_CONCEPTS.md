@@ -22,20 +22,37 @@ Turn "theme + child facts" into three *distinct, appealing, appropriate* story p
 ## 3. Current implementation
 
 None before the M1 creation-core slice (D023) — the first real consumer of the durable
-runtime. The concept-bundle pipeline is now implemented (Observed): assemble canonical
-facts + theme seed (`BookService.storyInputsFor`/runner `requestFor`) → enqueue a durable
-`concept-bundle` unit on the DurableExecutionContract (`ConceptBundleRunner`, one unit
-per `(bookId, conceptVersion)`, retry budget 3) → run `StoryProvider` → validate (exactly 3
-distinct titles, canon vocabulary, character subset, age-band reading level) + moderate the
-ACTUAL title+pitch copy (F-007 §10) → persist `PROPOSED` bundle (idempotent per
-`(bookId, conceptVersion)`, resume re-uses the existing bundle) → select (`selectConcept`:
-winner `SELECTED`, siblings `DISCARDED`). Exhausted model path fails non-retryable
-(`CONCEPT_GENERATION_EXHAUSTED`); the API serves catalogue fallbacks
-(`BookService.serveFallbackConcepts`, F-007 §9 — not a second worker pass). See
+runtime. The concept-bundle pipeline is now implemented end to end (Observed: D023 +
+Slice-2 / D024): assemble canonical facts + theme seed (`BookService.storyInputsFor`/
+runner `requestFor`) → enqueue a durable `concept-bundle` unit on the
+DurableExecutionContract (`ConceptBundleRunner`, one unit per `(bookId,
+conceptVersion)`, retry budget 3) → run `StoryProvider` → validate (exactly 3 distinct
+titles, canon vocabulary, character subset, age-band reading level) + moderate the
+ACTUAL title+pitch copy (F-007 §10, wired `ModerationProvider`) → persist `PROPOSED`
+bundle in Postgres (idempotent per `(bookId, conceptVersion)`, resume re-uses the
+existing bundle) → select (`selectConcept`: winner `SELECTED`, siblings `DISCARDED`).
+Exhausted model path fails non-retryable (`CONCEPT_GENERATION_EXHAUSTED`); the API
+serves catalogue fallbacks (`BookService.serveFallbackConcepts`, F-007 §9 — not a
+second worker pass). Served over the Hono HTTP transport (`apps/api/src/http/`) with
+the production claim loop (`apps/worker/src/concept-worker.ts`). See
 `apps/api/src/creation/` and RESEARCH_LOG.md. That pipeline is the canonical F-007
-implementation (D026); it is not yet customer-reachable (no transport, no production
-store, stubbed ownership, no wired moderation — its silent FLAG drop and other known
-bugs are recorded in D026 for Slice-2, not fixed in dead code).
+implementation (D026).
+
+Three properties of that pipeline are load-bearing and easy to lose in a refactor:
+
+- **Authorisation is re-asserted at claim time, not only at enqueue time.** The requesting
+  `anonymousProjectId` travels in the durable payload, and `execute` re-checks
+  `assertProjectAccess` immediately before any provider call. Enqueue-time authorisation
+  alone is not enough: a unit can be claimed much later (crash recovery, retry backoff,
+  queue wait) and generating then would spend provider budget on a request that is no
+  longer authorised. A denied check fails non-retryable (`PROJECT_ACCESS_DENIED`) — a
+  session that no longer resolves is a settled fact, not a transient fault.
+- **The claim loop never lets a throw escape.** `runOnce` catches anything `runClaimed`
+  throws and fails the unit, so a store outage or a failed ownership re-check cannot kill
+  the loop *and* strand a lease until expiry, which would stall the whole queue.
+- **Budget lives on the Book, not the unit.** Regeneration is a per-book counter with a
+  default of 3 that only ever increments; the client cannot address a version. Exhausting
+  it is a 409 telling the parent to edit a concept instead.
 
 A second, narrower concept path also exists from PR #25 and is the live one (Observed):
 the commerce creation-project route, where one Vercel AI Gateway call returns three
@@ -51,7 +68,8 @@ screened by the first production `ModerationProvider`
 not a qualified vendor). The five-step customer flow
 (`apps/web/src/creation/CreationFlow.tsx`) exposes selection before story generation
 and currently calls that route. Per-card editing remains outstanding; a dedicated
-moderation vendor remains deferred by D026.
+moderation vendor remains deferred by D026. Retiring this path once the browser flow
+moves onto the Slice-2 transport is the remaining convergence work.
 
 ## 4. Problems with current implementation
 
@@ -144,9 +162,9 @@ unit per `(bookId, conceptVersion)` on the DurableExecutionContract (D019; `Conc
 exhausted fail = `CONCEPT_GENERATION_EXHAUSTED` — F-007 §9 fallback is API-served, not a second worker pass).
 Full-book orchestration stays with `GenerationJob` (F-010).
 
-- `POST /books/{id}/concepts` → body `{ regeneratedVersion? }` → creates a concept bundle (idempotent: reuse when one exists and is `PROPOSED`, unless explicit `regenerate`), enqueues the `StoryProvider` call, returns the bundle when ready/queued.
-- `POST /books/{id}/concepts/{conceptId}/select` → sets `Book.selectedConceptId`, transitions Book.state to `CONCEPT_SELECTED`; idempotent re-select returns same result; only one concept can be SELECTED per book.
-- `PATCH /books/{id}/concepts/{conceptId}` body `{ title?, pitch? }` → light per-card edit; sets `source=edited`; re-runs moderation gate; rejects (422 with message) if edited copy fails moderation.
+- `POST /books/{id}/concepts` → no body; creates the first concept bundle (idempotent: reuse when one already exists and is `PROPOSED`), enqueues the `StoryProvider` call, returns the bundle when ready/queued. There is **no `regeneratedVersion` in the body** — the version is derived server-side from the Book, so a client cannot address or skip a bundle version. Asking for a fresh bundle is a distinct intent: `POST /books/{id}/concepts?regenerate=true` or the dedicated `POST /books/{id}/concepts/regenerate` route below, both of which spend the budget.
+- `POST /books/{id}/concepts/{conceptId}/select` → sets `Book.selectedConceptId`, advances `Book.creationState` to `CONCEPT_SELECTED`; idempotent re-select returns same result; only one concept can be SELECTED per book.
+- `PATCH /books/{id}/concepts/{conceptId}` body `{ title?, pitch? }` → light per-card edit; sets `source=edited`; re-runs the moderation gate on the **actual submitted copy** (not the pre-edit text); rejects (422 with message) if edited copy fails moderation, persisting nothing. A successful edit publishes a **complete** new bundle version (`conceptVersion+1`) — the edited card plus its two siblings — so the selected set always comes from one version.
 - `POST /books/{id}/concepts/regenerate` → produces a *new bundle* (new ids, `conceptVersion+1`); old bundle `DISCARDED`; counted against the per-book budget (default 3; configurable per plan).
 - Auth: all scoped to session-owned Book (F-001 claim). Validation: enums, length caps, character subset, locale format.
 

@@ -1,5 +1,6 @@
 import {
   ageYearsOn,
+  allowedCharacterNames,
   duplicateTitles,
   getTheme,
   invalidCharacterNames,
@@ -11,6 +12,9 @@ import {
   type Fact,
   type StoryConcept
 } from "@for-little-ones/domain";
+import { CONTRACT_NAMES, ConceptResultSchema, parseContract } from "@for-little-ones/contracts";
+import { ValidationError } from "../errors";
+import { BookNotFoundError } from "./book-service";
 import type { ConceptRequest, ConceptResult } from "@for-little-ones/contracts";
 import type {
   ClaimedUnit,
@@ -50,6 +54,14 @@ export interface ConceptBundleUnitPayload {
   themeId: string;
   themeSeedVersion: string;
   childProfileId: string;
+  /**
+   * The requesting anonymous session, carried in the durable payload so `execute` can
+   * re-assert ownership at claim time. Enqueue-time authorisation alone is not enough:
+   * a unit can be claimed much later (crash recovery, retry backoff, queue wait), by
+   * which point the session may be gone or the project reassigned — and generating then
+   * would spend provider budget on a request that is no longer authorised.
+   */
+  anonymousProjectId: string;
 }
 
 export type ConceptBundleResult = {
@@ -67,8 +79,12 @@ export interface ConceptBundleDeps {
   storyProvider: Pick<StoryProvider, "generateConcepts" | "card">;
   moderation: ModerationProvider;
   events: EventSink;
-  /** The generation-eligible fact query (BookService.getFactsForStory in the shell). */
-  getFactsForStory: (input: { childProfileId: string }) => Promise<Fact[]>;
+  /**
+   * The generation-eligible fact query (BookService.getFactsForStory in the shell).
+   * Takes the owning session so the read is scoped the same way every other route is;
+   * a `childProfileId` alone would let any claimant read any child's facts.
+   */
+  getFactsForStory: (input: { anonymousProjectId: string; childProfileId: string }) => Promise<Fact[]>;
   /** F-001 §8 owner guard — the transport has already resolved the browser token. */
   assertProjectAccess: (anonymousProjectId: string, projectId: string) => Promise<unknown>;
   now: () => string;
@@ -81,6 +97,15 @@ export class ConceptBundleRunner {
     return `${CONCEPT_BUNDLE_OP}:${bookId}:v${conceptVersion}`;
   }
 
+  /**
+   * The transport's read side of the same seam: is the bundle for this version queued,
+   * running, landed, or dead? Kept here so `operationKey` construction stays in one
+   * place rather than being re-derived by every caller.
+   */
+  async jobFor(bookId: string, conceptVersion: number): Promise<JobView | undefined> {
+    return this.deps.runtime.job(this.operationKey(bookId, conceptVersion));
+  }
+
   /** F-007: persist-flow entrypoint — enqueue one idempotent unit; observe via `job()`. */
   async requestBundle(input: {
     bookId: string;
@@ -88,12 +113,12 @@ export class ConceptBundleRunner {
     anonymousProjectId: string;
   }): Promise<JobView> {
     const book = await this.deps.store.getBook(input.bookId);
-    if (!book) throw new Error(`book not found: ${input.bookId}`);
-    if (!book.themeId || !book.themeSeedVersion) throw new Error(`book ${input.bookId} has no theme selected`);
-    if (!book.projectId) throw new Error(`book ${input.bookId} has no owning project`);
+    if (!book) throw new BookNotFoundError(`book not found: ${input.bookId}`);
+    if (!book.themeId || !book.themeSeedVersion) throw new ValidationError(`book ${input.bookId} has no theme selected`);
+    if (!book.projectId) throw new ValidationError(`book ${input.bookId} has no owning project`);
     await this.deps.assertProjectAccess(input.anonymousProjectId, book.projectId);
     const childProfileId = book.childProfileIds[0];
-    if (!childProfileId) throw new Error(`book ${input.bookId} has no child profile`);
+    if (!childProfileId) throw new ValidationError(`book ${input.bookId} has no child profile`);
     const request: EnqueueRequest = {
       operationKey: this.operationKey(input.bookId, input.conceptVersion),
       units: [
@@ -105,7 +130,8 @@ export class ConceptBundleRunner {
             conceptVersion: input.conceptVersion,
             themeId: book.themeId,
             themeSeedVersion: book.themeSeedVersion,
-            childProfileId
+            childProfileId,
+            anonymousProjectId: input.anonymousProjectId
           }
         }
       ]
@@ -156,6 +182,27 @@ export class ConceptBundleRunner {
       return { ok: "fail", failure: { code: "THEME_MISSING", message: `theme ${payload.themeId} not in catalogue`, retryable: false } };
     }
 
+    if (!book.projectId) {
+      return { ok: "fail", failure: { code: "PROJECT_MISSING", message: `book ${payload.bookId} has no owning project`, retryable: false } };
+    }
+
+    // Re-assert ownership immediately before any provider spend. Non-retryable on
+    // purpose: a session that no longer resolves, or a project it no longer owns, is a
+    // settled fact, so retrying would only burn the attempt budget on a unit that can
+    // never succeed.
+    try {
+      await this.deps.assertProjectAccess(payload.anonymousProjectId, book.projectId);
+    } catch (err) {
+      return {
+        ok: "fail",
+        failure: {
+          code: "PROJECT_ACCESS_DENIED",
+          message: err instanceof Error ? err.message : String(err),
+          retryable: false
+        }
+      };
+    }
+
     const request = await this.requestFor(payload, theme.conceptSeed);
     // ClaimedUnit exposes attempts (0 = first claim) but not the budget; the runner
     // enqueues its own fixed budget, so the final attempt is knowable here.
@@ -163,10 +210,28 @@ export class ConceptBundleRunner {
 
     let modelConcepts: StoryConcept[] | undefined;
     try {
-      const result = await this.deps.storyProvider.generateConcepts(request);
-      const mapped = this.toDomainConcepts(result, payload, request.locale);
-      if (await this.isValidAndAllowed(mapped, book, request)) {
-        modelConcepts = mapped;
+      // A malformed vendor payload is a structured failure, never a silent
+      // best-effort fix: parseContract is the only way a ConceptResult becomes
+      // domain data, and `ok: false` takes the same invalid-output path as a
+      // thrown transport error (retryable, then EXHAUSTED).
+      const raw: unknown = await this.deps.storyProvider.generateConcepts(request);
+      const parsed = parseContract(CONTRACT_NAMES.conceptResult, ConceptResultSchema, raw);
+      if (parsed.ok) {
+        const mapped = this.toDomainConcepts(parsed.value, payload, request.locale);
+        if (await this.isValidAndAllowed(mapped, book, request)) {
+          modelConcepts = mapped;
+        }
+      } else {
+        await this.deps.events.push({
+          name: "concept_generation_contract_violation",
+          at: this.deps.now(),
+          attributes: {
+            bookId: payload.bookId,
+            conceptVersion: payload.conceptVersion,
+            contract: parsed.contract,
+            issueCount: parsed.issues.length
+          }
+        });
       }
     } catch {
       modelConcepts = undefined;
@@ -179,6 +244,13 @@ export class ConceptBundleRunner {
           failure: { code: "CONCEPT_GENERATION_FAILED", message: "concept provider unavailable or invalid output", retryable: true }
         };
       }
+      // F-007 §13 `concept_generation_failed` fires once, on the exhaustive failure —
+      // not on every retry, which would triple-count one incident.
+      await this.deps.events.push({
+        name: "concept_generation_failed",
+        at: this.deps.now(),
+        attributes: { bookId: payload.bookId, conceptVersion: payload.conceptVersion, reason: "model-path-exhausted" }
+      });
       return {
         ok: "fail",
         failure: {
@@ -197,9 +269,15 @@ export class ConceptBundleRunner {
     });
 
     await this.deps.events.push({
-      name: "concepts.generated",
+      name: "story_concepts_generated",
       at: this.deps.now(),
-      attributes: { bookId: payload.bookId, conceptVersion: payload.conceptVersion, source: "model" }
+      attributes: {
+        bookId: payload.bookId,
+        conceptVersion: payload.conceptVersion,
+        source: "model",
+        count: modelConcepts.length,
+        attempts: claimed.attempts + 1
+      }
     });
 
     return { ok: "ok", output: { kind: CONCEPT_BUNDLE_OP, source: "model", conceptVersion: payload.conceptVersion, concepts: modelConcepts } };
@@ -219,7 +297,10 @@ export class ConceptBundleRunner {
     payload: ConceptBundleUnitPayload,
     themeSeed: ConceptRequest["themeSeed"]
   ): Promise<ConceptRequest> {
-    const facts = await this.deps.getFactsForStory({ childProfileId: payload.childProfileId });
+    const facts = await this.deps.getFactsForStory({
+      anonymousProjectId: payload.anonymousProjectId,
+      childProfileId: payload.childProfileId
+    });
     const profile = await this.deps.store.getProfile(payload.childProfileId);
     const age = profile ? ageYearsOn(profile.dateOfBirth, this.deps.now().slice(0, 10)) : undefined;
     return buildConceptRequest({
@@ -263,7 +344,10 @@ export class ConceptBundleRunner {
   private async isValidAndAllowed(concepts: StoryConcept[], book: Book, request: ConceptRequest): Promise<boolean> {
     if (concepts.length !== 3) return false;
     if (duplicateTitles(concepts).length > 0) return false;
-    const names = new Set(book.characters.map((c) => c.name));
+    // D024 §5: a concept may only name the book's relationships (which include the
+    // seeded self-relationship for the primary child) — never a CharacterBible row,
+    // which is a visual-identity record and not a name vocabulary.
+    const names = allowedCharacterNames(book);
     const structurallyValid = concepts.every(
       (c) =>
         isEmotionalGoal(c.emotionalGoal) &&

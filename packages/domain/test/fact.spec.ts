@@ -4,9 +4,11 @@ import {
   FACT_SOURCES,
   FACT_STATES,
   FACT_TYPES,
+  checkCustomFactQuota,
   factDisplayValue,
   generationEligibleFacts,
   isGenerationEligibleFact,
+  validateFactValue,
   type Fact,
   type FactConfirmation,
   type FactLocale,
@@ -105,5 +107,56 @@ describe("domain: fact model (F-006)", () => {
     const f = { ...fact("parentConfirmed"), confirmedBy: confirmed };
     expect(f.confirmedBy?.sessionOwnerId).toBe("session-1");
     expect(fact("suggested").confirmedBy).toBeUndefined();
+  });
+});
+describe("domain: fact value validation (F-006 §8)", () => {
+  const resolve = { relationshipIds: ["rel-bruno"] as readonly string[] };
+
+  it("accepts a catalogue-backed enum value and rejects an unknown optionId", () => {
+    expect(validateFactValue({ type: "favouriteColour", value: { kind: "enum", optionId: "purple" } })).toEqual([]);
+    expect(validateFactValue({ type: "favouriteColour", value: { kind: "enum", optionId: "ultraviolet" } })).toEqual([
+      "value.optionId is not a catalogue option for favouriteColour"
+    ]);
+  });
+
+  it("binds an enum value to a catalogued type only", () => {
+    expect(validateFactValue({ type: "customFact", value: { kind: "enum", optionId: "purple" } })).toEqual([
+      "type customFact does not accept a value of kind enum"
+    ]);
+  });
+
+  it("requires a known sport game and bounds the team name", () => {
+    expect(validateFactValue({ type: "sport", value: { kind: "sport", gameId: "cricket", team: "MCC" } })).toEqual([]);
+    expect(validateFactValue({ type: "sport", value: { kind: "sport", gameId: "quidditch" } })).toEqual([
+      "value.gameId is not a known sport"
+    ]);
+    expect(validateFactValue({ type: "sport", value: { kind: "sport", gameId: "cricket", team: "x".repeat(121) } })).toEqual([
+      "value.team exceeds 120 characters"
+    ]);
+  });
+
+  it("requires person/pet values to reference a real relationship", () => {
+    expect(validateFactValue({ type: "person", value: { kind: "person", relationshipId: "rel-bruno" } }, resolve)).toEqual([]);
+    expect(validateFactValue({ type: "pet", value: { kind: "pet", relationshipId: "rel-ghost" } }, resolve)).toEqual([
+      "value.relationshipId does not reference a known relationship"
+    ]);
+    expect(validateFactValue({ type: "pet", value: { kind: "person", relationshipId: "rel-bruno" } }, resolve)).toEqual([
+      "type pet does not accept a value of kind person"
+    ]);
+  });
+
+  it("bounds custom facts at 200 characters per the spec", () => {
+    const long = "x".repeat(201);
+    expect(validateFactValue({ type: "customFact", value: { kind: "custom", subject: "toy", claim: long } })).toEqual([
+      "value.claim exceeds 200 characters"
+    ]);
+  });
+
+  it("caps a profile at three custom facts (AddFact-level rule, not a value rule)", () => {
+    expect(checkCustomFactQuota(0)).toEqual([]);
+    expect(checkCustomFactQuota(2)).toEqual([]);
+    // Already at the limit: the third exists, the fourth must not be accepted.
+    expect(checkCustomFactQuota(3)).toEqual(["profile already has 3 custom facts (limit 3)"]);
+    expect(checkCustomFactQuota(4)).toEqual(["profile already has 4 custom facts (limit 3)"]);
   });
 });

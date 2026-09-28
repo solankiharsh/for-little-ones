@@ -14,7 +14,7 @@ export type {
   FactValue,
   FactConfirmation
 } from "./fact";
-export { FACT_TYPES, FACT_LOCALES, FACT_SOURCES, FACT_STATES, isGenerationEligibleFact, generationEligibleFacts, factDisplayValue } from "./fact";
+export { FACT_TYPES, FACT_LOCALES, FACT_SOURCES, FACT_STATES, CUSTOM_FACTS_PER_PROFILE, CUSTOM_FACT_MAX_CHARS, isGenerationEligibleFact, generationEligibleFacts, factDisplayValue, validateFactValue, checkCustomFactQuota } from "./fact";
 export type {
   FactOption,
   SportOption,
@@ -81,6 +81,7 @@ export { sessionAllowsProject, emptyProject } from "./session";
 export type {
   Book,
   BookStatus,
+  CreationState,
   RevisionStatus,
   Page,
   PageStatus,
@@ -93,7 +94,7 @@ export type {
   DeepReadonly,
   Approval
 } from "./book";
-export { createApprovedBookRevision } from "./book";
+export { createApprovedBookRevision, CREATION_STATES, seedSelfRelationships, allowedCharacterNames } from "./book";
 export { validateGeometry } from "./print";
 export type {
   PrintSpec,

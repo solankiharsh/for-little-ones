@@ -10,7 +10,30 @@ export interface CreationStore {
   listConceptsByBook(bookId: string): Promise<StoryConcept[]>;
   /** Marks the chosen PROPOSED concept SELECTED and its siblings DISCARDED (F-007 §8). */
   markConceptSelection(bookId: string, selectedConceptId: string): Promise<void>;
+
+  // --- Slice-2 additions (D024 §5/§6): the writers F-003/F-006/F-007 need. ---
+  /** F-003 `CreateChildProfile`/`UpdateChildProfile` — upsert, revision included. */
+  saveProfile(profile: ChildProfile): Promise<void>;
+  /** F-003 idempotency: the profile id a `creationToken` already created, if any. */
+  findProfileByCreationToken(creationToken: string): Promise<string | undefined>;
+  /** F-006 `AddFact` and the audited confirm/reject/remove transitions. */
+  saveFact(fact: Fact): Promise<void>;
+  /** F-006 idempotency: the fact id a `factToken` already created, if any. */
+  findFactByToken(factToken: string): Promise<string | undefined>;
+  listFactsByProfile(childProfileId: string): Promise<Fact[]>;
+  /** F-003 `RemoveFact`: scrubs the value, RETAINS the row for its story-usage audit. */
+  removeFact(factId: string): Promise<void>;
+  removedFactUsage(factId: string): Promise<Fact["storyUsage"]>;
+  getConcept(conceptId: string): Promise<StoryConcept | undefined>;
+  /** F-007 §7 parent edit: persists one concept as `source: "edited"` at a new version. */
+  saveConcept(concept: StoryConcept): Promise<void>;
+  /** F-007 §8 regenerate: retires bundles older than `keepVersion`, retaining the rows. */
+  discardConceptBundle(bookId: string, keepVersion: number): Promise<void>;
+  listConceptVersions(bookId: string): Promise<number[]>;
+  /** D024 §7: regenerations consumed so far against the book's budget. */
+  regenerateCount(bookId: string): Promise<number>;
 }
+
 
 export interface SaveConceptInput {
   bookId: string;
@@ -31,12 +54,14 @@ export class InMemoryCreationStore implements CreationStore {
   private books = new Map<string, Book>();
   private concepts = new Map<string, StoryConcept>(); // conceptId -> concept
   private conceptsByBook = new Map<string, Map<number, string[]>>(); // bookId -> conceptVersion -> conceptIds
+  private removed = new Set<string>(); // fact ids scrubbed by RemoveFact but retained for audit
 
   async getProfile(profileId: string): Promise<ChildProfile | undefined> {
     return this.profiles.get(profileId);
   }
 
   async getFact(factId: string): Promise<Fact | undefined> {
+    if (this.removed.has(factId)) return undefined;
     return this.facts.get(factId);
   }
 
@@ -91,9 +116,81 @@ export class InMemoryCreationStore implements CreationStore {
 
   async markConceptSelection(bookId: string, selectedConceptId: string): Promise<void> {
     const current = await this.listConceptsByBook(bookId);
+    const chosen = current.find((c) => c.id === selectedConceptId);
+    // Same guard as the Postgres adapter: only a current-bundle member of this book wins,
+    // and nothing is discarded until we know the winner is real.
+    if (!chosen) throw new Error(`concept not found in current bundle: ${selectedConceptId}`);
     for (const concept of current) {
       this.concepts.set(concept.id, { ...concept, status: concept.id === selectedConceptId ? "SELECTED" : "DISCARDED" });
     }
+  }
+
+  // --- Slice-2 additions: same behaviour as the Postgres adapter, memory-backed. ---
+
+  async saveProfile(profile: ChildProfile): Promise<void> {
+    this.profiles.set(profile.id, profile);
+  }
+
+  async findProfileByCreationToken(creationToken: string): Promise<string | undefined> {
+    for (const profile of this.profiles.values()) {
+      if (profile.creationToken === creationToken) return profile.id;
+    }
+    return undefined;
+  }
+
+  async saveFact(fact: Fact): Promise<void> {
+    this.facts.set(fact.id, fact);
+  }
+
+  async findFactByToken(factToken: string): Promise<string | undefined> {
+    for (const fact of this.facts.values()) {
+      if (fact.factToken === factToken) return fact.id;
+    }
+    return undefined;
+  }
+
+  async listFactsByProfile(childProfileId: string): Promise<Fact[]> {
+    return [...this.facts.values()].filter(
+      (fact) => fact.childProfileId === childProfileId && !this.removed.has(fact.id)
+    );
+  }
+
+  async removeFact(factId: string): Promise<void> {
+    const fact = this.facts.get(factId);
+    // The row is RETAINED (scrubbed value, story-usage intact) exactly as the SQL
+    // adapter does; only the read paths hide it.
+    this.removed.add(factId);
+    if (fact) this.facts.set(factId, { ...fact, value: { kind: "custom", subject: "", claim: "" }, state: "rejected" });
+  }
+
+  async removedFactUsage(factId: string): Promise<Fact["storyUsage"]> {
+    return this.facts.get(factId)?.storyUsage ?? [];
+  }
+
+  async getConcept(conceptId: string): Promise<StoryConcept | undefined> {
+    return this.concepts.get(conceptId);
+  }
+
+  async saveConcept(concept: StoryConcept): Promise<void> {
+    this.concepts.set(concept.id, concept);
+  }
+
+  async discardConceptBundle(bookId: string, keepVersion: number): Promise<void> {
+    for (const concept of this.concepts.values()) {
+      if (concept.bookId === bookId && concept.conceptVersion < keepVersion) {
+        this.concepts.set(concept.id, { ...concept, status: "DISCARDED" });
+      }
+    }
+  }
+
+  async listConceptVersions(bookId: string): Promise<number[]> {
+    return [...new Set([...this.concepts.values()].filter((c) => c.bookId === bookId).map((c) => c.conceptVersion))].sort(
+      (left, right) => left - right
+    );
+  }
+
+  async regenerateCount(bookId: string): Promise<number> {
+    return this.books.get(bookId)?.regenerateCount ?? 0;
   }
 
   private conceptsByIds(ids: string[]): StoryConcept[] {
@@ -103,6 +200,7 @@ export class InMemoryCreationStore implements CreationStore {
     });
   }
 }
+
 
 function conceptIdFor(bookId: string, conceptVersion: number, index: number): string {
   return `concept:${bookId}:v${conceptVersion}:${index}`;

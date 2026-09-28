@@ -9,6 +9,14 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./test-support": {
+      "types": "./src/persistence/test-database.ts",
+      "default": "./src/persistence/test-database.ts"
+    },
+    "./dev": {
+      "types": "./src/dev-providers.ts",
+      "default": "./src/dev-providers.ts"
     }
   },
   "scripts": {
@@ -18,6 +26,9 @@
     "@for-little-ones/contracts": "*",
     "@for-little-ones/domain": "*",
     "@for-little-ones/execution": "*",
-    "@for-little-ones/providers": "*"
+    "@for-little-ones/providers": "*",
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.13.9",
+    "pg": "^8.23.0"
   }
 }

@@ -1,31 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { AnonymousSession, Project } from "@for-little-ones/domain";
 import { AnonymousSessionService, type SessionStore } from "../../src/session/session-service";
+import { InMemorySessionStore } from "../../src/session/in-memory-session-store";
 
-function memorySessionStore(): SessionStore {
-  const sessions = new Map<string, AnonymousSession>();
-  const projects = new Map<string, Project>();
-  return {
-    async createSession(s) {
-      sessions.set(s.anonymousProjectId, s);
-    },
-    async getSession(id) {
-      return sessions.get(id);
-    },
-    async getSessionByTokenHash(hash) {
-      for (const session of sessions.values()) {
-        if (session.browserTokenHash === hash) return session;
-      }
-      return undefined;
-    },
-    async saveProject(p) {
-      projects.set(p.projectId, p);
-    },
-    async getProject(id) {
-      return projects.get(id);
-    }
-  };
-}
+const memorySessionStore = (): SessionStore => new InMemorySessionStore();
 
 function service(store: SessionStore) {
   let counter = 0;
