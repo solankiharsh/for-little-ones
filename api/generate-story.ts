@@ -1,10 +1,16 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { authorizeGenerationCommand, projectStoryForEntitlement, type PaymentState } from "@for-little-ones/domain";
+import {
+  PolicyTextModerationProvider,
+  TEXT_MODERATION_POLICY_SET,
+  type ModerationResult
+} from "@for-little-ones/providers";
 
 export const maxDuration = 60;
 
 const model = process.env.AI_STORY_MODEL ?? "google/gemini-2.5-flash";
+const moderation = new PolicyTextModerationProvider();
 
 const StoryPreviewRequestSchema = z.strictObject({
   schemaVersion: z.literal("1"),
@@ -96,18 +102,19 @@ async function handle(request: Request): Promise<Response> {
     }) as { jobId?: unknown };
     if (typeof job.jobId !== "string") throw new Error("Creation service returned an invalid job");
     jobId = job.jobId;
-    const { output, usage } = await generateText({
-      model,
-      abortSignal: AbortSignal.timeout(45_000),
-      output: Output.object({ schema: StoryPreviewModelSchema }),
-      system: [
-        "You write warm, original picture-book stories for children aged 1 to 12.",
-        "Use British English and age-appropriate language. Keep the child safe throughout.",
-        "Never add frightening peril, violence, brands, copyrighted characters, or claims about the real child.",
-        "Return exactly six short pages. Each illustration cue describes a coherent scene but does not generate an image."
-      ].join(" "),
-      prompt: storyPrompt(input.data)
-    });
+    let { output, usage } = await writeStory(input.data);
+    let screened = await screenStory(input.data, output);
+    if (screened.verdict === "BLOCK") {
+      // One narrowed retry, inside the same job, so a blocked draft costs the parent
+      // one story attempt rather than two. There is no authored fallback for a story:
+      // a second block is a retryable failure, not copy we should invent around.
+      console.warn("story draft blocked by moderation, retrying once", screened.findings);
+      ({ output, usage } = await writeStory(input.data, narrowingInstruction(screened.findings, output)));
+      screened = await screenStory(input.data, output);
+      if (screened.verdict === "BLOCK") {
+        throw new Error(`story blocked by moderation after retry: ${screened.findings.join("; ")}`);
+      }
+    }
 
     const generationMetadata = {
       model, attemptCount: 1,
@@ -119,7 +126,7 @@ async function handle(request: Request): Promise<Response> {
     // pre-payment page text.
     const teaser = { ...projectStoryForEntitlement(output, authorization.entitlement), generationMetadata };
     await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/story-jobs/${job.jobId}`, {
-      method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", teaser, story: output, generationMetadata }
+      method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", teaser, story: output, generationMetadata, moderation: screened }
     });
     return Response.json(teaser);
   } catch (error) {
@@ -131,6 +138,51 @@ async function handle(request: Request): Promise<Response> {
     console.error("story-preview generation failed", error);
     return Response.json({ error: "The story studio is taking a little longer. Please try again." }, { status: 503 });
   }
+}
+
+type StoryOutput = z.infer<typeof StoryPreviewModelSchema>;
+
+async function writeStory(input: StoryPreviewRequest, narrowing?: string) {
+  return generateText({
+    model,
+    abortSignal: AbortSignal.timeout(45_000),
+    output: Output.object({ schema: StoryPreviewModelSchema }),
+    system: [
+      "You write warm, original picture-book stories for children aged 1 to 12.",
+      "Use British English and age-appropriate language. Keep the child safe throughout.",
+      "Never add frightening peril, violence, brands, copyrighted characters, or claims about the real child.",
+      "Return exactly six short pages. Each illustration cue describes a coherent scene but does not generate an image."
+    ].join(" "),
+    prompt: narrowing ? `${storyPrompt(input)}\n\n${narrowing}` : storyPrompt(input)
+  });
+}
+
+/**
+ * Screens the whole story, cues included: illustration cues are prompts for a later
+ * image model, so text that is safe to read is not automatically safe to draw.
+ */
+function screenStory(input: StoryPreviewRequest, output: StoryOutput): Promise<ModerationResult> {
+  return moderation.screen({
+    contentType: "text",
+    contentRef: `book:${input.projectId}/story`,
+    content: [output.title, output.synopsis, output.emotionalGoal, ...output.pages.flatMap((page) => [page.text, page.illustrationCue])].join("\n"),
+    childDisplayName: input.childName,
+    policySetVersion: TEXT_MODERATION_POLICY_SET
+  });
+}
+
+/** Keeps the rejected draft so the retry repairs the same story instead of inventing another. */
+function narrowingInstruction(findings: string[], rejected: StoryOutput): string {
+  return [
+    "A previous draft was rejected by our safety screen. Rewrite that draft to fix these safety problems:",
+    ...findings.map((finding) => `- ${finding}`),
+    "Keep the same title, character, premise, reading band and six-page shape. Change only what the findings require.",
+    "",
+    "Rejected draft:",
+    `Title: ${rejected.title}`,
+    `Synopsis: ${rejected.synopsis}`,
+    ...rejected.pages.map((page) => `Page ${page.pageNumber}: ${page.text} [cue: ${page.illustrationCue}]`)
+  ].join("\n");
 }
 
 async function projectRequest(

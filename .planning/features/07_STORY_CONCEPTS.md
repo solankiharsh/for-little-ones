@@ -24,7 +24,7 @@ Turn "theme + child facts" into three *distinct, appealing, appropriate* story p
 None before the M1 creation-core slice (D023) — the first real consumer of the durable
 runtime. The concept-bundle pipeline is now implemented (Observed): assemble canonical
 facts + theme seed (`BookService.storyInputsFor`/runner `requestFor`) → enqueue a durable
-`GENERATE_CONCEPTS` unit on the DurableExecutionContract (`ConceptBundleRunner`, one unit
+`concept-bundle` unit on the DurableExecutionContract (`ConceptBundleRunner`, one unit
 per `(bookId, conceptVersion)`, retry budget 3) → run `StoryProvider` → validate (exactly 3
 distinct titles, canon vocabulary, character subset, age-band reading level) + moderate the
 ACTUAL title+pitch copy (F-007 §10) → persist `PROPOSED` bundle (idempotent per
@@ -32,20 +32,26 @@ ACTUAL title+pitch copy (F-007 §10) → persist `PROPOSED` bundle (idempotent p
 winner `SELECTED`, siblings `DISCARDED`). Exhausted model path fails non-retryable
 (`CONCEPT_GENERATION_EXHAUSTED`); the API serves catalogue fallbacks
 (`BookService.serveFallbackConcepts`, F-007 §9 — not a second worker pass). See
-`apps/api/src/creation/` and RESEARCH_LOG.md.
+`apps/api/src/creation/` and RESEARCH_LOG.md. That pipeline is the canonical F-007
+implementation (D026); it is not yet customer-reachable (no transport, no production
+store, stubbed ownership, no wired moderation — its silent FLAG drop and other known
+bugs are recorded in D026 for Slice-2, not fixed in dead code).
 
-A second, narrower concept path also exists from PR #25 and is **not** yet reconciled
-with the pipeline above (Observed): the commerce creation-project route, where one
-Vercel AI Gateway call returns three strictly validated distinct concepts, the server
-caps each revision at three bundles (`flo_generation_job`), persists the bundle and
-selected concept, records provider model/token usage, and falls back to three authored
-starter ideas when the model fails or violates the safety/shape gate
-(`api/generate-concepts.ts`, `apps/commerce/src/lib/creation-projects.ts`). The
-five-step customer flow (`apps/web/src/creation/CreationFlow.tsx`) exposes selection
-before story generation and currently calls that route. Which path is canonical —
-consolidating the browser flow onto the durable `BookService` pipeline, or keeping a
-commerce-scoped path — is **Decision needed**; see OPEN_QUESTIONS.md. Per-card editing
-and a dedicated moderation provider remain outstanding on both paths.
+A second, narrower concept path also exists from PR #25 and is the live one (Observed):
+the commerce creation-project route, where one Vercel AI Gateway call returns three
+strictly validated distinct concepts, the server caps each revision at three terminal
+bundles (`flo_generation_job`, `READY`/`FAILED` only — orphaned `RUNNING` rows burn
+nothing), persists the bundle and selected concept, records provider model/token usage,
+the entitlement snapshot and the moderation verdict, and falls back to three authored
+starter ideas when the model fails or the safety gate blocks
+(`api/generate-concepts.ts`, `apps/commerce/src/lib/creation-projects.ts`). Safety is
+screened by the first production `ModerationProvider`
+(`PolicyTextModerationProvider`, an in-process versioned rules engine bound to
+`policies/safety/content-rules.md` — an explicitly scoped interim control per D026,
+not a qualified vendor). The five-step customer flow
+(`apps/web/src/creation/CreationFlow.tsx`) exposes selection before story generation
+and currently calls that route. Per-card editing remains outstanding; a dedicated
+moderation vendor remains deferred by D026.
 
 ## 4. Problems with current implementation
 

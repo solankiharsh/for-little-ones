@@ -46,20 +46,49 @@ export function readBearerToken(header: string | undefined): string | null {
  * is the only place the payment state is recorded. `payment_state` is written
  * here and by the payment path alone — never by a request body, a cart flag or
  * anything the browser holds. D025 makes it the authority for generation access.
+ *
+ * Each project also mints one opaque payment claim in the same insert as the
+ * owner hash. The claim is the only thing that can move the project to captured:
+ * checkout carries it, the server redeems it exactly once after a successful
+ * capture, and the claim itself is the credential — no identity is required.
  */
 export async function createCreationProject(db: Knex, draft: CreationDraftRecord) {
   const projectId = `project_${randomUUID()}`;
   const revisionId = `revision_${randomUUID()}`;
   const ownerToken = randomBytes(32).toString("hex");
+  const claimId = `claim_${randomBytes(32).toString("hex")}`;
   await db.transaction(async (trx) => {
     await trx("flo_creation_project").insert({
-      id: projectId, owner_token_hash: hashOwnerToken(ownerToken), payment_state: "pending"
+      id: projectId, owner_token_hash: hashOwnerToken(ownerToken), payment_state: "pending", claim_id: claimId
     });
     await trx("flo_creation_revision").insert({
       id: revisionId, project_id: projectId, version: 1, status: "DRAFT", draft: JSON.stringify(draft)
     });
   });
-  return { projectId, revisionId, ownerToken, paymentState: "pending" as PaymentState };
+  return { projectId, revisionId, ownerToken, claimId, paymentState: "pending" as PaymentState };
+}
+
+/**
+ * A claim is opaque and unguessable; anything else is rejected before it can touch a row.
+ * The shape is mirrored in `apps/web/src/commerce/client.ts` (duplicated, not imported,
+ * per that file's convention) — keep the two in sync.
+ */
+export function parseClaimId(value: unknown): string | null {
+  return typeof value === "string" && /^claim_[a-f0-9]{64}$/.test(value) ? value : null;
+}
+
+/**
+ * Single-use redemption, atomic by construction: the update only lands on a row
+ * whose claim is still unconsumed, so two checkouts racing the same claim can only
+ * ever capture one of them. Returns the project after capture, or null when the
+ * claim is unknown or already spent.
+ */
+export async function redeemCreationClaim(db: Knex, claimId: string) {
+  const changed = await db("flo_creation_project").where({ claim_id: claimId }).whereNull("claim_consumed_at").update({
+    payment_state: "captured", claim_consumed_at: db.fn.now(), updated_at: db.fn.now()
+  });
+  if (changed !== 1) return null;
+  return db("flo_creation_project").where({ claim_id: claimId }).first();
 }
 
 export async function authorizeProject(db: Knex, projectId: string, ownerToken: string) {
@@ -78,12 +107,15 @@ export interface GenerationUsage {
 
 /**
  * Usage the policy needs, counted from the durable job log rather than from
- * anything the caller reports. `assetsGenerated` stays zero until the
- * illustration pipeline (F-009) starts writing image jobs of its own.
+ * anything the caller reports. Only terminal jobs count: an orphaned RUNNING row
+ * left behind by an interrupted handler delivered nothing and must not burn the
+ * parent's allowance. `assetsGenerated` stays zero until the illustration
+ * pipeline (F-009) starts writing image jobs of its own.
  */
 export async function readGenerationUsage(db: Knex, revisionId: string): Promise<GenerationUsage> {
   const count = async (kind: string) => {
-    const row = await db("flo_generation_job").where({ revision_id: revisionId, kind }).count<{ count: string }>("id as count").first();
+    const row = await db("flo_generation_job").where({ revision_id: revisionId, kind }).whereIn("status", ["READY", "FAILED"])
+      .count<{ count: string }>("id as count").first();
     return Number(row?.count ?? 0);
   };
   return {
@@ -105,11 +137,49 @@ export async function startConceptJob(db: Knex, projectId: string, revisionId: s
   return startGenerationJob(db, projectId, revisionId, "CONCEPT_BUNDLE", paymentState);
 }
 
+export interface ModerationRecord {
+  verdict: "ALLOW" | "FLAG" | "BLOCK";
+  findings: string[];
+}
+
+/** The screening result a generation caller reports is validated here, never trusted raw. */
+export function parseModerationRecord(value: unknown): ModerationRecord | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (record.verdict !== "ALLOW" && record.verdict !== "FLAG" && record.verdict !== "BLOCK") return null;
+  if (!Array.isArray(record.findings) || !record.findings.every((finding) => typeof finding === "string")) return null;
+  return { verdict: record.verdict, findings: record.findings };
+}
+
+/**
+ * Shared completion-body gate for the concept and story PATCH routes: a screened
+ * bundle is the only kind that may be persisted, so an absent or malformed record
+ * is a 400, never a silent drop. Returns the record, or an error message.
+ */
+export function readModerationBody(body: { moderation?: unknown } | undefined): { moderation: ModerationRecord } | { error: string } {
+  if (body?.moderation === undefined) return { error: "A moderation record is required." };
+  const moderation = parseModerationRecord(body.moderation);
+  return moderation ? { moderation } : { error: "A valid moderation record is required." };
+}
+
+export interface EntitlementSnapshot {
+  paymentState: PaymentState;
+  kind: "STORY_PREVIEW" | "CONCEPT_BUNDLE";
+}
+
 async function startGenerationJob(db: Knex, projectId: string, revisionId: string, kind: "STORY_PREVIEW" | "CONCEPT_BUNDLE", paymentState: PaymentState) {
   if (paymentState === "refunded" || paymentState === "cancelled") throw new RevokedGenerationError("Payment entitlement is not active.");
+  // An interrupted handler leaves its RUNNING row behind and the revision stuck at
+  // GENERATING. Reclaiming that row lets the next command adopt the orphaned job
+  // instead of starting a second one that would double-count the allowance.
+  const inflight = await db("flo_generation_job")
+    .where({ project_id: projectId, revision_id: revisionId, kind, status: "RUNNING" })
+    .orderBy("created_at", "desc").first();
+  if (inflight) return { jobId: inflight.id as string, status: "RUNNING" as const, progress: Number(inflight.progress ?? 10) };
   const jobId = `job_${randomUUID()}`;
   await db("flo_generation_job").insert({
-    id: jobId, project_id: projectId, revision_id: revisionId, kind, status: "RUNNING", progress: 10
+    id: jobId, project_id: projectId, revision_id: revisionId, kind, status: "RUNNING", progress: 10,
+    entitlement: JSON.stringify({ paymentState, kind } satisfies EntitlementSnapshot)
   });
   await db("flo_creation_revision").where({ id: revisionId, project_id: projectId }).update({ status: "GENERATING", updated_at: db.fn.now() });
   return { jobId, status: "RUNNING" as const, progress: 10 };
@@ -126,10 +196,14 @@ function providerUsageColumns(metadata: ProviderUsage | undefined) {
   };
 }
 
-export async function completeConceptJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; concepts: unknown; generationMetadata?: ProviderUsage }) {
+export async function completeConceptJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; concepts: unknown; generationMetadata?: ProviderUsage; moderation?: ModerationRecord }) {
   await db.transaction(async (trx) => {
+    // The revision comes from the job row the server assigned, not from trusting
+    // the body alone: a revision that is not this job's own matches zero rows.
     const changed = await trx("flo_generation_job").where({ id: input.jobId, project_id: input.projectId, revision_id: input.revisionId, kind: "CONCEPT_BUNDLE" }).update({
-      status: "READY", progress: 100, ...providerUsageColumns(input.generationMetadata), updated_at: trx.fn.now()
+      status: "READY", progress: 100, ...providerUsageColumns(input.generationMetadata),
+      ...(input.moderation === undefined ? {} : { moderation: JSON.stringify(input.moderation) }),
+      updated_at: trx.fn.now()
     });
     if (changed !== 1) throw new Error("Concept job not found");
     await trx("flo_creation_revision").where({ id: input.revisionId, project_id: input.projectId }).update({
@@ -152,10 +226,13 @@ export async function selectConcept(db: Knex, input: { projectId: string; revisi
  * the complete story once the project's payment record says captured, so the
  * store API cannot be used to read ahead of payment (D025).
  */
-export async function completeStoryJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; teaser: unknown; story?: unknown; generationMetadata?: ProviderUsage }) {
+export async function completeStoryJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string; teaser: unknown; story?: unknown; generationMetadata?: ProviderUsage; moderation?: ModerationRecord }) {
   await db.transaction(async (trx) => {
+    // As with concepts: the revision must be the job's own, or zero rows match.
     const changed = await trx("flo_generation_job").where({ id: input.jobId, project_id: input.projectId, revision_id: input.revisionId }).update({
-      status: "READY", progress: 100, ...providerUsageColumns(input.generationMetadata), updated_at: trx.fn.now()
+      status: "READY", progress: 100, ...providerUsageColumns(input.generationMetadata),
+      ...(input.moderation === undefined ? {} : { moderation: JSON.stringify(input.moderation) }),
+      updated_at: trx.fn.now()
     });
     if (changed !== 1) throw new Error("Generation job not found");
     await trx("flo_creation_revision").where({ id: input.revisionId, project_id: input.projectId }).update({
@@ -164,6 +241,13 @@ export async function completeStoryJob(db: Knex, input: { projectId: string; rev
       updated_at: trx.fn.now()
     });
   });
+}
+
+export async function failConceptJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string }) {
+  await db("flo_generation_job").where({ id: input.jobId, project_id: input.projectId, revision_id: input.revisionId, kind: "CONCEPT_BUNDLE" }).update({
+    status: "FAILED", progress: 100, error_code: "PROVIDER_FAILED", updated_at: db.fn.now()
+  });
+  await db("flo_creation_revision").where({ id: input.revisionId, project_id: input.projectId }).update({ status: "DRAFT", updated_at: db.fn.now() });
 }
 
 export async function failStoryJob(db: Knex, input: { projectId: string; revisionId: string; jobId: string }) {

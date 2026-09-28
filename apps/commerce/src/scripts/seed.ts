@@ -25,10 +25,29 @@ export default async function seed({ container }: ExecArgs) {
   });
   if (!await db.schema.hasTable("flo_creation_project")) await db.schema.createTable("flo_creation_project", (table) => {
     table.text("id").primary(); table.text("owner_token_hash").notNullable(); table.text("payment_state").notNullable().defaultTo("pending");
+    table.text("claim_id").nullable(); table.timestamp("claim_consumed_at").nullable();
     table.timestamp("created_at").notNullable().defaultTo(db.fn.now()); table.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
   });
   if (!await db.schema.hasColumn("flo_creation_project", "payment_state")) {
     await db.schema.alterTable("flo_creation_project", (table) => table.text("payment_state").notNullable().defaultTo("pending"));
+  }
+  // The payment claim is minted by project creation, so older sandbox rows predate
+  // it: backfill an opaque claim per row, then enforce presence and uniqueness.
+  // Single-use itself is the atomic consume in `redeemCreationClaim`; the constraint
+  // is defence in depth so a duplicate claim can never exist to race over.
+  if (!await db.schema.hasColumn("flo_creation_project", "claim_id")) {
+    await db.schema.alterTable("flo_creation_project", (table) => table.text("claim_id").nullable());
+  }
+  await db.raw(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
+  await db("flo_creation_project").whereNull("claim_id").update({ claim_id: db.raw(`'claim_' || encode(gen_random_bytes(32), 'hex')`) });
+  await db.schema.alterTable("flo_creation_project", (table) => table.text("claim_id").notNullable().alter());
+  await db.raw(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'flo_creation_project_claim_id_unique') THEN
+      ALTER TABLE flo_creation_project ADD CONSTRAINT flo_creation_project_claim_id_unique UNIQUE (claim_id);
+    END IF;
+  END $$`);
+  if (!await db.schema.hasColumn("flo_creation_project", "claim_consumed_at")) {
+    await db.schema.alterTable("flo_creation_project", (table) => table.timestamp("claim_consumed_at").nullable());
   }
   if (!await db.schema.hasTable("flo_creation_revision")) await db.schema.createTable("flo_creation_revision", (table) => {
     table.text("id").primary(); table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");
@@ -45,8 +64,11 @@ export default async function seed({ container }: ExecArgs) {
     table.text("id").primary(); table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");
     table.text("revision_id").notNullable().references("id").inTable("flo_creation_revision").onDelete("CASCADE");
     table.text("kind").notNullable(); table.text("status").notNullable(); table.integer("progress").notNullable().defaultTo(0); table.text("error_code").nullable();
+    table.jsonb("moderation").nullable(); table.jsonb("entitlement").nullable();
     table.timestamp("created_at").notNullable().defaultTo(db.fn.now()); table.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
   });
+  if (!await db.schema.hasColumn("flo_generation_job", "moderation")) await db.schema.alterTable("flo_generation_job", (table) => table.jsonb("moderation").nullable());
+  if (!await db.schema.hasColumn("flo_generation_job", "entitlement")) await db.schema.alterTable("flo_generation_job", (table) => table.jsonb("entitlement").nullable());
   if (!await db.schema.hasColumn("flo_generation_job", "provider_model")) await db.schema.alterTable("flo_generation_job", (table) => table.text("provider_model").nullable());
   if (!await db.schema.hasColumn("flo_generation_job", "input_tokens")) await db.schema.alterTable("flo_generation_job", (table) => table.integer("input_tokens").nullable());
   if (!await db.schema.hasColumn("flo_generation_job", "output_tokens")) await db.schema.alterTable("flo_generation_job", (table) => table.integer("output_tokens").nullable());

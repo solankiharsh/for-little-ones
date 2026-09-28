@@ -10,7 +10,7 @@ Resolved policy-set versions and hashing rules. Mirrors the discipline in `.plan
 
 | policySetId | Files (in hash order) | Consumed by stages |
 | --- | --- | --- |
-| `text.v1` | `age/reading-age.md`, `story/story-tone.md`, `localisation/en-gb-en-us.md` | F-007 concepts, F-008 outline + page text |
+| `text.v1` | `age/reading-age.md`, `story/story-tone.md`, `localisation/en-gb-en-us.md`, `safety/content-rules.md` | F-007 concepts, F-007/F-008 text safety moderation, F-008 outline + page text |
 | `illustration.v1` | `age/reading-age.md`, `illustration/illustration-style.md`, `localisation/en-gb-en-us.md`, `safety/content-rules.md` | F-009 illustration plans + generation |
 | `qa.v1` | `safety/content-rules.md`, `illustration/illustration-style.md` | F-015 quality evaluation |
 

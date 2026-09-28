@@ -167,6 +167,8 @@ export class StorefrontCommerceClient {
     idempotencyKey: string;
     shippingAddress: ShippingAddress;
     gifts: LineGift[];
+    /** Opaque project payment claim; travels top-level beside the envelope, never on a line. */
+    creationClaimId?: string;
   }): Promise<BeginCheckoutResult> {
     const addressFailure = shippingAddressError(input.shippingAddress);
     if (addressFailure) throw new Error(`Check your delivery details: ${addressFailure}`);
@@ -179,6 +181,12 @@ export class StorefrontCommerceClient {
         throw new Error(`Gift recipient must be 1–${MAX_RECIPIENT_LENGTH} characters`);
       }
       if (gift.message.length > MAX_GIFT_MESSAGE_LENGTH) throw new Error(`Gift message must be ${MAX_GIFT_MESSAGE_LENGTH} characters or fewer`);
+    }
+    // Mirrors `parseClaimId` in apps/commerce/src/lib/creation-projects.ts (duplicated,
+    // not imported: this bundle cannot resolve the commerce package's dist on a clean
+    // checkout). Keep the shape in sync.
+    if (input.creationClaimId !== undefined && !/^claim_[a-f0-9]{64}$/.test(input.creationClaimId)) {
+      throw new Error("Check your story details: the payment claim is not valid");
     }
     const address: Record<string, string> = {
       first_name: input.shippingAddress.firstName,
@@ -199,6 +207,7 @@ export class StorefrontCommerceClient {
           recipient_label: gift.recipientLabel,
           message: gift.message,
         })),
+        ...(input.creationClaimId === undefined ? {} : { creation_claim_id: input.creationClaimId }),
       },
       headers: { "x-flo-idempotency-key": input.idempotencyKey },
     });

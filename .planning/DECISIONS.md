@@ -726,3 +726,58 @@ The product must demonstrate personal relevance before asking for payment withou
 Every generation command must call the shared `generation-access` policy before enqueueing provider work. Jobs record entitlement snapshot, budget account, asset count, attempt count and cost metadata. Payment webhooks issue/revoke entitlement idempotently. The teaser UI may explain locked value, but hidden browser DOM, local storage or unsigned client state is never an access boundary.
 
 Consequences: M1 can use illustration stand-ins; M2 adds the two teaser image calls only after identity/provider qualification. Full image generation and F-014 editing remain post-payment. This intentionally changes the earlier full-book-before-payment direction recorded from competitor research.
+
+---
+
+## D026 — F-007 Live-Path Safety, Job Recovery and Payment-Claim Bridge (2026-09-28)
+
+**Status:** ADOPT
+
+Path A (`apps/api/src/creation/`) is the canonical F-007 implementation. Path B
+(the commerce creation-project routes + `api/generate-concepts.ts` /
+`api/generate-story.ts`) stays live only until Slice-2 converges persistence,
+transport, worker wiring and ownership enforcement onto Path A. No new Path B
+surface is added after this decision; the work below closes safety, reliability
+and payment gaps in what is already customer-reachable.
+
+**Moderation is a scoped interim control, not a qualified vendor.** The first
+production `ModerationProvider` (`PolicyTextModerationProvider`,
+`packages/providers/src/text-moderation.ts`) is a deterministic, in-process,
+versioned rules engine bound to `policies/safety/content-rules.md` (now a member
+of the `text.v1` set). Its card declares `childDataSent: false` and prohibited
+training use, so no child data crosses any seam. Tiers: hard-block categories
+stop the unit; soft-flag categories and benign real-child claims are recorded on
+the job, never silently dropped. Pattern matching cannot see paraphrase — a
+dedicated moderation vendor remains deferred, explicitly, by this decision.
+
+**Live-path wiring.** Concept bundles are screened before persistence; a BLOCK is
+a model failure and serves pre-approved authored fallbacks (which bypass
+moderation by construction and are now a total function — the `!` assertion is
+gone). Stories are screened whole, cues included; a BLOCK triggers one narrowed
+retry inside the same job (the retry repairs the rejected draft, costs no
+additional story attempt), then a retryable failure. No story fallback is
+invented. The single source of truth for safety is the provider; the old
+eight-term regex is removed from `normaliseConcepts`.
+
+**Job recovery.** In-flight jobs are reclaimed on re-entry instead of duplicated;
+allowance counting is terminal-only (`READY`/`FAILED`), so an orphaned `RUNNING`
+row burns nothing; `failConceptJob` mirrors the story fail path; completion
+verifies the revision against the job's own row. Each job snapshots the payment
+state that authorised it and the moderation verdict that screened it.
+
+**Payment claim.** Sandbox checkout advances `payment_state` through an opaque
+single-use project claim minted at creation: carried top-level in the checkout
+request (never on a cart line), copied to order metadata beside `flo_envelope`,
+redeemed atomically in the API layer after capture, then the project reads
+captured. The claim is the credential — no identity work is required to unblock
+payment. Four columns (`claim_id`, `claim_consumed_at`, job `moderation`, job
+`entitlement`) land through idempotent seed DDL; there is still no migration
+framework, and that gap is now actively biting. `beginCheckout` accepts the
+claim; the creation-flow → cart handoff that supplies it is follow-up work.
+
+**Recorded, not fixed here.** Path A keeps its known bugs for Slice-2
+(silent FLAG drop, `createdAt` clock use, selection reset on save, latest-only
+listing, dead `storyInputsFor`, unexported max attempts, duplicate locale,
+errors outside `try`, lease expiry); D025's persisted attempt-count/cost columns
+remain unmet (usage is counted from the job log instead); `assetsGenerated`
+stays 0. Enforced `assertCanAccessProject` is a blocking Slice-2 exit criterion.

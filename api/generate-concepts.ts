@@ -1,12 +1,13 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { authorizeGenerationCommand, type PaymentState } from "@for-little-ones/domain";
+import { PolicyTextModerationProvider, TEXT_MODERATION_POLICY_SET, type ModerationResult } from "@for-little-ones/providers";
 
 export const maxDuration = 60;
 
 const model = process.env.AI_STORY_MODEL ?? "google/gemini-2.5-flash";
+const moderation = new PolicyTextModerationProvider();
 const emotionalGoals = ["confidence", "bravery", "kindness", "friendship", "belonging", "bedtime calm", "fun", "curiosity"] as const;
-const unsafeTerms = /\b(?:gun|weapon|kill|murder|blood|suicide|drugs|alcohol)\b/i;
 
 const RequestSchema = z.strictObject({
   childName: z.string().trim().min(1).max(40),
@@ -38,11 +39,12 @@ export interface StoryConcept {
   source: "model" | "fallback";
 }
 
+/** Structural validation only — safety is the moderation provider's job (F-007 §10). */
 export function normaliseConcepts(value: unknown, age: number, source: StoryConcept["source"] = "model"): StoryConcept[] | null {
   const parsed = z.array(ModelConceptSchema).length(3).safeParse(value);
   if (!parsed.success) return null;
   const titles = new Set(parsed.data.map((concept) => concept.title.toLocaleLowerCase("en-GB")));
-  if (titles.size !== 3 || parsed.data.some((concept) => unsafeTerms.test(`${concept.title} ${concept.pitch}`))) return null;
+  if (titles.size !== 3) return null;
   return parsed.data.map((concept, index) => ({
     id: `concept_${index + 1}`,
     ...concept,
@@ -52,13 +54,34 @@ export function normaliseConcepts(value: unknown, age: number, source: StoryConc
   }));
 }
 
+/**
+ * Total by construction: the previous version asserted the normaliser's result with
+ * `!`, which turned an over-long child name or world into a 503 instead of an idea.
+ * Interpolation is clamped so the authored copy always fits the contract, and a
+ * name-free set backs that up so no future edit can reintroduce the assertion.
+ */
 export function fallbackConcepts(input: Pick<z.infer<typeof RequestSchema>, "childName" | "age" | "world" | "favourites">): StoryConcept[] {
-  const favourite = input.favourites[0] ?? "small surprises";
+  const name = truncateForContract(input.childName, 20);
+  const world = truncateForContract(input.world, 30);
+  const favourite = truncateForContract((input.favourites[0] ?? "small surprises").toLowerCase(), 40);
+  const concepts = normaliseConcepts([
+    { title: `${name} and the Lantern Trail`, pitch: `${name} follows a trail of gentle lights and helps a new friend find the way home.`, emotionalGoal: "kindness", tone: "gentle" },
+    { title: `The Smallest Door in ${world}`, pitch: `${name} discovers a tiny doorway where ${favourite} hold the clue to a curious mystery.`, emotionalGoal: "curiosity", tone: "wonder" },
+    { title: `${name}'s Brave Little Wish`, pitch: `A quiet wish leads ${name} on a warm adventure about trying one small, brave thing.`, emotionalGoal: "confidence", tone: "adventure" }
+  ], input.age, "fallback");
+  return concepts ?? universalConcepts(input.age);
+}
+
+function universalConcepts(age: number): StoryConcept[] {
   return normaliseConcepts([
-    { title: `${input.childName} and the Lantern Trail`, pitch: `${input.childName} follows a trail of gentle lights and helps a new friend find the way home.`, emotionalGoal: "kindness", tone: "gentle" },
-    { title: `The Smallest Door in ${input.world}`, pitch: `${input.childName} discovers a tiny doorway where ${favourite.toLowerCase()} hold the clue to a curious mystery.`, emotionalGoal: "curiosity", tone: "wonder" },
-    { title: `${input.childName}'s Brave Little Wish`, pitch: `A quiet wish leads ${input.childName} on a warm adventure about trying one small, brave thing.`, emotionalGoal: "confidence", tone: "adventure" }
-  ], input.age, "fallback")!;
+    { title: "The Lantern Trail", pitch: "A small traveller follows a trail of gentle lights and helps a new friend find the way home.", emotionalGoal: "kindness", tone: "gentle" },
+    { title: "The Smallest Door", pitch: "A traveller discovers a tiny doorway where everyday treasures hold the clue to a curious mystery.", emotionalGoal: "curiosity", tone: "wonder" },
+    { title: "A Brave Little Wish", pitch: "A quiet wish leads a traveller on a warm adventure about trying one small, brave thing.", emotionalGoal: "confidence", tone: "adventure" }
+  ], age, "fallback")!;
+}
+
+function truncateForContract(value: string, length: number): string {
+  return value.trim().slice(0, length);
 }
 
 function readingLevelFor(age: number): StoryConcept["readingLevel"] {
@@ -102,6 +125,7 @@ export default {
 
     let concepts: StoryConcept[];
     let servedFromFallback = false;
+    let screened: ModerationResult = { verdict: "ALLOW", findings: [] };
     let generationMetadata: { model: string; attemptCount: number; inputTokens?: number; outputTokens?: number } = { model, attemptCount: 1 };
     try {
       const { output, usage } = await generateText({
@@ -115,8 +139,27 @@ export default {
         ].join(" "),
         prompt: conceptPrompt(input.data)
       });
-      concepts = normaliseConcepts(output.concepts, input.data.age) ?? fallbackConcepts(input.data);
-      servedFromFallback = concepts[0]?.source === "fallback";
+      const candidates = normaliseConcepts(output.concepts, input.data.age);
+      if (candidates) {
+        // A BLOCK is a model failure, not a user-visible error: the parent still gets
+        // authored ideas. Authored fallbacks are pre-approved copy and are deliberately
+        // not screened, so nothing here can return a bundle that moderation refused.
+        screened = await moderation.screen({
+          contentType: "text",
+          contentRef: `book:${input.data.projectId}/concept-bundle`,
+          content: candidates.map((concept) => `${concept.title}. ${concept.pitch}`).join("\n"),
+          childDisplayName: input.data.childName,
+          policySetVersion: TEXT_MODERATION_POLICY_SET
+        });
+        concepts = screened.verdict === "BLOCK" ? fallbackConcepts(input.data) : candidates;
+        servedFromFallback = screened.verdict === "BLOCK";
+      } else {
+        // Pre-approved authored copy bypasses screening by construction — and the
+        // record says so, so an unscreened bundle is never mistaken for a screened one.
+        concepts = fallbackConcepts(input.data);
+        servedFromFallback = true;
+        screened = { verdict: "ALLOW", findings: ["authored fallback served without screening: model output failed shape validation"] };
+      }
       generationMetadata = {
         model, attemptCount: 1,
         ...(usage.inputTokens !== undefined ? { inputTokens: usage.inputTokens } : {}),
@@ -126,14 +169,20 @@ export default {
       console.error("concept generation used fallback", error);
       concepts = fallbackConcepts(input.data);
       servedFromFallback = true;
+      screened = { verdict: "ALLOW", findings: ["authored fallback served without screening: provider call failed"] };
     }
 
     try {
       await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/concept-jobs/${jobId}`, {
-        method: "PATCH", body: { revisionId: input.data.revisionId, concepts, generationMetadata }
+        method: "PATCH", body: { revisionId: input.data.revisionId, status: "READY", concepts, generationMetadata, moderation: screened }
       });
     } catch (error) {
+      // The bundle could not be saved, so the job must not stay RUNNING with the
+      // revision stuck at GENERATING: fail it and let the parent retry as a new attempt.
       console.error("concept bundle could not be saved", error);
+      await projectRequest(input.data, `/store/flo/projects/${input.data.projectId}/concept-jobs/${jobId}`, {
+        method: "PATCH", body: { revisionId: input.data.revisionId, status: "FAILED" }
+      }).catch(() => undefined);
       return Response.json({ error: "Your story ideas could not be saved. Please try again." }, { status: 503 });
     }
     return Response.json({ schemaVersion: "1", concepts, servedFromFallback, generationMetadata });
