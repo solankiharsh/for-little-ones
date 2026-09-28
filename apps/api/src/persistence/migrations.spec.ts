@@ -23,16 +23,17 @@ describe("persistence migrations (D027)", () => {
     const pool = new pg.Pool({ connectionString: testDatabaseUrl() });
     await pool.query("DROP TABLE IF EXISTS flo_schema_migrations");
     try {
+      const expected = MIGRATIONS.map((migration) => migration.version);
       const first = await migrate(pool);
-      expect(first.applied).toEqual([1]);
-      expect(await ledgerVersions(pool)).toEqual([1]);
+      expect(first.applied).toEqual(expected);
+      expect(await ledgerVersions(pool)).toEqual(expected);
       for (const table of FLO_TABLES) {
         const { rows } = await pool.query("SELECT to_regclass($1) AS oid", [`public.${table}`]);
         expect(rows[0].oid, table).toBeTruthy();
       }
       const second = await migrate(pool);
       expect(second.applied).toEqual([]);
-      expect(await ledgerVersions(pool)).toEqual([1]);
+      expect(await ledgerVersions(pool)).toEqual(MIGRATIONS.map((migration) => migration.version));
     } finally {
       await pool.end();
     }
@@ -49,7 +50,7 @@ describe("persistence migrations (D027)", () => {
         migrations: [
           ...MIGRATIONS,
           {
-            version: 2,
+            version: 9001,
             name: "mig-spec-probe",
             sql: `ALTER TABLE mig_scratch ADD COLUMN IF NOT EXISTS display_label TEXT;
                   UPDATE mig_scratch SET display_label = nickname WHERE display_label IS NULL;
@@ -58,10 +59,10 @@ describe("persistence migrations (D027)", () => {
           }
         ]
       });
-      expect(result.applied).toEqual([1, 2]);
+      expect(result.applied).toEqual([1, 2, 9001]);
       const { rows } = await pool.query("SELECT display_label FROM mig_scratch WHERE id = 'row-1'");
       expect(rows[0].display_label).toBe("row-1");
-      expect(await ledgerVersions(pool)).toEqual([1, 2]);
+      expect(await ledgerVersions(pool)).toEqual([1, 2, 9001]);
       // A second boot skips both — the backfill never re-runs.
       expect((await migrate(pool, { migrations: [...MIGRATIONS] })).applied).toEqual([]);
     } finally {
@@ -75,8 +76,8 @@ describe("persistence migrations (D027)", () => {
     await pool.query("DROP TABLE IF EXISTS flo_schema_migrations");
     try {
       const results = await Promise.all([migrate(pool), migrate(pool), migrate(pool)]);
-      expect(results.flatMap((r) => r.applied).sort()).toEqual([1]);
-      expect(await ledgerVersions(pool)).toEqual([1]);
+      expect(results.flatMap((r) => r.applied).sort()).toEqual([1, 2]);
+      expect(await ledgerVersions(pool)).toEqual([1, 2]);
     } finally {
       await pool.end();
     }

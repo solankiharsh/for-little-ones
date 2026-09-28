@@ -9,6 +9,8 @@ import { migrate } from "./migrations";
  */
 
 export const FLO_TABLES = [
+  "flo_pages",
+  "flo_stories",
   "flo_concepts",
   "flo_books",
   "flo_facts",

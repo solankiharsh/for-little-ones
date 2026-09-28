@@ -12,6 +12,7 @@ import {
   ConceptResultSchema,
   EMOTIONAL_GOALS,
   READING_LEVELS,
+  PageTextResultSchema,
   StoryOutlineResultSchema,
   parseContract
 } from "@for-little-ones/contracts";
@@ -181,7 +182,7 @@ export class ExampleVendorStoryAdapter implements StoryAdapter {
  * real seam to drive. Only concept generation is implemented; outline/page-text
  * stay with the future vendor wiring.
  */
-export class ExampleVendorStoryProvider implements Pick<StoryProvider, "generateConcepts" | "card"> {
+export class ExampleVendorStoryProvider implements Pick<StoryProvider, "generateConcepts" | "generateOutline" | "generatePageText" | "card"> {
   readonly card: ProviderCard = VENDOR_CARD;
   private readonly adapter = new ExampleVendorStoryAdapter();
 
@@ -189,6 +190,65 @@ export class ExampleVendorStoryProvider implements Pick<StoryProvider, "generate
     const parsed = await this.adapter.generateConcepts(request, buildVendorConcepts(request));
     if (!parsed.ok) {
       throw new Error(`concept generation failed contract validation: ${parsed.issues.map((i) => i.message).join("; ")}`);
+    }
+    return parsed.value;
+  }
+
+  /**
+   * Deterministic dev outline built from the request (no vendor call): three
+   * acts over the chosen concept, cast from the fact strings. Real
+   * personalisation quality arrives with the vendor adapter; this proves the
+   * durable shape — validated outline gate, pageCount the runner fans out.
+   */
+  async generateOutline(request: StoryOutlineRequest): Promise<StoryOutlineResult> {
+    const hero = request.facts[0] ?? "the little traveller";
+    const outline = {
+      schemaVersion: "1",
+      title: request.concept.title,
+      synopsis: request.concept.pitch,
+      emotionalGoal: "kindness",
+      characters: [{ name: hero, role: "hero", facts: request.facts }],
+      acts: [
+        { title: "The beginning", summary: `${hero} discovers the start of ${request.concept.title}.` },
+        { title: "The middle", summary: `${hero} faces a small, manageable challenge and keeps going.` },
+        { title: "The end", summary: `${hero} finds a kind resolution and heads home.` }
+      ],
+      pageCount: 6
+    };
+    const parsed = parseContract(CONTRACT_NAMES.storyOutlineResult, StoryOutlineResultSchema, outline);
+    if (!parsed.ok) {
+      throw new Error(`outline generation failed contract validation: ${parsed.issues.map((i) => i.message).join("; ")}`);
+    }
+    return parsed.value;
+  }
+
+  /**
+   * Deterministic dev page: one short primary block naming the hero, carrying
+   * the prior line forward for continuity. Word count stays inside the 4–6
+   * band (≤40) by construction.
+   */
+  async generatePageText(request: PageTextRequest): Promise<PageTextResult> {
+    const hero = request.heroName ?? "the little traveller";
+    const title = request.storyTitle ?? "the adventure";
+    const thread = request.priorLines?.[request.priorLines.length - 1] ?? `The story of ${title} begins.`;
+    const page = {
+      schemaVersion: "1",
+      pageKey: request.pageKey,
+      pageNumber: request.pageNumber,
+      textBlocks: [
+        {
+          id: `block:${request.pageKey}`,
+          kind: "paragraph",
+          text: `${hero} turned the page to adventure ${request.pageNumber}. ${thread} Onward, kindly.`
+        }
+      ],
+      illustrationCue: `${hero} on page ${request.pageNumber} of ${title}, warm soft light`,
+      locale: request.locale,
+      generationMetadata: { model: "example-vendor/page", attemptCount: 1, costCents: 1 }
+    };
+    const parsed = parseContract(CONTRACT_NAMES.pageTextResult, PageTextResultSchema, page);
+    if (!parsed.ok) {
+      throw new Error(`page generation failed contract validation: ${parsed.issues.map((i) => i.message).join("; ")}`);
     }
     return parsed.value;
   }

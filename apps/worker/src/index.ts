@@ -15,3 +15,5 @@ export type WorkerStep = GenerationStep;
 
 export { startConceptWorker, runOnce } from "./concept-worker";
 export type { ConceptWorkerOptions, ConceptWorkerHandle } from "./concept-worker";
+export { startStoryWorker } from "./story-worker";
+export type { StoryWorkerOptions, StoryWorkerHandle } from "./story-worker";

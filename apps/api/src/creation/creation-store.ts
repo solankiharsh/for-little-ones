@@ -1,4 +1,4 @@
-import type { Book, ChildProfile, Fact, StoryConcept } from "@for-little-ones/domain";
+import type { Book, ChildProfile, Fact, Story, StoryConcept, StoryPage } from "@for-little-ones/domain";
 
 /** Persistence seam behind the command/query boundary. In-memory impl for M1 tests. */
 export interface CreationStore {
@@ -32,6 +32,15 @@ export interface CreationStore {
   listConceptVersions(bookId: string): Promise<number[]>;
   /** D024 §7: regenerations consumed so far against the book's budget. */
   regenerateCount(bookId: string): Promise<number>;
+
+  // --- F-008 story pipeline (D029): outline gate row + one row per page. ---
+  /** Upsert by story id; the outline lands here when the OUTLINE unit completes. */
+  saveStory(story: Story): Promise<void>;
+  getStory(bookId: string, storyVersion: number): Promise<Story | undefined>;
+  /** Upsert by pageKey: a same-key rewrite replaces (F-008 §14), never appends. */
+  savePage(page: StoryPage): Promise<void>;
+  getPage(pageKey: string): Promise<StoryPage | undefined>;
+  listPagesByStory(storyId: string): Promise<StoryPage[]>;
 }
 
 
@@ -52,6 +61,8 @@ export class InMemoryCreationStore implements CreationStore {
   private profiles = new Map<string, ChildProfile>();
   private facts = new Map<string, Fact>();
   private books = new Map<string, Book>();
+  private stories = new Map<string, Story>(); // storyId -> story
+  private pages = new Map<string, StoryPage>(); // pageKey -> page
   private concepts = new Map<string, StoryConcept>(); // conceptId -> concept
   private conceptsByBook = new Map<string, Map<number, string[]>>(); // bookId -> conceptVersion -> conceptIds
   private removed = new Set<string>(); // fact ids scrubbed by RemoveFact but retained for audit
@@ -191,6 +202,33 @@ export class InMemoryCreationStore implements CreationStore {
 
   async regenerateCount(bookId: string): Promise<number> {
     return this.books.get(bookId)?.regenerateCount ?? 0;
+  }
+
+  // --- F-008 story rows: same upsert behaviour as the Postgres adapter. ---
+
+  async saveStory(story: Story): Promise<void> {
+    this.stories.set(story.id, story);
+  }
+
+  async getStory(bookId: string, storyVersion: number): Promise<Story | undefined> {
+    for (const story of this.stories.values()) {
+      if (story.bookId === bookId && story.storyVersion === storyVersion) return story;
+    }
+    return undefined;
+  }
+
+  async savePage(page: StoryPage): Promise<void> {
+    this.pages.set(page.pageKey, page);
+  }
+
+  async getPage(pageKey: string): Promise<StoryPage | undefined> {
+    return this.pages.get(pageKey);
+  }
+
+  async listPagesByStory(storyId: string): Promise<StoryPage[]> {
+    return [...this.pages.values()]
+      .filter((page) => page.storyId === storyId)
+      .sort((left, right) => left.pageNumber - right.pageNumber);
   }
 
   private conceptsByIds(ids: string[]): StoryConcept[] {

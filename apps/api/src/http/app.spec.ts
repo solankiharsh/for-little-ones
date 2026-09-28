@@ -5,6 +5,7 @@ import type { AnonymousSession } from "@for-little-ones/domain";
 import { BookService } from "../creation/book-service";
 import { InMemoryCreationStore } from "../creation/creation-store";
 import { ConceptBundleRunner } from "../creation/concept-bundle-runner";
+import { StoryRunner } from "../creation/story-runner";
 import { ChildProfileService } from "../profile/child-profile-service";
 import { FactService } from "../fact/fact-service";
 import { InMemorySessionStore } from "../session/in-memory-session-store";
@@ -63,6 +64,39 @@ const GOOD_CONCEPTS = {
 
 const NOW = "2026-09-25T10:00:00.000Z";
 
+const GOOD_OUTLINE = {
+  schemaVersion: "1" as const,
+  title: "Ava and the Star 0",
+  synopsis: "Ava befriends a tiny star that has lost its glow.",
+  emotionalGoal: "bravery",
+  characters: [{ name: "Ava", role: "hero", facts: [] as string[] }],
+  acts: [
+    { title: "The beginning", summary: "Ava finds the dim star." },
+    { title: "The middle", summary: "Ava carries the star uphill." },
+    { title: "The end", summary: "The star glows; Ava heads home." }
+  ],
+  pageCount: 6
+};
+
+function storyProviderStub() {
+  return {
+    card: TEST_CARD,
+    async generateOutline() {
+      return GOOD_OUTLINE;
+    },
+    async generatePageText(request: { pageKey: string; pageNumber: number; locale: string }) {
+      return {
+        schemaVersion: "1" as const,
+        pageKey: request.pageKey,
+        pageNumber: request.pageNumber,
+        textBlocks: [{ id: `block-${request.pageNumber}`, kind: "paragraph" as const, text: `Ava turned to adventure ${request.pageNumber} with a brave small smile.` }],
+        illustrationCue: `Ava on page ${request.pageNumber}, warm soft light`,
+        locale: request.locale
+      };
+    }
+  };
+}
+
 interface Harness {
   app: ReturnType<typeof createApiApp>;
   deps: ApiDeps;
@@ -85,6 +119,9 @@ function harness(overrides: Partial<{ blocking: boolean; concepts: () => Promise
   const now = () => NOW;
 
   const sessionService = new AnonymousSessionService({ store: sessions, now, newId: nextId });
+  // Two runtimes mirror production queue separation (D029): concept and story
+  // loops must never see each other's units.
+  const storyRuntime = new InMemoryDurableRuntime();
   const deps: ApiDeps = {
     sessions: sessionService,
     sessionStore: sessions,
@@ -112,6 +149,16 @@ function harness(overrides: Partial<{ blocking: boolean; concepts: () => Promise
       runtime,
       store,
       storyProvider: storyProvider(async () => (overrides.concepts ? (overrides.concepts() as never) : GOOD_CONCEPTS)),
+      moderation: moderation("ALLOW"),
+      events,
+      getFactsForStory: async () => [],
+      assertProjectAccess: (anon, projectId) => sessionService.assertCanAccessProject(anon, projectId),
+      now
+    }),
+    stories: new StoryRunner({
+      runtime: storyRuntime,
+      store,
+      storyProvider: storyProviderStub(),
       moderation: moderation("ALLOW"),
       events,
       getFactsForStory: async () => [],
@@ -451,6 +498,75 @@ describe("api: HTTP transport (D024 §4)", () => {
       const b = await signIn(h);
       const r = await call(h, "PATCH", `/api/books/${bookId}/concepts/${concepts[0]!.id}`, { cookie: b.cookie, body: { title: "Not Yours" } });
       expect(r.status).toBe(404);
+    });
+  });
+
+  describe("story generation (F-008 §8)", () => {
+    async function bookWithStory(cookie: string) {
+      const { bookId } = await bookWithTheme(h, cookie);
+      await call(h, "POST", `/api/books/${bookId}/concepts`, { cookie });
+      await h.deps.runner.runNext("worker-1");
+      const concepts = ((await call(h, "GET", `/api/books/${bookId}/concepts`, { cookie })).json!.concepts ?? []) as Json[];
+      await call(h, "POST", `/api/books/${bookId}/concepts/${concepts[0]!.id}/select`, { cookie });
+      return bookId;
+    }
+
+    async function drainStories(rounds = 10) {
+      for (let i = 0; i < rounds; i += 1) {
+        const outcomes = await h.deps.stories.runNext("worker-1", 8);
+        if (outcomes.length === 0) return;
+      }
+    }
+
+    it("400s without a selected concept, then runs outline to six READY pages", async () => {
+      const { cookie } = await signIn(h);
+      const { bookId } = await bookWithTheme(h, cookie);
+      expect((await call(h, "POST", `/api/books/${bookId}/story`, { cookie })).status).toBe(400);
+
+      await call(h, "POST", `/api/books/${bookId}/concepts`, { cookie });
+      await h.deps.runner.runNext("worker-1");
+      const concepts = ((await call(h, "GET", `/api/books/${bookId}/concepts`, { cookie })).json!.concepts ?? []) as Json[];
+      await call(h, "POST", `/api/books/${bookId}/concepts/${concepts[0]!.id}/select`, { cookie });
+
+      const queued = await call(h, "POST", `/api/books/${bookId}/story`, { cookie });
+      expect(queued.status).toBe(202);
+      expect(queued.json!.job.status).toBe("QUEUED");
+
+      await h.deps.stories.runNext("worker-1");
+      const working = (await call(h, "GET", `/api/books/${bookId}/story`, { cookie })).json!;
+      expect(working.status).toBe("working");
+      expect(working.story.status).toBe("OUTLINE_READY");
+      expect(working.pages).toHaveLength(6);
+
+      await drainStories();
+      const done = (await call(h, "GET", `/api/books/${bookId}/story`, { cookie })).json!;
+      expect(done.status).toBe("ready");
+      expect(done.pages.every((page: Json) => page.status === "READY")).toBe(true);
+      expect(done.pages[0].textBlocks[0].text).toContain("Ava");
+    });
+
+    it("rewrites one page without touching its siblings", async () => {
+      const { cookie } = await signIn(h);
+      const bookId = await bookWithStory(cookie);
+      await call(h, "POST", `/api/books/${bookId}/story`, { cookie });
+      await h.deps.stories.runNext("worker-1");
+      await drainStories();
+
+      const regen = await call(h, "POST", `/api/books/${bookId}/story/pages/2/regenerate`, { cookie });
+      expect(regen.status).toBe(202);
+      await drainStories();
+      const done = (await call(h, "GET", `/api/books/${bookId}/story`, { cookie })).json!;
+      expect(done.status).toBe("ready");
+      expect(done.pages.find((page: Json) => page.pageNumber === 2).attemptCount).toBe(2);
+      expect(done.pages.filter((page: Json) => page.pageNumber !== 2).every((page: Json) => page.attemptCount === 1)).toBe(true);
+    });
+
+    it("404s another session's book rather than confirming it exists", async () => {
+      const a = await signIn(h);
+      const bookId = await bookWithStory(a.cookie);
+      const b = await signIn(h);
+      expect((await call(h, "GET", `/api/books/${bookId}/story`, { cookie: b.cookie })).status).toBe(404);
+      expect((await call(h, "POST", `/api/books/${bookId}/story`, { cookie: b.cookie })).status).toBe(404);
     });
   });
 

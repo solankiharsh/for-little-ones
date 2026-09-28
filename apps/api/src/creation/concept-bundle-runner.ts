@@ -161,6 +161,13 @@ export class ConceptBundleRunner {
     { ok: "ok"; output: ConceptBundleResult } | { ok: "fail"; failure: UnitFailure }
   > {
     const payload = claimed.payload as ConceptBundleUnitPayload;
+    // Backstop for shared-queue misclaims (queues are separated in production,
+    // but a foreign unit must never be mis-executed as a concept bundle — the
+    // story loop once killed pages this way). Story payloads always carry a
+    // `kind`; concept payloads never do.
+    if (payload && typeof payload === "object" && "kind" in payload) {
+      return { ok: "fail", failure: { code: "UNKNOWN_UNIT", message: "concept runner claimed a non-concept unit", retryable: false } };
+    }
 
     // F-007 §9 resumability: a crashed worker that re-claims finds the existing
     // PROPOSED bundle under the same (bookId, conceptVersion) and completes with

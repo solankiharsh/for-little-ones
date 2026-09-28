@@ -28,7 +28,16 @@ export const SLICE_2_EVENT_NAMES = [
   "concepts_served_from_fallback",
   "concept_generation_failed",
   "concept_generation_contract_violation",
-  "concept_generation_cost"
+  "concept_generation_cost",
+  // F-008 §13 story pipeline events (D029). Per-page success is derivable from
+  // `story_generated` + the page rows, so only failures and user rewrites emit
+  // per page; flags are recorded, never silently dropped (D026 rule).
+  "story_generation_started",
+  "story_generated",
+  "outline_failed",
+  "page_text_failed",
+  "page_text_regenerated",
+  "page_text_flagged"
 ] as const;
 
 export const F027_FUNNEL_EVENT_NAMES = [

@@ -26,6 +26,7 @@ import { isAllowListedEvent } from "../analytics/event-names";
 import { BookService, REGENERATE_BUDGET_DEFAULT } from "../creation/book-service";
 import type { CreationStore } from "../creation/creation-store";
 import { ConceptBundleRunner } from "../creation/concept-bundle-runner";
+import { StoryRunner } from "../creation/story-runner";
 import { ChildProfileService } from "../profile/child-profile-service";
 import { FactService } from "../fact/fact-service";
 import { AnonymousSessionService } from "../session/session-service";
@@ -42,6 +43,7 @@ export interface ApiDeps {
   books: BookService;
   facts: FactService;
   runner: ConceptBundleRunner;
+  stories: StoryRunner;
   events: EventSink;
   now: () => string;
   /** `Secure` is on in production and off for the Vite dev proxy over plain http. */
@@ -287,6 +289,42 @@ export function createApiApp(deps: ApiDeps): Hono<Env> {
       })
     );
     return c.json({ concept });
+  });
+
+  // --- story (F-008 §8) ----------------------------------------------------------
+  app.get("/api/books/:id/story", requireSession, async (c) => {
+    const session = c.get("session");
+    const bookId = c.req.param("id");
+    await loadOwnedBook(deps, session, bookId);
+    const view = await deps.stories.storyStatus(bookId);
+    const status =
+      view.story?.status === "READY"
+        ? "ready"
+        : view.outlineJob?.status === "FAILED" || view.pagesJob?.status === "FAILED" || view.story?.status === "FAILED"
+          ? "failed"
+          : view.story
+            ? "working"
+            : "absent";
+    return c.json({ status, ...view });
+  });
+
+  app.post("/api/books/:id/story", requireSession, async (c) => {
+    const session = c.get("session");
+    const bookId = c.req.param("id");
+    const book = await loadOwnedBook(deps, session, bookId);
+    if (!book.selectedConceptId) throw new ValidationError("choose a story idea before writing the story");
+    const job = await deps.stories.requestStory({ bookId, anonymousProjectId: session.anonymousProjectId });
+    return c.json({ status: "queued", storyVersion: 1, job: { status: job.status } }, { status: 202 });
+  });
+
+  app.post("/api/books/:id/story/pages/:pageNumber/regenerate", requireSession, async (c) => {
+    const session = c.get("session");
+    const bookId = c.req.param("id");
+    await loadOwnedBook(deps, session, bookId);
+    const pageNumber = Number(c.req.param("pageNumber"));
+    if (!Number.isInteger(pageNumber) || pageNumber < 1) throw new ValidationError("page number must be a positive integer");
+    const job = await deps.stories.requestPageRegen({ bookId, pageNumber, anonymousProjectId: session.anonymousProjectId });
+    return c.json({ status: "queued", pageNumber, job: { status: job.status } }, { status: 202 });
   });
 
   // --- facts ----------------------------------------------------------------

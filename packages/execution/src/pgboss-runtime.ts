@@ -119,11 +119,13 @@ const unitIdFor = (operationKey: BusinessOperationKey, unitKey: string): UnitId 
   `${operationKey}|${unitKey}`;
 
 /**
- * Maximum `boss.start()` attempts when the pg-boss bootstrap collides with a
- * concurrent boot. The retry budget is deliberately small: the only retried
- * failure is the bootstrap DDL race, which resolves as soon as the winning
- * process commits. Anything else (bad connection string, missing database)
- * fails on the first attempt without pointless waiting.
+ * Maximum setup attempts when concurrent boots collide on DDL — pg-boss's own
+ * bootstrap AND our ledger CREATE TABLEs both race check-then-create windows
+ * (the losers surface as unique violations on pg_type or pg_class). The budget
+ * is deliberately small: a race resolves as soon as the winning process
+ * commits, so anything still failing after that is real. Anything else (bad
+ * connection string, missing database) fails on the first attempt without
+ * pointless waiting.
  */
 const BOOTSTRAP_ATTEMPTS = 5;
 const BOOTSTRAP_RETRY_MS = 500;
@@ -133,11 +135,10 @@ function isBootstrapRace(error: unknown): boolean {
   return /duplicate key|already exists|pg_type_typname_nsp_index/i.test(message);
 }
 
-async function startBossWithBootstrapRetry(boss: PgBoss): Promise<void> {
+async function initWithRaceRetry<T>(build: () => Promise<T>): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      await boss.start();
-      return;
+      return await build();
     } catch (error) {
       if (!isBootstrapRace(error) || attempt >= BOOTSTRAP_ATTEMPTS) throw error;
       await new Promise((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_MS * attempt));
@@ -178,6 +179,19 @@ export class PgBossDurableRuntime implements DurableExecutionRuntime {
 
   async init(): Promise<this> {
     if (this.boss) return this;
+    // The whole setup runs under race retry: pg-boss's bootstrap DDL AND our
+    // ledger DDL both race under concurrent boot (observed in CI: two inits
+    // against a fresh database collided on CREATE TABLE flo_execution_jobs via
+    // pg_type). Either side converges after the winner commits, so a colliding
+    // attempt is retried whole — and nothing is published until success, so a
+    // failed init never leaves a half-built runtime behind the guard above.
+    const built = await initWithRaceRetry(() => this.build());
+    this.pool = built.pool;
+    this.boss = built.boss;
+    return this;
+  }
+
+  private async build(): Promise<{ boss: PgBoss; pool: pg.Pool }> {
     const boss = new PgBoss({
       connectionString: this.options.connectionString,
       superviseIntervalSeconds: this.options.superviseIntervalSeconds,
@@ -185,16 +199,8 @@ export class PgBossDurableRuntime implements DurableExecutionRuntime {
       maintenanceIntervalSeconds: this.options.maintenanceIntervalSeconds
     });
     boss.on("error", () => {});
-    // Published only after the whole setup succeeds: if any step below throws,
-    // the next init() retries from scratch instead of returning a half-built
-    // runtime behind the `if (this.boss)` guard while leaking pool connections.
     try {
-      // pg-boss's own bootstrap DDL is not safe under concurrent boot: two
-      // processes starting against a fresh database race on the same CREATE TYPE
-      // and one fails with a duplicate-key error (observed: API + worker started
-      // together). The schema converges after the winner commits, so retrying the
-      // whole start is the correct recovery — never invent partial state here.
-      await startBossWithBootstrapRetry(boss);
+      await boss.start();
       await boss.createQueue(this.options.deadLetterQueue, { retentionSeconds: 3600 });
       await boss.createQueue(this.options.queue, {
         expireInSeconds: this.options.expireInSeconds,
@@ -229,13 +235,10 @@ export class PgBossDurableRuntime implements DurableExecutionRuntime {
         await pool.end().catch(() => {});
         throw error;
       }
-      this.pool = pool;
-      this.boss = boss;
-      return this;
+      return { boss, pool };
     } catch (error) {
-      // Never leave a half-built runtime behind: stop the boss so its
-      // supervisors do not hold connections, and let the next init() start
-      // clean (this.boss/this.pool stay unset until success).
+      // A failed attempt owns nothing afterwards: stop the boss so its
+      // supervisors release their connections; the retry builds a fresh boss.
       await boss.stop({ close: true }).catch(() => {});
       throw error;
     }

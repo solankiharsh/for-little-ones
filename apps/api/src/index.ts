@@ -48,6 +48,17 @@ export type {
   ConceptBundleResult,
   ConceptBundleDeps
 } from "./creation/concept-bundle-runner";
+export {
+  StoryRunner,
+  STORY_OUTLINE_OP,
+  STORY_PAGES_OP,
+  STORY_PAGE_OP,
+  OUTLINE_UNIT,
+  pageUnitKey,
+  factsVersionFor,
+  pageKeyFor
+} from "./creation/story-runner";
+export type { StoryUnitPayload, StoryRunResult, StoryRunnerDeps } from "./creation/story-runner";
 
 export { composeApi, productionProviderCard } from "./compose";
 export type { ComposedApi, ComposeOptions, ComposeProviders } from "./compose";

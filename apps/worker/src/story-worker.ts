@@ -1,6 +1,6 @@
 import {
   AnonymousSessionService,
-  ConceptBundleRunner,
+  StoryRunner,
   createPool,
   createPostgresStores,
   NoopEventSink,
@@ -12,10 +12,10 @@ import { PgBossDurableRuntime } from "@for-little-ones/execution";
 import type { ModerationProvider, StoryProvider } from "@for-little-ones/providers";
 import { runOnce } from "./claim-loop";
 
-export interface ConceptWorkerOptions {
+export interface StoryWorkerOptions {
   connectionString: string;
   workerId: string;
-  storyProvider: Pick<StoryProvider, "generateConcepts" | "card">;
+  storyProvider: Pick<StoryProvider, "generateOutline" | "generatePageText" | "card">;
   moderation: ModerationProvider;
   now?: () => string;
   /** Fast-lease settings belong to specs; production keeps the runtime defaults. */
@@ -27,24 +27,19 @@ export interface ConceptWorkerOptions {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * The production concept claim loop (D024 §6): claim one unit, hand it to
- * `ConceptBundleRunner`, settle it with complete/fail. The loop itself lives in
- * `./claim-loop` and is shared with the story worker; the runner owns retry
- * classification — including the non-retryable exhaustive failure that lands the
- * unit in the dead-letter state — so this loop never has to decide what is worth
- * retrying.
- */
-export { runOnce } from "./claim-loop";
-
-export interface ConceptWorkerHandle {
+export interface StoryWorkerHandle {
   /** Resolves when the loop stops (abort, or `maxIterations` reached). */
   done: Promise<void>;
   stop(): void;
 }
 
-/** Wires the Postgres stores, the durable runtime and the runner, then loops. */
-export async function startConceptWorker(options: ConceptWorkerOptions): Promise<ConceptWorkerHandle> {
+/**
+ * The production story claim loop (F-008 §9, D029). Same shared loop as concepts:
+ * claim one unit (OUTLINE or PAGE_TEXT), hand it to `StoryRunner`, settle it.
+ * The runner owns fan-out (outline success enqueues the page units) and retry
+ * classification, so this loop is intentionally thin.
+ */
+export async function startStoryWorker(options: StoryWorkerOptions): Promise<StoryWorkerHandle> {
   const now = options.now ?? (() => new Date().toISOString());
   const workerId = options.workerId;
   const leaseForMs = options.leaseForMs ?? 60_000;
@@ -57,29 +52,25 @@ export async function startConceptWorker(options: ConceptWorkerOptions): Promise
     now,
     newId: (prefix) => `${prefix}-${crypto.randomUUID()}`
   });
-  const runtime = await new PgBossDurableRuntime({ connectionString: options.connectionString }).init();
-  const runner = new ConceptBundleRunner({
+  const runtime = await new PgBossDurableRuntime({
+    connectionString: options.connectionString,
+    queue: "flo-story",
+    deadLetterQueue: "flo-story-bad"
+  }).init();
+  const facts = new FactService({ store: stores.creation, sessions: stores.sessions, events: new NoopEventSink(), now, newId: (p) => `${p}-${randomUUID()}` });
+  const runner = new StoryRunner({
     runtime,
     store: stores.creation,
     storyProvider: options.storyProvider,
     moderation: options.moderation,
-    // The worker observes the durable ledger, not the analytics rail: a generation
-    // failure is already durable, and a second copy in analytics is not worth the cost.
     events: new NoopEventSink(),
-    // The parent's confirmed facts are the whole point of a personalised concept, so the
-    // worker reads the same scoped fact set the API does. Returning `[]` here would make
-    // the worker silently produce generic concepts that ignore the child.
     getFactsForStory: (input) => facts.getFactsForStory(input),
-    // The durable step re-checks ownership itself (F-001 §8): a unit whose project is
-    // gone must fail, not generate against a book the session no longer owns.
     assertProjectAccess: (anonymousProjectId, projectId) => sessions.assertCanAccessProject(anonymousProjectId, projectId),
     now
   });
 
-  const facts = new FactService({ store: stores.creation, sessions: stores.sessions, events: new NoopEventSink(), now, newId: (p) => `${p}-${randomUUID()}` });
-
   const controller = new AbortController();
-  const handle: ConceptWorkerHandle = {
+  const handle: StoryWorkerHandle = {
     done: (async () => {
       try {
         for (let iteration = 0; options.maxIterations === undefined || iteration < options.maxIterations; iteration += 1) {

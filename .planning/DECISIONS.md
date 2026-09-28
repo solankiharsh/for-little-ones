@@ -853,3 +853,20 @@ endpoints on the Slice-2 transport; Postgres story/page persistence via D027
 migrations; worker claim-loop wiring; retire Path B `api/generate-story.ts`
 after. **Out of scope:** illustration (F-009), likeness-threshold calibration
 (stays OPEN per D020), any new Path B surface.
+
+---
+
+## D030 — Story/Concept Queue Separation (2026-09-28)
+
+**Status:** ADOPT
+
+Observed live the same day: with one shared pg-boss queue, the concept claim loop
+claimed story page units and killed them as `THEME_MISSING` — the concept runner
+cast foreign payloads blindly. Two fixes, both landed with the story runner:
+
+1. **Substrate-native separation** — story units live on `flo-story` (DLQ
+   `flo-story-bad`); the API composes two runtimes and each worker fetches only
+   its queue. No contract change; InMemory isolates per instance, so specs mirror
+   production with two runtimes.
+2. **Backstop** — `ConceptBundleRunner` refuses foreign-kind payloads as
+   non-retryable `UNKNOWN_UNIT` (spec-pinned) instead of mis-executing them.
