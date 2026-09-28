@@ -13,6 +13,15 @@ import { makeTestRuntime, testDatabaseUrl } from "./helpers/pg-test";
  * forces a real first bootstrap, and both runtimes must come up usable.
  */
 describe("pg-boss runtime: concurrent first boot", () => {
+  it("a failed init leaves no half-built runtime behind", async () => {
+    const bad = makeTestRuntime({ connectionString: "postgres://127.0.0.1:1/nope" });
+    await expect(bad.init()).rejects.toThrow();
+    // A half-published runtime would resolve instantly here behind the
+    // `if (this.boss)` guard; a clean one retries setup and rejects again.
+    await expect(bad.init()).rejects.toThrow();
+    await bad.close();
+  });
+
   it("two runtimes initializing together both come up usable", async () => {
     const admin = new pg.Pool({ connectionString: testDatabaseUrl() });
     const scratch = "flo_init_race";
@@ -23,8 +32,12 @@ describe("pg-boss runtime: concurrent first boot", () => {
 
     const first = makeTestRuntime({ connectionString });
     const second = makeTestRuntime({ connectionString });
-    await Promise.all([first.init(), second.init()]);
+    // Creation AND init live inside the try: if either init rejects, both
+    // runtimes still close (close() tolerates never-initialized instances) and
+    // the scratch database still drops — a flaky bootstrap must not contaminate
+    // later runs with leaked supervisors or a leftover database.
     try {
+      await Promise.all([first.init(), second.init()]);
       const key = `race-${Date.now()}`;
       await first.enqueue({
         operationKey: key,
