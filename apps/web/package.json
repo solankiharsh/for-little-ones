@@ -19,6 +19,8 @@
     "@shadergradient/react": "^2.4.20",
     "@stylexjs/stylex": "0.19.1",
     "camera-controls": "^3.1.2",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
     "motion": "13.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

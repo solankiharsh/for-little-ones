@@ -1,0 +1,212 @@
+/* For Little One — the continuous story (§2 visual language). */
+
+.flo-story {
+  --story-paper: #f6f0e2;
+  --story-paper-deep: #ece2cc;
+  --story-ink: #1f2a44;
+  --story-ink-soft: #5a6378;
+  --story-rose: #c08a94;
+  --story-sage: #7d9b76;
+  --story-gold: #c9a15a;
+  --story-night: #141b33;
+  --story-line: #d9cbae;
+  --story-display: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --story-book: "Palatino Linotype", Palatino, Georgia, serif;
+  --story-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--story-paper);
+  color: var(--story-ink);
+  font-family: var(--story-ui);
+  overflow: clip;
+}
+
+.flo-story .flo-kicker {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--story-rose);
+}
+
+.flo-story h1, .flo-story h2 {
+  font-family: var(--story-display);
+  font-weight: 400;
+  line-height: 1.08;
+  margin: 12px 0 16px;
+}
+
+.flo-story .flo-screen {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* — opening: the book covers the viewport, then opens (§3) — */
+.flo-opening { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; text-align: center; padding: 24px; }
+.flo-opening-half { position: fixed; inset: 0 auto 0 0; width: 50.5%; z-index: 60; display: grid; place-items: center; background: var(--story-night); color: var(--story-paper); transition: transform 1.6s cubic-bezier(0.7, 0, 0.2, 1); overflow: hidden; }
+.flo-opening-right { inset: 0 0 0 auto; }
+.flo-opening-half span { font-family: var(--story-display); font-size: clamp(28px, 6vw, 72px); display: flex; align-items: center; gap: 12px; }
+.flo-opening.is-open .flo-opening-left { transform: translateX(-102%); }
+.flo-opening.is-open .flo-opening-right { transform: translateX(102%); }
+.flo-opening.is-open .flo-opening-half { pointer-events: none; }
+.flo-opening.is-short .flo-opening-half { transition-duration: 0.7s; }
+.flo-opening-cover h1 { font-size: clamp(52px, 11vw, 132px); margin: 8px 0 12px; }
+.flo-opening-cover p { color: var(--story-ink-soft); font-size: 18px; }
+.flo-opening-cover .flo-btn { margin-top: 26px; }
+
+/* — emblem + rail (§15) — */
+.flo-emblem { width: 26px; height: 26px; color: var(--story-gold); }
+.flo-rail { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.flo-rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.flo-rail li { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--story-ink-soft); opacity: 0.55; }
+.flo-rail li.is-here { opacity: 1; color: var(--story-ink); font-weight: 700; }
+.flo-rail-emblem { animation: flo-emblem-spin 24s linear infinite; }
+@keyframes flo-emblem-spin { to { transform: rotate(360deg); } }
+
+/* — hero transformation (§4) — */
+.flo-hero-story { position: relative; height: 320vh; }
+.flo-hero-story .flo-screen { align-items: center; }
+.flo-hero-frame { position: relative; width: min(1060px, 92vw); height: 82vh; overflow: hidden; border-radius: 24px; }
+.flo-hero-daylight { position: absolute; inset: 0; background: linear-gradient(180deg, #f3e8d2 0%, #e7d3ac 62%, #d9bd8a 100%); }
+.flo-hero-night { position: absolute; inset: 0; background: var(--story-night); opacity: 0; overflow: hidden; }
+.flo-hero-night .flo-moon { position: absolute; top: 8%; right: 10%; width: 130px; }
+.flo-drift { position: absolute; border-radius: 50%; background: var(--story-gold); opacity: 0.5; }
+.flo-drift-a { width: 220px; height: 220px; left: -70px; bottom: -60px; opacity: 0.28; }
+.flo-drift-b { width: 90px; height: 90px; left: 18%; top: 12%; opacity: 0.35; }
+.flo-drift-c { width: 44px; height: 44px; right: 22%; bottom: 18%; opacity: 0.4; }
+.flo-hero-centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 24px; }
+.flo-hero-eyebrow { color: var(--story-ink-soft); letter-spacing: 0.2em; text-transform: uppercase; font-size: 12px; }
+.flo-hero-night ~ .flo-hero-centre .flo-hero-eyebrow, .flo-hero-ink p { color: var(--story-paper); }
+.flo-hero-medallion { position: relative; display: grid; place-items: center; border-radius: 50%; background: var(--story-paper); border: 5px solid var(--story-gold); overflow: visible; }
+.flo-hero-medallion img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.flo-hero-initial { font-family: var(--story-display); font-size: 64px; color: var(--story-ink); }
+.flo-hero-spark { position: absolute; right: -12px; top: -12px; width: 34px; height: 34px; }
+.flo-hero-ink p { font-family: var(--story-display); font-size: clamp(30px, 5vw, 54px); margin: 0; line-height: 1.15; }
+
+/* — idea (§5): paper + breath — */
+.flo-idea { padding: 30vh 24px; text-align: center; }
+.flo-idea-lines { display: flex; flex-direction: column; gap: 6px; font-size: clamp(44px, 9vw, 110px); }
+.flo-idea-lines strong { color: var(--story-rose); font-weight: 400; }
+
+/* — character (§6) — */
+.flo-character { max-width: 1080px; margin: 0 auto; padding: 16vh 24px; }
+.flo-character h2 { font-size: clamp(36px, 6vw, 72px); }
+.flo-character-grid { display: grid; grid-template-columns: minmax(240px, 340px) 1fr; gap: 40px; margin-top: 28px; }
+.flo-character-who label, .flo-inline { display: grid; gap: 8px; margin-bottom: 18px; font-size: 14px; font-weight: 600; }
+.flo-character-who input, .flo-inline input, .flo-inline select, .flo-character-who select {
+  font: inherit; font-weight: 400; padding: 12px 14px; border: 1px solid var(--story-line);
+  border-radius: 12px; background: #fffdf7; color: var(--story-ink); width: 100%;
+}
+.flo-guidance { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.flo-guidance span { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; border: 1px dashed var(--story-line); border-radius: 999px; padding: 6px 12px; color: var(--story-ink-soft); }
+.flo-drop { width: 100%; border: 1px dashed var(--story-rose); border-radius: 18px; background: #fffdf7; padding: 34px 20px; display: grid; gap: 6px; justify-items: center; cursor: pointer; color: var(--story-ink); font: inherit; }
+.flo-drop small { color: var(--story-ink-soft); }
+.flo-thumbs { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 0; padding: 0; }
+.flo-thumbs li { position: relative; }
+.flo-thumbs img { width: 84px; height: 84px; object-fit: cover; border-radius: 14px; border: 2px solid var(--story-line); }
+.flo-thumbs button { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--story-line); background: #fff; cursor: pointer; }
+.flo-becoming { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0 0; padding: 0; }
+.flo-becoming figure { margin: 0; display: grid; gap: 8px; justify-items: center; text-align: center; }
+.flo-becoming img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px; border: 2px solid var(--story-line); }
+.flo-becoming .flo-treated img { filter: sepia(0.45) saturate(1.15) contrast(1.02); border-color: var(--story-gold); }
+.flo-becoming .flo-inscene { position: relative; }
+.flo-becoming .flo-inscene img { border-color: var(--story-sage); }
+.flo-becoming .flo-inscene span { position: absolute; top: 8px; right: 10px; color: var(--story-gold); font-size: 22px; }
+.flo-becoming figcaption { font-size: 13px; color: var(--story-ink-soft); }
+
+/* — worlds (§7): horizontal journey — */
+.flo-worlds-story { position: relative; height: 100vh; height: 100dvh; overflow: hidden; background: var(--story-night); color: var(--story-paper); }
+.flo-worlds-story .flo-screen { justify-content: flex-start; padding: 48px 0 0 48px; }
+.flo-worlds-track { display: flex; gap: 6vw; padding: 12px 8vw 0 0; width: max-content; align-items: center; height: 100%; }
+.flo-world { width: 72vw; max-width: 900px; flex: none; }
+.flo-world-scene { width: 100%; height: auto; border-radius: 20px; display: block; }
+.flo-world-copy { display: flex; align-items: baseline; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+.flo-world-copy h3 { font-family: var(--story-display); font-weight: 400; font-size: clamp(30px, 4vw, 54px); margin: 0; }
+.flo-world-copy p { margin: 0; color: #cfd4e4; }
+.flo-world-imagine { color: var(--story-gold) !important; font-family: var(--story-book); font-style: italic; font-size: 18px; }
+
+/* — make it theirs (§8) — */
+.flo-make { position: relative; max-width: 1080px; margin: 0 auto; padding: 16vh 24px; overflow: clip; }
+.flo-make h2 { font-size: clamp(36px, 6vw, 72px); }
+.flo-make-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 24px; }
+.flo-make fieldset { border: 1px solid var(--story-line); border-radius: 18px; padding: 22px; background: #fffdf7; margin: 0; }
+.flo-make legend { font-family: var(--story-display); font-size: 22px; padding: 0 10px; }
+.flo-make-answer { font-family: var(--story-book); font-style: italic; font-size: 20px; color: var(--story-rose); margin: 0 0 12px; }
+.flo-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.flo-chips button { border: 1px solid var(--story-line); background: transparent; border-radius: 999px; padding: 9px 16px; font: inherit; cursor: pointer; color: var(--story-ink); }
+.flo-chips button[aria-pressed="true"] { background: var(--story-ink); border-color: var(--story-ink); color: var(--story-paper); }
+.flo-make-scene { position: absolute; inset: auto 0 0; height: 220px; pointer-events: none; color: var(--story-sage); }
+.flo-make-hills { position: absolute; inset: auto -10% 0; height: 130px; background: var(--story-sage); opacity: 0.22; border-radius: 50% 50% 0 0; }
+.flo-make-dino, .flo-make-pet { position: absolute; bottom: 40px; opacity: 0; transform: translateX(-30px); transition: opacity 0.8s ease, transform 1.2s ease; }
+.flo-make-dino { left: 6%; }
+.flo-make-pet { left: 20%; color: var(--story-rose); }
+.flo-make-scene.has-dino .flo-make-dino, .flo-make-scene.has-pet .flo-make-pet { opacity: 1; transform: translateX(0); }
+.flo-sprite { width: 110px; height: auto; }
+
+/* — generation (§9) — */
+.flo-generate { position: relative; min-height: 100vh; min-height: 100dvh; }
+.flo-generate-states { text-align: center; display: grid; gap: 14px; justify-items: center; padding: 24px; }
+.flo-generate-states p { font-family: var(--story-book); font-style: italic; font-size: clamp(24px, 4vw, 40px); margin: 0; }
+.flo-generate-states small { color: var(--story-ink-soft); }
+.flo-generate-emblem { width: 44px; height: 44px; color: var(--story-gold); animation: flo-emblem-spin 8s linear infinite; }
+.flo-generate-cover { text-align: center; padding: 24px; }
+.flo-generate-cover h2 { font-size: clamp(34px, 6vw, 68px); }
+.flo-book-cover { max-width: 420px; margin: 30px auto 0; padding: 54px 30px; background: #ece6d5; border: 1px solid var(--story-line); border-radius: 6px 20px 20px 6px; display: grid; gap: 10px; }
+.flo-book-cover strong { font-family: var(--story-display); font-weight: 400; font-size: 34px; }
+.flo-book-cover span { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--story-ink-soft); }
+
+/* — reader (§10) reuses StoryReader; frame it like an oversized book — */
+.flo-read { max-width: 1060px; margin: 0 auto; padding: 12vh 24px 16vh; }
+.flo-read .flo-story-preview { background: #fffdf7; border: 1px solid var(--story-line); border-radius: 22px; padding: clamp(20px, 4vw, 48px); }
+
+/* — emotion (§11): near-static — */
+.flo-emotion { max-width: 760px; margin: 0 auto; padding: 26vh 24px; text-align: center; }
+.flo-emotion p { font-family: var(--story-display); font-size: clamp(30px, 5vw, 56px); line-height: 1.25; margin: 10px 0; }
+.flo-emotion-pause { color: var(--story-gold); letter-spacing: 0.5em; }
+.flo-emotion-keep { color: var(--story-rose); }
+
+/* — keepsake (§12): flat to physical — */
+.flo-keepsake { background: #efe6d0; padding: 12vh 0; }
+.flo-keepsake-object { max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; padding: 0 24px; }
+.flo-book-3d { display: flex; perspective: 1200px; }
+.flo-book-spine { width: 26px; background: #8a6f4d; border-radius: 6px 0 0 6px; }
+.flo-book-front { flex: 1; background: #f7efdc; border: 1px solid var(--story-line); border-radius: 4px 16px 16px 4px; padding: 60px 34px; display: grid; gap: 12px; transform: rotateY(-14deg); box-shadow: 30px 30px 60px rgba(31, 42, 68, 0.22); }
+.flo-book-front strong { font-family: var(--story-display); font-weight: 400; font-size: 38px; }
+.flo-book-front small, .flo-book-front em { color: var(--story-ink-soft); font-style: normal; }
+.flo-book-front small { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; }
+.flo-keepsake-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; font-size: 18px; }
+.flo-keepsake-facts li::before { content: "✦ "; color: var(--story-gold); }
+
+/* — final + footer close (§13–14) — */
+.flo-final { text-align: center; padding: 20vh 24px 16vh; background: var(--story-paper); }
+.flo-final h2 { font-size: clamp(40px, 8vw, 96px); }
+.flo-book-closing { margin: 0 auto 30px; width: min(300px, 70vw); padding: 46px 20px; background: var(--story-night); color: var(--story-paper); border-radius: 4px 14px 14px 4px; font-family: var(--story-display); font-size: 24px; }
+.flo-final-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+.flo-story-foot { background: var(--story-night); color: #c9cfe3; text-align: center; padding: 90px 24px 60px; clip-path: inset(6% 4% 0 4% round 24px 24px 0 0); }
+.flo-story-foot nav { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 34px; }
+.flo-story-foot a { color: inherit; }
+.flo-story-foot-brand { font-family: var(--story-display); font-size: 34px; color: var(--story-paper); margin: 0 0 8px; }
+
+/* — reduced motion + simple mode (§17, §21) — */
+.flo-story.is-reduced .flo-opening-half { display: none; }
+.flo-story.is-reduced .flo-hero-night { opacity: 1; }
+.flo-story.is-reduced .flo-hero-daylight, .flo-story.is-reduced .flo-rail { display: none; }
+.flo-story.is-reduced .flo-generate-emblem, .flo-story.is-reduced .flo-rail-emblem { animation: none; }
+.flo-story.is-simple .flo-hero-story { height: auto; }
+.flo-story.is-simple .flo-hero-story .flo-screen { position: static; height: auto; padding: 60px 0; }
+.flo-story.is-simple .flo-hero-night { opacity: 1; }
+.flo-story.is-simple .flo-hero-ink { opacity: 1 !important; transform: none !important; }
+.flo-story.is-simple .flo-worlds-story { height: auto; }
+.flo-story.is-simple .flo-worlds-story .flo-screen { position: static; height: auto; }
+.flo-story.is-simple .flo-worlds-track { width: auto; flex-direction: column; padding: 0 24px 40px; }
+.flo-story.is-simple .flo-world { width: 100%; max-width: 640px; }
+
+@media (max-width: 991px) {
+  .flo-rail { display: none; }
+  .flo-character-grid, .flo-make-grid, .flo-keepsake-object { grid-template-columns: 1fr; }
+  .flo-world { width: 84vw; }
+  .flo-opening-half span { font-size: 30px; }
+}

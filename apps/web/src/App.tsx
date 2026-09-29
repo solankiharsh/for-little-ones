@@ -9,6 +9,7 @@ import { demoPurchaseOption } from "./commerce/approval";
 
 import CreationFlow from "./creation/CreationFlow";
 import type { CreationDraft } from "./creation/story-preview";
+import StoryExperience, { FLO_CREATE_EVENT } from "./story/StoryExperience";
 
 const STUDIO = "For Little One";
 const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
@@ -37,11 +38,29 @@ function Logo() {
 }
 
 export default function App() {
+  const [route, setRoute] = useState(() => parseStoryHash());
+  useEffect(() => {
+    const onHash = () => setRoute(parseStoryHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const createFromStory = useCallback(() => {
+    window.location.hash = "#top";
+    window.dispatchEvent(new CustomEvent(FLO_CREATE_EVENT));
+  }, []);
   return (
     <CartProvider>
-      <Site />
+      {route.story ? <StoryExperience onCreate={createFromStory} target={route.target} /> : <Site />}
     </CartProvider>
   );
+}
+
+/** `#/story` opens the journey; `#/story/<section-id>` deep-links a moment. */
+function parseStoryHash(): { story: boolean; target: string | null } {
+  if (typeof window === "undefined") return { story: false, target: null };
+  const match = window.location.hash.match(/^#\/story(?:\/([\w-]+))?/);
+  if (!match) return { story: false, target: null };
+  return { story: true, target: match[1] ?? null };
 }
 
 function Site() {
@@ -78,6 +97,12 @@ function Site() {
   useEffect(() => {
     if (phase === "reader") previewRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
   }, [phase]);
+
+  useEffect(() => {
+    const openFromStory = () => open();
+    window.addEventListener(FLO_CREATE_EVENT, openFromStory);
+    return () => window.removeEventListener(FLO_CREATE_EVENT, openFromStory);
+  }, [open]);
 
   const trapPreviewFocus = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
@@ -127,6 +152,7 @@ function Site() {
             <a href="#how">How it works</a>
             <a href="#story">Your book</a>
             <a href="#about">The studio</a>
+            <a href="#/story">The story →</a>
           </nav>
           <div className="flo-mast-actions">
             <button
