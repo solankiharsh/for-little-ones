@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { gsap, ScrollTrigger } from "./useStoryMotion";
+import { ASSETS } from "./assets";
 
 /**
- * The idea (§5): a breath of paper. Three lines sit close, then letter-spacing
- * breathes open as the final phrase fills the viewport. Nothing else moves.
+ * The idea (§5, §D): a breath of paper over a whisper of landscape. Three
+ * lines sit close, then letter-spacing breathes open as the final phrase
+ * fills the viewport. Nothing else moves — the quietest section.
  */
 export default function Idea({ active }: { active: boolean }) {
   const wrap = useRef<HTMLElement>(null);
@@ -22,6 +24,7 @@ export default function Idea({ active }: { active: boolean }) {
 
   return (
     <section ref={wrap} className="flo-idea" aria-label="What if your child was the hero">
+      <img className="flo-idea-paper" src={ASSETS.paperQuiet.src} alt="" aria-hidden="true" loading="lazy" decoding="async" />
       <h2 className="flo-idea-lines">
         <span>What if</span>
         <span>your child</span>

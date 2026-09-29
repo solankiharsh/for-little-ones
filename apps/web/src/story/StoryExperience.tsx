@@ -4,6 +4,7 @@ import { PersonalizationProvider } from "./personalization";
 import { useStoryMotion, scrollToStory } from "./useStoryMotion";
 import Opening from "./Opening";
 import Hero from "./Hero";
+import EnterBook from "./EnterBook";
 import Idea from "./Idea";
 import Character from "./Character";
 import Worlds from "./Worlds";
@@ -11,6 +12,7 @@ import Personalise from "./Personalise";
 import Generation from "./Generation";
 import Reader from "./Reader";
 import Emotion from "./Emotion";
+import HumanProof from "./HumanProof";
 import Keepsake from "./Keepsake";
 import { FinalCta, StoryFooter } from "./Closing";
 import ProgressRail from "./ProgressRail";
@@ -46,6 +48,7 @@ export default function StoryExperience({ onCreate, target }: { onCreate: () => 
         <ProgressRail />
         <main aria-label="For Little One — a story in one scroll">
           <Hero active={full} />
+          <EnterBook active={full} />
           <Idea active={full} />
           <Character />
           <Worlds active={full} />
@@ -53,7 +56,8 @@ export default function StoryExperience({ onCreate, target }: { onCreate: () => 
           <Generation />
           <Reader />
           <Emotion />
-          <Keepsake />
+          <HumanProof />
+          <Keepsake active={full} />
           <FinalCta onCreate={onCreate} />
         </main>
         <StoryFooter />

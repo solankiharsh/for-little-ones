@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Emblem } from "./Scenes";
+import { gsap, ScrollTrigger } from "./useStoryMotion";
+import { ASSETS } from "./assets";
+import StoryImage from "./StoryImage";
 import { usePersonalization } from "./personalization";
-
 /** Generation states (§19): the wait continues the story. Never percentages. */
 function statesFor(name: string): string[] {
   return [
@@ -14,14 +15,19 @@ function statesFor(name: string): string[] {
 }
 
 /**
- * Watch it come alive (§9): the customization context scales outward and the
- * book takes the viewport. Staged story-states (no spinner, no percentages),
- * then the cover reveal with the child's name. This demo binds a real
- * generated-feeling book from their details; the production pipeline
- * (F-008) replaces the binding step when wired.
+ * Watch it come alive (§H): an immersive image transformation, not a loader.
+ * The digital spread slowly scales while states change one line at a time;
+ * at completion the cover reveals with the real title as HTML — never baked
+ * into imagery.
  */
 export default function Generation() {
-  const { heroName, selectedWorld, markGenerated } = usePersonalization();
+  const { heroName, markGenerated, selectedWorld } = usePersonalization();
+  const coverTail =
+    selectedWorld === "garden" ? "the Secret Garden Map" :
+    selectedWorld === "lighthouse" ? "the Lighthouse That Sang" :
+    selectedWorld === "dinosaurs" ? "the Gentle Giants" :
+    selectedWorld === "space" ? "the Quiet Stars" :
+    "the Moon That Followed Home";
   const [started, setStarted] = useState(false);
   const [stage, setStage] = useState(0);
   const [bound, setBound] = useState(false);
@@ -51,7 +57,6 @@ export default function Generation() {
         if (value + 1 >= states.length) {
           window.clearInterval(timer);
           setBound(true);
-          markGenerated();
           return value;
         }
         return value + 1;
@@ -61,27 +66,41 @@ export default function Generation() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started]);
 
+  usePersonalizationMark(bound, markGenerated);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.fromTo(".flo-generate-image img", { scale: 1.1 }, {
+        scale: 1, ease: "none",
+        scrollTrigger: { trigger: wrap.current, start: "top bottom", end: "bottom top", scrub: 0.8 }
+      });
+      ScrollTrigger.refresh();
+    }, wrap);
+    return () => ctx.revert();
+  }, []);
+
   return (
     <section ref={wrap} className={`flo-generate${bound ? " is-bound" : ""}`} aria-label="Watch the story come alive" id="story-generate">
-      <div className="flo-screen">
-        {!bound ? (
-          <div className="flo-generate-states" role="status" aria-live="polite">
-            <Emblem className="flo-generate-emblem" />
-            <p key={stage}>{states[stage]}</p>
-            {selectedWorld && <small>Woven around {selectedWorld === "dino" ? "a dinosaur valley" : selectedWorld === "space" ? "the quiet stars" : selectedWorld === "sea" ? "the slow blue sea" : selectedWorld === "kingdom" ? "a sleepy castle" : "an old lantern forest"}.</small>}
-          </div>
-        ) : (
-          <div className="flo-generate-cover">
-            <p className="flo-kicker">And just like that…</p>
-            <h2>A story only they could have.</h2>
-            <div className="flo-book-cover">
-              <span>Made for {heroName}</span>
-              <strong>{heroName} and the {selectedWorld === "dino" ? "Gentle Giants" : selectedWorld === "space" ? "Quiet Stars" : selectedWorld === "sea" ? "Slow Blue Sea" : selectedWorld === "kingdom" ? "Sleepy Castle" : "Lantern Forest"}</strong>
-              <small>A story for {heroName}</small>
-            </div>
-          </div>
-        )}
+      <div className="flo-generate-image" aria-hidden="true">
+        <StoryImage asset={bound ? ASSETS.coverMoonFox : ASSETS.digitalToPhysical} />
       </div>
+      {!bound ? (
+        <div className="flo-generate-states" role="status" aria-live="polite">
+          <p key={stage}>{states[stage]}</p>
+        </div>
+      ) : (
+        <div className="flo-generate-cover">
+          <p className="flo-kicker">And just like that…</p>
+          <h2>A story<br />only they<br />could have.</h2>
+          <p className="flo-generate-title">{heroName} and {coverTail}</p>
+        </div>
+      )}
     </section>
   );
+}
+
+function usePersonalizationMark(bound: boolean, markGenerated: () => void) {
+  useEffect(() => {
+    if (bound) markGenerated();
+  }, [bound, markGenerated]);
 }

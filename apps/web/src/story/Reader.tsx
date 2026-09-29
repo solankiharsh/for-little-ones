@@ -1,15 +1,15 @@
 import { useMemo } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import StoryReader from "../creation/StoryReader";
+import { ASSETS } from "./assets";
+import StoryImage from "./StoryImage";
 import { usePersonalization } from "./personalization";
-import { WORLDS } from "./Scenes";
+import { STORY_WORLDS } from "./Worlds";
 
 /**
- * Read their story (§10): the viewport becomes an oversized storybook and
- * scrolling moves through the tabbed reader. Pages bind the child's details
- * into warm template prose — an honest stand-in until the F-008 pipeline feeds
- * these rows. Text appears discretely (the reader handles it); the section
- * itself only fades the frame in.
+ * Read their story (§10, §I): the spread fills the viewport first — the book
+ * itself is the interface — then the reader UI activates beneath it with its
+ * container chrome reduced to almost nothing.
  */
 function storyFor(hero: string, worldTitle: string, companions: string[], interests: string[], detail: string): StoryPreviewResult {
   const friends = companions.length > 0 ? ` with ${companions.join(" and ")}` : "";
@@ -37,7 +37,7 @@ function storyFor(hero: string, worldTitle: string, companions: string[], intere
 
 export default function Reader() {
   const { heroName, selectedWorld, companions, interests, detail, dedication } = usePersonalization();
-  const worldTitle = WORLDS.find((world) => world.id === selectedWorld)?.title ?? "Lantern Forest";
+  const worldTitle = STORY_WORLDS.find((world) => world.id === selectedWorld)?.title ?? "The Moon That Followed Home";
   const story = useMemo(
     () => storyFor(heroName, worldTitle, companions, interests, detail.trim()),
     [heroName, worldTitle, companions, interests, detail]
@@ -45,7 +45,13 @@ export default function Reader() {
 
   return (
     <section className="flo-read" aria-label="Read their story" id="story-read">
+      <figure className="flo-read-spread">
+        <StoryImage asset={ASSETS.spreadAdventure} />
+      </figure>
       <StoryReader story={story} childName={heroName} world={worldTitle} dedication={dedication.trim()} visiblePages="ALL" />
+      <figure className="flo-read-spread flo-read-spread-end">
+        <StoryImage asset={ASSETS.spreadEnding} />
+      </figure>
     </section>
   );
 }

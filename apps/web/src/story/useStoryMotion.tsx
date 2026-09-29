@@ -41,7 +41,11 @@ export function useStoryMotion() {
 
   useEffect(() => {
     if (reduced) return;
-    const lenis = new Lenis({ lerp: 0.11, smoothWheel: true, anchors: true });
+    // Note: no `anchors: true` — our hashes are routes (`#/story/<id>`), not
+    // plain anchors, and Lenis anchor handling misparses path-like hashes.
+    // In-story links navigate natively; smooth programmatic scroll goes
+    // through scrollToStory below.
+    const lenis = new Lenis({ lerp: 0.11, smoothWheel: true });
     lenisInstance = lenis;
     lenis.on("scroll", ScrollTrigger.update);
     const raf = (time: number) => {
