@@ -17,6 +17,10 @@
     "./dev": {
       "types": "./src/dev-providers.ts",
       "default": "./src/dev-providers.ts"
+    },
+    "./production": {
+      "types": "./src/production.ts",
+      "default": "./src/production.ts"
     }
   },
   "scripts": {
