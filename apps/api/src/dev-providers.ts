@@ -10,7 +10,7 @@
  * default would turn a safety control into a silent no-op.
  */
 import type { ModerationProvider, ProviderCard } from "@for-little-ones/providers";
-import { ExampleVendorStoryProvider } from "@for-little-ones/providers";
+import { ExampleVendorStoryProvider, GeminiStoryProvider } from "@for-little-ones/providers";
 import { composeApi, type ComposeProviders } from "./compose";
 
 const DEV_CARD: ProviderCard = {
@@ -50,5 +50,16 @@ export function devModerationProvider(): ModerationProvider {
 }
 
 export function devProviders(): ComposeProviders {
+  // FLO_STORY_PROVIDER=gemini selects the live Gemini-backed outline/page text
+  // (needs GEMINI_API_KEY) for real personalisation quality; default stays the
+  // deterministic example provider so local runs cost nothing and specs stay
+  // hermetic. Moderation stays the dev ALLOW stub either way (assertDevOnly).
+  const which = process.env.FLO_STORY_PROVIDER ?? "example";
+  if (which === "gemini") {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("FLO_STORY_PROVIDER=gemini needs GEMINI_API_KEY in the environment");
+    return { story: new GeminiStoryProvider({ apiKey }), moderation: devModerationProvider() };
+  }
+  if (which !== "example") throw new Error(`unknown FLO_STORY_PROVIDER: ${which} (expected "example" or "gemini")`);
   return { story: new ExampleVendorStoryProvider(), moderation: devModerationProvider() };
 }

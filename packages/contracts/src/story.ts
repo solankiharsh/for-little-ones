@@ -160,7 +160,10 @@ export const PageTextRequestSchema = z.strictObject({
   // Optional so older producers still validate; the runner always fills it.
   heroName: z.string().min(1).max(40).optional(),
   storyTitle: z.string().min(1).max(100).optional(),
-  priorLines: z.array(z.string().min(1).max(280)).max(12).optional()
+  priorLines: z.array(z.string().min(1).max(280)).max(12).optional(),
+  // Band word cap for this page (F-008 §10). Optional so older producers still
+  // validate; the runner fills it from the story's reading level.
+  maxWords: z.number().int().positive().max(200).optional()
 });
 
 export const PageTextResultSchema = z.strictObject({

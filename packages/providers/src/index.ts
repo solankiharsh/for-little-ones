@@ -1,5 +1,16 @@
 export { ExampleVendorStoryAdapter, ExampleVendorStoryProvider } from "./story";
 export type { StoryProvider, StoryAdapter } from "./story";
+export {
+  GeminiStoryProvider,
+  GEMINI_DEFAULT_MODEL,
+  outlineSystem,
+  buildOutlinePrompt,
+  pageSystem,
+  buildPagePrompt,
+  conceptSystem,
+  buildConceptPrompt,
+  parseJson
+} from "./gemini";
 export type { IllustrationProvider } from "./illustration";
 export { deriveIdentityReference } from "./identity";
 export type { ChildPhotoInputs, IdentityProvider, IdentityReference } from "./identity";
