@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev:api": "tsx apps/api/src/dev-server.ts",
-    "dev:worker": "tsx apps/worker/src/dev-worker.ts"
+    "dev:worker": "tsx apps/worker/src/dev-worker.ts",
+    "start:api": "tsx apps/api/src/server.ts",
+    "start:worker": "tsx apps/worker/src/worker.ts"
   },
   "engines": {
     "node": ">=22"

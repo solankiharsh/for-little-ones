@@ -870,3 +870,23 @@ cast foreign payloads blindly. Two fixes, both landed with the story runner:
    production with two runtimes.
 2. **Backstop** — `ConceptBundleRunner` refuses foreign-kind payloads as
    non-retryable `UNKNOWN_UNIT` (spec-pinned) instead of mis-executing them.
+
+---
+
+## D032 — Path A Deploy Scaffolding (2026-09-29)
+
+**Status:** ADOPT (scaffolding landed; first real deploy pending)
+
+D028 promised Cloud Run at retirement. The host is now fully described in code,
+not just planned: `Dockerfile.api` (one image, two commands), `cloudbuild-api.yaml`,
+`scripts/deploy-api.py` (build/deploy, Secret Manager bindings, dirty-tree guard),
+prod entries `apps/api/src/server.ts` + `apps/worker/src/worker.ts` composed from
+`productionProviders()` — Gemini story text + versioned-rules moderation, **no
+example provider and no ALLOW stub**, failing fast without `GEMINI_API_KEY`.
+
+**Remaining before the flip (human-with-console steps, not code):** enable the
+Cloud Run API on the project; provision Postgres (+ `flo-api_DATABASE_URL`) and
+`flo-api_GEMINI_API_KEY` secrets; `deploy-api.py deploy`; point the web at the
+service and re-decide cookie SameSite/CORS (D024 assumed same-origin); verify a
+live story; only then delete Path B. Verified so far: prod entry boots locally
+and serves; image builds from a clean tree.
