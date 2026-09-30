@@ -26,7 +26,7 @@ export default function Hero({ active }: { active: boolean }) {
   }, [active ]);
 
   return (
-    <section ref={wrap} className="flo-hero-story" aria-label="Every child deserves a story where they are the hero">
+    <section ref={wrap} className="flo-hero-story" aria-label="Every child deserves a story where they are the hero" id="story-hero">
       <div className="flo-screen">
         <div className="flo-hero-frame">
           <StoryImage asset={ASSETS.heroRealityToStory} eager className="flo-hero-photo" />

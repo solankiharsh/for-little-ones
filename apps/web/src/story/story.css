@@ -356,3 +356,154 @@
 .flo-story .flo-world-copy{ position: static; transform: none; padding-top: 12px; }
 .flo-story .flo-world-title{ color: var(--story-paper); }
 }
+
+/* Pass 1 hardening: fix broken worlds/story behavior before further polish. */
+.flo-story .flo-worlds-story{
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: clip;
+}
+
+.flo-story .flo-worlds-story .flo-screen{
+  position: relative;
+  top: auto;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.flo-story .flo-worlds-track{
+  will-change: transform;
+  gap: clamp(28px, 4.4vw, 72px);
+  padding: 24px 8vw 0 0;
+}
+
+.flo-story .flo-world{
+  width: min(86vw, 1180px);
+}
+
+.flo-story .flo-world-photo{
+  border-radius: 12px;
+}
+
+.flo-story .flo-world-copy{
+  left: 20px;
+  bottom: 20px;
+  transform: none;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(6, 10, 22, 0.1), rgba(6, 10, 22, 0.72));
+  border-radius: 8px;
+}
+
+.flo-story .flo-read{
+  background: linear-gradient(180deg, #131a33, #0e1428 55%, #f6f0e2 55%);
+  padding: clamp(40px, 8vh, 90px) 0 clamp(70px, 10vh, 130px);
+}
+
+.flo-story .flo-read-intro{
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 24px 28px;
+  color: #f6f0e2;
+}
+
+.flo-story .flo-read-intro h2{
+  margin: 6px 0 8px;
+  color: #f6f0e2;
+  font-size: clamp(34px, 5vw, 78px);
+}
+
+.flo-story .flo-read-dedication{
+  font-family: var(--story-book);
+  font-size: clamp(18px, 2.4vw, 30px);
+  color: #d9cbae;
+  font-style: italic;
+}
+
+.flo-story .flo-read-pages{
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  gap: clamp(28px, 4.4vw, 56px);
+}
+
+.flo-story .flo-read-page{
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: clamp(14px, 2.6vw, 30px);
+  align-items: stretch;
+}
+
+.flo-story .flo-read-page:nth-child(even){
+  grid-template-columns: 0.9fr 1.1fr;
+}
+
+.flo-story .flo-read-page:nth-child(even) .flo-read-page-copy{
+  order: -1;
+}
+
+.flo-story .flo-read-page-image{
+  width: 100%;
+  height: min(64vh, 560px);
+  object-fit: cover;
+  border-radius: 14px;
+  box-shadow: 0 26px 70px rgba(7, 10, 21, 0.25);
+}
+
+.flo-story .flo-read-page-copy{
+  background: #fffdf7;
+  border: 1px solid rgba(19, 26, 51, 0.1);
+  border-radius: 14px;
+  padding: clamp(18px, 2.2vw, 30px);
+  display: grid;
+  align-content: center;
+  gap: 14px;
+}
+
+.flo-story .flo-read-page-number{
+  margin: 0;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: #5a6378;
+}
+
+.flo-story .flo-read-page-copy > p:last-child{
+  margin: 0;
+  font-family: var(--story-book);
+  font-size: clamp(19px, 2.1vw, 28px);
+  line-height: 1.45;
+  color: #1f2a44;
+}
+
+@media (max-width: 991px) {
+  .flo-story .flo-worlds-story .flo-screen{
+    height: auto;
+    overflow: visible;
+  }
+
+  .flo-story .flo-worlds-track{
+    width: auto;
+    flex-direction: column;
+    padding: 0 24px 32px;
+    transform: none !important;
+  }
+
+  .flo-story .flo-world-copy{
+    left: auto;
+    bottom: auto;
+    padding: 10px 0 0;
+    background: none;
+    border-radius: 0;
+  }
+
+  .flo-story .flo-read-page,
+  .flo-story .flo-read-page:nth-child(even){
+    grid-template-columns: 1fr;
+  }
+
+  .flo-story .flo-read-page:nth-child(even) .flo-read-page-copy{
+    order: 0;
+  }
+}

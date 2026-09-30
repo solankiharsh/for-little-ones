@@ -55,11 +55,20 @@ export default function Worlds({ active }: { active: boolean }) {
     if (!active) return;
     const ctx = gsap.context(() => {
       const track = wrap.current!.querySelector(".flo-worlds-track") as HTMLElement;
-      const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
+      const screen = wrap.current!.querySelector(".flo-screen") as HTMLElement;
+      const distance = () => Math.max(0, track.scrollWidth - window.innerWidth + 64);
       gsap.to(track, {
         x: () => -distance(),
         ease: "none",
-        scrollTrigger: { trigger: wrap.current, start: "top top", end: () => `+=${distance() + window.innerHeight}`, scrub: 0.7, invalidateOnRefresh: true }
+        scrollTrigger: {
+          trigger: wrap.current,
+          pin: screen,
+          start: "top top",
+          end: () => `+=${distance() + window.innerHeight * 0.85}`,
+          scrub: 0.85,
+          anticipatePin: 1,
+          invalidateOnRefresh: true
+        }
       });
       ScrollTrigger.refresh();
     }, wrap);
