@@ -4,15 +4,21 @@ import { PersonalizationProvider } from "./personalization";
 import { useStoryMotion, scrollToStory } from "./useStoryMotion";
 import Opening from "./Opening";
 import { STORY_WORLDS } from "./Worlds";
-import { StoryFooter } from "./Closing";
+import { FinalCta, StoryFooter } from "./Closing";
 import ProgressRail from "./ProgressRail";
+
+/**
+ * Custom event the site listens on so the story journey can hand the visitor
+ * back to the creation flow. Exported from here because App owns the listener.
+ */
+export const FLO_CREATE_EVENT = "flo:create-book";
 
 /**
  * Vertical stack of storybooks — one book per world.
  * Each book is a standalone section with hero image + content panel.
  * Users scroll vertically from one book to the next.
  */
-export default function StoryExperience({ target }: { target?: string | null }) {
+export default function StoryExperience({ onCreate, target }: { onCreate: () => void; target?: string | null }) {
   const { reduced, full } = useStoryMotion();
 
   useEffect(() => {
@@ -65,6 +71,7 @@ export default function StoryExperience({ target }: { target?: string | null }) 
             ))}
           </section>
         </main>
+        <FinalCta onCreate={onCreate} />
         <StoryFooter />
       </div>
     </PersonalizationProvider>
