@@ -507,3 +507,327 @@
     order: 0;
   }
 }
+
+/* Pass 2: editorial world shelf + in-place age preview book. */
+.flo-story .flo-worlds-shelf{
+  background: var(--story-paper);
+  color: var(--story-ink);
+  padding: clamp(46px, 8vh, 84px) 24px clamp(54px, 10vh, 120px);
+  display: grid;
+  gap: clamp(26px, 4vh, 44px);
+}
+
+.flo-story .flo-worlds-head{
+  max-width: 1260px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: clamp(24px, 5vw, 86px);
+  align-items: end;
+}
+
+.flo-story .flo-worlds-head h2{
+  margin: 8px 0 0;
+  font-size: clamp(56px, 8.1vw, 120px);
+  line-height: 0.95;
+}
+
+.flo-story .flo-worlds-head > p{
+  margin: 0;
+  color: var(--story-ink-soft);
+  font-size: clamp(20px, 2.2vw, 38px);
+  line-height: 1.36;
+  font-family: var(--story-book);
+}
+
+.flo-story .flo-worlds-books{
+  max-width: 1260px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  gap: clamp(16px, 2.1vw, 28px);
+  overflow-x: auto;
+  padding: 4px 2px 20px;
+  scroll-snap-type: x proximity;
+}
+
+.flo-story .flo-world-card{
+  position: relative;
+  flex: 0 0 clamp(250px, 24vw, 340px);
+  border-radius: 22px;
+  overflow: hidden;
+  background: #1a2036;
+  box-shadow: 0 26px 50px rgba(12, 16, 30, 0.24);
+  scroll-snap-align: start;
+}
+
+.flo-story .flo-world-card::before{
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 12px;
+  background: linear-gradient(180deg, rgba(245, 233, 200, 0.3), rgba(14, 19, 34, 0.35));
+  z-index: 3;
+}
+
+.flo-story .flo-world-card.is-active{
+  outline: 2px solid var(--story-gold);
+  outline-offset: 3px;
+}
+
+.flo-story .flo-world-card-media{
+  position: absolute;
+  inset: 0;
+}
+
+.flo-story .flo-world-card-image{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.flo-story .flo-world-card-copy{
+  position: relative;
+  z-index: 2;
+  min-height: clamp(420px, 50vh, 560px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 22px 22px 24px;
+  background: linear-gradient(180deg, rgba(8, 11, 20, 0.06), rgba(8, 11, 20, 0.85) 72%);
+}
+
+.flo-story .flo-world-card-copy .flo-kicker{
+  color: #e4d4ab;
+}
+
+.flo-story .flo-world-card-copy h3{
+  margin: 0;
+  color: #fff5df;
+  font-family: var(--story-display);
+  font-size: clamp(38px, 4vw, 58px);
+  line-height: 0.96;
+  font-weight: 400;
+}
+
+.flo-story .flo-world-card-imagine{
+  margin: 2px 0 0;
+  color: #d8dbe6;
+  font-size: clamp(16px, 1.2vw, 20px);
+  font-family: var(--story-book);
+  font-style: italic;
+}
+
+.flo-story .flo-world-card-action{
+  margin-top: 8px;
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0 0 6px;
+  color: #fff5df;
+  border-bottom: 1px solid rgba(255, 245, 223, 0.72);
+  font-family: var(--story-ui);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.flo-story .flo-world-preview{
+  max-width: 1260px;
+  margin: 0 auto;
+  width: 100%;
+  background: #fffdf8;
+  border: 1px solid rgba(31, 42, 68, 0.12);
+  border-radius: 22px;
+  padding: clamp(20px, 3vw, 36px);
+  display: grid;
+  gap: clamp(16px, 2.2vw, 24px);
+  box-shadow: 0 22px 54px rgba(12, 18, 31, 0.1);
+}
+
+.flo-story .flo-world-preview-head{
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.flo-story .flo-world-preview-head h3{
+  margin: 6px 0 6px;
+  font-size: clamp(34px, 4.8vw, 64px);
+}
+
+.flo-story .flo-world-preview-head p{
+  margin: 0;
+  color: var(--story-ink-soft);
+  max-width: 64ch;
+}
+
+.flo-story .flo-world-preview-choose{
+  border: none;
+  border-radius: 999px;
+  background: #8b542c;
+  color: #fff4e8;
+  padding: 14px 24px;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.flo-story .flo-world-age-tabs{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.flo-story .flo-world-age-tabs button{
+  border: 1px solid var(--story-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--story-ink-soft);
+  padding: 9px 16px;
+  cursor: pointer;
+}
+
+.flo-story .flo-world-age-tabs button.is-active{
+  background: var(--story-ink);
+  border-color: var(--story-ink);
+  color: #f7f1e3;
+}
+
+.flo-story .flo-world-book-row{
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.flo-story .flo-world-book-nav{
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(31, 42, 68, 0.2);
+  background: #fff;
+  color: var(--story-ink);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.flo-story .flo-world-book-nav:disabled{
+  opacity: 0.35;
+  cursor: default;
+}
+
+.flo-story .flo-world-book-shell{
+  padding: clamp(8px, 1.8vw, 18px);
+  background: linear-gradient(180deg, #f5edde, #efe2c9);
+  border-radius: 18px;
+  border: 1px solid rgba(31, 42, 68, 0.12);
+}
+
+.flo-story .flo-world-book{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #fffefb;
+  border: 1px solid rgba(31, 42, 68, 0.15);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(15, 21, 34, 0.16);
+}
+
+.flo-story .flo-world-book-page{
+  min-height: clamp(180px, 28vh, 260px);
+  padding: clamp(16px, 2.1vw, 26px);
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  background: #fffefb;
+}
+
+.flo-story .flo-world-book-page.is-left{
+  border-right: 1px solid rgba(31, 42, 68, 0.12);
+}
+
+.flo-story .flo-world-book-page p{
+  margin: 0;
+}
+
+.flo-story .flo-world-book-page > p:last-child{
+  font-family: var(--story-book);
+  color: var(--story-ink);
+  font-size: clamp(18px, 1.9vw, 24px);
+  line-height: 1.46;
+}
+
+.flo-story .flo-world-book-page-no{
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--story-ink-soft);
+}
+
+.flo-story .flo-world-book--next .is-right{
+  transform-origin: left center;
+  animation: flo-page-flip-next 0.48s ease;
+}
+
+.flo-story .flo-world-book--prev .is-left{
+  transform-origin: right center;
+  animation: flo-page-flip-prev 0.48s ease;
+}
+
+@keyframes flo-page-flip-next {
+  0% { transform: perspective(860px) rotateY(-24deg); }
+  100% { transform: perspective(860px) rotateY(0deg); }
+}
+
+@keyframes flo-page-flip-prev {
+  0% { transform: perspective(860px) rotateY(24deg); }
+  100% { transform: perspective(860px) rotateY(0deg); }
+}
+
+@media (max-width: 991px) {
+  .flo-story .flo-worlds-shelf{
+    padding: 42px 18px 68px;
+  }
+
+  .flo-story .flo-worlds-head{
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .flo-story .flo-worlds-head h2{
+    font-size: clamp(40px, 11vw, 68px);
+  }
+
+  .flo-story .flo-world-card{
+    flex-basis: 82vw;
+  }
+
+  .flo-story .flo-world-preview-head{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .flo-story .flo-world-book-row{
+    grid-template-columns: 1fr;
+  }
+
+  .flo-story .flo-world-book-nav{
+    width: 100%;
+    border-radius: 10px;
+    height: 38px;
+  }
+
+  .flo-story .flo-world-book{
+    grid-template-columns: 1fr;
+  }
+
+  .flo-story .flo-world-book-page.is-left{
+    border-right: none;
+    border-bottom: 1px solid rgba(31, 42, 68, 0.12);
+  }
+}
