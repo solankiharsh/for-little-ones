@@ -3,20 +3,27 @@ import "./story.css";
 import { PersonalizationProvider } from "./personalization";
 import { useStoryMotion, scrollToStory } from "./useStoryMotion";
 import Opening from "./Opening";
-import { STORY_WORLDS } from "./Worlds";
+import Hero from "./Hero";
+import EnterBook from "./EnterBook";
+import Idea from "./Idea";
+import Character from "./Character";
+import Worlds from "./Worlds";
+import Personalise from "./Personalise";
+import Generation from "./Generation";
+import Reader from "./Reader";
+import Emotion from "./Emotion";
+import HumanProof from "./HumanProof";
+import Keepsake from "./Keepsake";
 import { FinalCta, StoryFooter } from "./Closing";
 import ProgressRail from "./ProgressRail";
 
-/**
- * Custom event the site listens on so the story journey can hand the visitor
- * back to the creation flow. Exported from here because App owns the listener.
- */
+/** Event bridge into the existing creation flow without restructuring Site. */
 export const FLO_CREATE_EVENT = "flo:create-book";
 
 /**
- * Vertical stack of storybooks — one book per world.
- * Each book is a standalone section with hero image + content panel.
- * Users scroll vertically from one book to the next.
+ * The continuous story (§22): reality → imagination → book → keepsake.
+ * Heavy scrub choreography mounts only when `full` (desktop, motion OK);
+ * otherwise every section renders in its resting state with full function.
  */
 export default function StoryExperience({ onCreate, target }: { onCreate: () => void; target?: string | null }) {
   const { reduced, full } = useStoryMotion();
@@ -37,41 +44,22 @@ export default function StoryExperience({ onCreate, target }: { onCreate: () => 
   return (
     <PersonalizationProvider>
       <div className={`flo-story${reduced ? " is-reduced" : ""}${full ? "" : " is-simple"}`}>
-        <Opening />
+        <Opening onBegin={() => scrollToStory("story-hero", reduced)} />
         <ProgressRail />
         <main aria-label="For Little One — a story in one scroll">
-          <section className="story-stack">
-            {STORY_WORLDS.map((world) => (
-              <article key={world.id} className="book-section">
-                <div className="book-hero">
-                  <img
-                    src={world.image.src}
-                    width={world.image.width}
-                    height={world.image.height}
-                    alt={world.image.alt}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-                <div className="book-body">
-                  <p className="book-eyebrow">{world.blurb}</p>
-                  <h2 className="book-title">{world.title}</h2>
-                  <p className="book-summary">
-                    A personal adventure woven around the things {world.title.toLowerCase()} loves.
-                  </p>
-                  <a
-                    className="book-cta"
-                    href="#"
-                    aria-label={`Read ${world.title}`
-                  }>
-                    Read a few pages
-                  </a>
-                </div>
-              </article>
-            ))}
-          </section>
+          <Hero active={full} />
+          <EnterBook active={full} />
+          <Idea active={full} />
+          <Character />
+          <Worlds active={full} />
+          <Personalise />
+          <Generation />
+          <Reader />
+          <Emotion />
+          <HumanProof />
+          <Keepsake active={full} />
+          <FinalCta onCreate={onCreate} />
         </main>
-        <FinalCta onCreate={onCreate} />
         <StoryFooter />
       </div>
     </PersonalizationProvider>

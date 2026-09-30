@@ -3,6 +3,9 @@ import { useReducedMotion } from "motion/react";
 import Lenis from "lenis";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+// Required by Lenis: without these the wrapper has no height for Lenis to
+// animate and the wheel is swallowed, leaving the page unscrollable.
+import "lenis/dist/lenis.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
