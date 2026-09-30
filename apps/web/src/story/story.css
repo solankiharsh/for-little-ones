@@ -1,74 +1,358 @@
-/* For Little One — storybook stack: vertical column of illustrated books. */
+/* For Little One — the continuous story (§2 visual language). */
 
-.story-stack {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(48px, 8vw, 96px);
-  padding: clamp(24px, 4vw, 56px);
+.flo-story{
+  --story-paper: #f6f0e2;
+  --story-paper-deep: #ece2cc;
+  --story-ink: #1f2a44;
+  --story-ink-soft: #5a6378;
+  --story-rose: #c08a94;
+  --story-sage: #7d9b76;
+  --story-gold: #c9a15a;
+  --story-night: #141b33;
+  --story-line: #d9cbae;
+  --story-display: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --story-book: "Palatino Linotype", Palatino, Georgia, serif;
+  --story-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--story-paper);
+  color: var(--story-ink);
+  font-family: var(--story-ui);
+  overflow: clip;
 }
 
-.book-section {
-  background: #f6f0e6;
-  border-radius: 28px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.14);
-}
-
-.book-hero {
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background: #0f1d46;
-}
-
-.book-hero img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.book-body {
-  padding: clamp(24px, 4vw, 48px);
-  color: #1f2430;
-}
-
-.book-eyebrow {
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #8a6b3d;
-  margin-bottom: 12px;
-}
-
-.book-title {
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 4.5rem);
-  line-height: 0.95;
-  margin: 0 0 16px;
-}
-
-.book-summary {
-  max-width: 56ch;
-  font-size: 1.05rem;
-  line-height: 1.7;
-  color: rgba(31, 36, 48, 0.85);
-}
-
-.book-cta {
-  display: inline-flex;
-  margin-top: 24px;
-  font-weight: 500;
-  text-decoration: none;
-  color: #1f2430;
-}
-
-/* — eyebrow / kicker variant — */
-.book-kicker {
-  font-family: var(--font-family-body);
+.flo-story .flo-kicker{
   font-size: 12px;
-  font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #8a6b3d;
-  margin-bottom: 12px;
+  color: var(--story-rose);
+}
+
+.flo-story h1, .flo-story h2{
+  font-family: var(--story-display);
+  font-weight: 400;
+  line-height: 1.08;
+  margin: 12px 0 16px;
+}
+
+.flo-story .flo-screen{
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* — opening: the book covers the viewport, then opens (§3) — */
+.flo-story .flo-opening{ position: relative; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; text-align: center; padding: 24px; }
+.flo-story .flo-opening-half{ position: fixed; inset: 0 auto 0 0; width: 50.5%; z-index: 60; display: grid; place-items: center; background: var(--story-night); color: var(--story-paper); transition: transform 1.6s cubic-bezier(0.7, 0, 0.2, 1); overflow: hidden; }
+.flo-story .flo-opening-right{ inset: 0 0 0 auto; }
+.flo-story .flo-opening-half span{ font-family: var(--story-display); font-size: clamp(28px, 6vw, 72px); display: flex; align-items: center; gap: 12px; }
+.flo-story .flo-opening.is-open .flo-opening-left{ transform: translateX(-102%); }
+.flo-story .flo-opening.is-open .flo-opening-right{ transform: translateX(102%); }
+.flo-story .flo-opening.is-open .flo-opening-half{ pointer-events: none; }
+.flo-story .flo-opening.is-short .flo-opening-half{ transition-duration: 0.7s; }
+.flo-story .flo-opening-cover h1{ font-size: clamp(52px, 11vw, 132px); margin: 8px 0 12px; }
+.flo-story .flo-opening-cover p{ color: var(--story-ink-soft); font-size: 18px; }
+.flo-story .flo-opening-cover .flo-btn{ margin-top: 26px; }
+
+/* — emblem + rail (§15) — */
+.flo-story .flo-emblem{ width: 26px; height: 26px; color: var(--story-gold); }
+.flo-story .flo-rail{ position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.flo-story .flo-rail ol{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.flo-story .flo-rail li{ font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--story-ink-soft); opacity: 0.55; }
+.flo-story .flo-rail li.is-here{ opacity: 1; color: var(--story-ink); font-weight: 700; }
+.flo-story .flo-rail-emblem{ animation: flo-emblem-spin 24s linear infinite; }
+@keyframes flo-emblem-spin { to { transform: rotate(360deg); } }
+
+/* — hero transformation (§4) — */
+.flo-story .flo-hero-story{ position: relative; height: 320vh; }
+.flo-story .flo-hero-story .flo-screen{ align-items: center; }
+.flo-story .flo-hero-frame{ position: relative; width: min(1060px, 92vw); height: 82vh; overflow: hidden; border-radius: 24px; }
+.flo-story .flo-hero-daylight{ position: absolute; inset: 0; background: linear-gradient(180deg, #f3e8d2 0%, #e7d3ac 62%, #d9bd8a 100%); }
+.flo-story .flo-hero-night{ position: absolute; inset: 0; background: var(--story-night); opacity: 0; overflow: hidden; }
+.flo-story .flo-hero-night .flo-moon{ position: absolute; top: 8%; right: 10%; width: 130px; }
+.flo-story .flo-drift{ position: absolute; border-radius: 50%; background: var(--story-gold); opacity: 0.5; }
+.flo-story .flo-drift-a{ width: 220px; height: 220px; left: -70px; bottom: -60px; opacity: 0.28; }
+.flo-story .flo-drift-b{ width: 90px; height: 90px; left: 18%; top: 12%; opacity: 0.35; }
+.flo-story .flo-drift-c{ width: 44px; height: 44px; right: 22%; bottom: 18%; opacity: 0.4; }
+.flo-story .flo-hero-centre{ position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 24px; }
+.flo-story .flo-hero-eyebrow{ color: var(--story-ink-soft); letter-spacing: 0.2em; text-transform: uppercase; font-size: 12px; }
+.flo-story .flo-hero-night ~ .flo-hero-centre .flo-hero-eyebrow, .flo-story .flo-hero-ink p{ color: var(--story-paper); }
+.flo-story .flo-hero-medallion{ position: relative; display: grid; place-items: center; border-radius: 50%; background: var(--story-paper); border: 5px solid var(--story-gold); overflow: visible; }
+.flo-story .flo-hero-medallion img{ width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.flo-story .flo-hero-initial{ font-family: var(--story-display); font-size: 64px; color: var(--story-ink); }
+.flo-story .flo-hero-spark{ position: absolute; right: -12px; top: -12px; width: 34px; height: 34px; }
+.flo-story .flo-hero-ink p{ font-family: var(--story-display); font-size: clamp(30px, 5vw, 54px); margin: 0; line-height: 1.15; }
+
+/* — idea (§5): paper + breath — */
+.flo-story .flo-idea{ padding: 30vh 24px; text-align: center; }
+.flo-story .flo-idea-lines{ display: flex; flex-direction: column; gap: 6px; font-size: clamp(44px, 9vw, 110px); }
+.flo-story .flo-idea-lines strong{ color: var(--story-rose); font-weight: 400; }
+
+/* — character (§6) — */
+.flo-story .flo-character{ max-width: 1080px; margin: 0 auto; padding: 16vh 24px; }
+.flo-story .flo-character h2{ font-size: clamp(36px, 6vw, 72px); }
+.flo-story .flo-character-grid{ display: grid; grid-template-columns: minmax(240px, 340px) 1fr; gap: 40px; margin-top: 28px; }
+.flo-story .flo-character-who label, .flo-story .flo-inline{ display: grid; gap: 8px; margin-bottom: 18px; font-size: 14px; font-weight: 600; }
+.flo-story .flo-character-who input, .flo-story .flo-inline input, .flo-story .flo-inline select, .flo-story .flo-character-who select{
+  font: inherit; font-weight: 400; padding: 12px 14px; border: 1px solid var(--story-line);
+  border-radius: 12px; background: #fffdf7; color: var(--story-ink); width: 100%;
+}
+.flo-story .flo-guidance{ display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.flo-story .flo-guidance span{ font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; border: 1px dashed var(--story-line); border-radius: 999px; padding: 6px 12px; color: var(--story-ink-soft); }
+.flo-story .flo-drop{ width: 100%; border: 1px dashed var(--story-rose); border-radius: 18px; background: #fffdf7; padding: 34px 20px; display: grid; gap: 6px; justify-items: center; cursor: pointer; color: var(--story-ink); font: inherit; }
+.flo-story .flo-drop small{ color: var(--story-ink-soft); }
+.flo-story .flo-thumbs{ list-style: none; display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 0; padding: 0; }
+.flo-story .flo-thumbs li{ position: relative; }
+.flo-story .flo-thumbs img{ width: 84px; height: 84px; object-fit: cover; border-radius: 14px; border: 2px solid var(--story-line); }
+.flo-story .flo-thumbs button{ position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--story-line); background: #fff; cursor: pointer; }
+.flo-story .flo-becoming{ list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0 0; padding: 0; }
+.flo-story .flo-becoming figure{ margin: 0; display: grid; gap: 8px; justify-items: center; text-align: center; }
+.flo-story .flo-becoming img{ width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px; border: 2px solid var(--story-line); }
+.flo-story .flo-becoming .flo-treated img{ filter: sepia(0.45) saturate(1.15) contrast(1.02); border-color: var(--story-gold); }
+.flo-story .flo-becoming .flo-inscene{ position: relative; }
+.flo-story .flo-becoming .flo-inscene img{ border-color: var(--story-sage); }
+.flo-story .flo-becoming .flo-inscene span{ position: absolute; top: 8px; right: 10px; color: var(--story-gold); font-size: 22px; }
+.flo-story .flo-becoming figcaption{ font-size: 13px; color: var(--story-ink-soft); }
+
+/* — worlds (§7): horizontal journey — */
+.flo-story .flo-worlds-story{ position: relative; height: 100vh; height: 100dvh; overflow: hidden; background: var(--story-night); color: var(--story-paper); }
+.flo-story .flo-worlds-story .flo-screen{ justify-content: flex-start; padding: 48px 0 0 48px; }
+.flo-story .flo-worlds-track{ display: flex; gap: 6vw; padding: 12px 8vw 0 0; width: max-content; align-items: center; height: 100%; }
+.flo-story .flo-world{ width: 72vw; max-width: 900px; flex: none; }
+.flo-story .flo-world-scene{ width: 100%; height: auto; border-radius: 20px; display: block; }
+.flo-story .flo-world-copy{ display: flex; align-items: baseline; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+.flo-story .flo-world-copy h3{ font-family: var(--story-display); font-weight: 400; font-size: clamp(30px, 4vw, 54px); margin: 0; }
+.flo-story .flo-world-copy p{ margin: 0; color: #cfd4e4; }
+.flo-story .flo-world-imagine{ color: var(--story-gold) !important; font-family: var(--story-book); font-style: italic; font-size: 18px; }
+
+/* — make it theirs (§8) — */
+.flo-story .flo-make{ position: relative; max-width: 1080px; margin: 0 auto; padding: 16vh 24px; overflow: clip; }
+.flo-story .flo-make h2{ font-size: clamp(36px, 6vw, 72px); }
+.flo-story .flo-make-grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 24px; }
+.flo-story .flo-make fieldset{ border: 1px solid var(--story-line); border-radius: 18px; padding: 22px; background: #fffdf7; margin: 0; }
+.flo-story .flo-make legend{ font-family: var(--story-display); font-size: 22px; padding: 0 10px; }
+.flo-story .flo-make-answer{ font-family: var(--story-book); font-style: italic; font-size: 20px; color: var(--story-rose); margin: 0 0 12px; }
+.flo-story .flo-chips{ display: flex; flex-wrap: wrap; gap: 8px; }
+.flo-story .flo-chips button{ border: 1px solid var(--story-line); background: transparent; border-radius: 999px; padding: 9px 16px; font: inherit; cursor: pointer; color: var(--story-ink); }
+.flo-story .flo-chips button[aria-pressed="true"]{ background: var(--story-ink); border-color: var(--story-ink); color: var(--story-paper); }
+.flo-story .flo-make-scene{ position: absolute; inset: auto 0 0; height: 220px; pointer-events: none; color: var(--story-sage); }
+.flo-story .flo-make-hills{ position: absolute; inset: auto -10% 0; height: 130px; background: var(--story-sage); opacity: 0.22; border-radius: 50% 50% 0 0; }
+.flo-story .flo-make-dino, .flo-story .flo-make-pet{ position: absolute; bottom: 40px; opacity: 0; transform: translateX(-30px); transition: opacity 0.8s ease, transform 1.2s ease; }
+.flo-story .flo-make-dino{ left: 6%; }
+.flo-story .flo-make-pet{ left: 20%; color: var(--story-rose); }
+.flo-story .flo-make-scene.has-dino .flo-make-dino, .flo-story .flo-make-scene.has-pet .flo-make-pet{ opacity: 1; transform: translateX(0); }
+.flo-story .flo-sprite{ width: 110px; height: auto; }
+
+/* — generation (§9) — */
+.flo-story .flo-generate{ position: relative; min-height: 100vh; min-height: 100dvh; }
+.flo-story .flo-generate-states{ text-align: center; display: grid; gap: 14px; justify-items: center; padding: 24px; }
+.flo-story .flo-generate-states p{ font-family: var(--story-book); font-style: italic; font-size: clamp(24px, 4vw, 40px); margin: 0; }
+.flo-story .flo-generate-states small{ color: var(--story-ink-soft); }
+.flo-story .flo-generate-emblem{ width: 44px; height: 44px; color: var(--story-gold); animation: flo-emblem-spin 8s linear infinite; }
+.flo-story .flo-generate-cover{ text-align: center; padding: 24px; }
+.flo-story .flo-generate-cover h2{ font-size: clamp(34px, 6vw, 68px); }
+.flo-story .flo-book-cover{ max-width: 420px; margin: 30px auto 0; padding: 54px 30px; background: #ece6d5; border: 1px solid var(--story-line); border-radius: 6px 20px 20px 6px; display: grid; gap: 10px; }
+.flo-story .flo-book-cover strong{ font-family: var(--story-display); font-weight: 400; font-size: 34px; }
+.flo-story .flo-book-cover span{ font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--story-ink-soft); }
+
+/* — reader (§10) reuses StoryReader; frame it like an oversized book — */
+.flo-story .flo-read{ max-width: 1060px; margin: 0 auto; padding: 12vh 24px 16vh; }
+.flo-story .flo-read .flo-story-preview{ background: #fffdf7; border: 1px solid var(--story-line); border-radius: 22px; padding: clamp(20px, 4vw, 48px); }
+
+/* — emotion (§11): near-static — */
+.flo-story .flo-emotion{ max-width: 760px; margin: 0 auto; padding: 26vh 24px; text-align: center; }
+.flo-story .flo-emotion p{ font-family: var(--story-display); font-size: clamp(30px, 5vw, 56px); line-height: 1.25; margin: 10px 0; }
+.flo-story .flo-emotion-pause{ color: var(--story-gold); letter-spacing: 0.5em; }
+.flo-story .flo-emotion-keep{ color: var(--story-rose); }
+
+/* — keepsake (§12): flat to physical — */
+.flo-story .flo-keepsake{ background: #efe6d0; padding: 12vh 0; }
+.flo-story .flo-keepsake-object{ max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; padding: 0 24px; }
+.flo-story .flo-book-3d{ display: flex; perspective: 1200px; }
+.flo-story .flo-book-spine{ width: 26px; background: #8a6f4d; border-radius: 6px 0 0 6px; }
+.flo-story .flo-book-front{ flex: 1; background: #f7efdc; border: 1px solid var(--story-line); border-radius: 4px 16px 16px 4px; padding: 60px 34px; display: grid; gap: 12px; transform: rotateY(-14deg); box-shadow: 30px 30px 60px rgba(31, 42, 68, 0.22); }
+.flo-story .flo-book-front strong{ font-family: var(--story-display); font-weight: 400; font-size: 38px; }
+.flo-story .flo-book-front small, .flo-story .flo-book-front em{ color: var(--story-ink-soft); font-style: normal; }
+.flo-story .flo-book-front small{ font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; }
+.flo-story .flo-keepsake-facts{ list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; font-size: 18px; }
+.flo-story .flo-keepsake-facts li::before{ content: "✦ "; color: var(--story-gold); }
+
+/* — final + footer close (§13–14) — */
+.flo-story .flo-final{ text-align: center; padding: 20vh 24px 16vh; background: var(--story-paper); }
+.flo-story .flo-final h2{ font-size: clamp(40px, 8vw, 96px); }
+.flo-story .flo-book-closing{ margin: 0 auto 30px; width: min(300px, 70vw); padding: 46px 20px; background: var(--story-night); color: var(--story-paper); border-radius: 4px 14px 14px 4px; font-family: var(--story-display); font-size: 24px; }
+.flo-story .flo-final-actions{ display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+.flo-story-foot{ background: var(--story-night); color: #c9cfe3; text-align: center; padding: 90px 24px 60px; clip-path: inset(6% 4% 0 4% round 24px 24px 0 0); }
+.flo-story-foot nav{ display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 34px; }
+.flo-story-foot a{ color: inherit; }
+.flo-story-foot-brand{ font-family: var(--story-display); font-size: 34px; color: var(--story-paper); margin: 0 0 8px; }
+
+/* — reduced motion + simple mode (§17, §21) — */
+.flo-story.is-reduced .flo-opening-half{ display: none; }
+.flo-story.is-reduced .flo-hero-night{ opacity: 1; }
+.flo-story.is-reduced .flo-hero-daylight, .flo-story.is-reduced .flo-rail{ display: none; }
+.flo-story.is-reduced .flo-generate-emblem, .flo-story.is-reduced .flo-rail-emblem{ animation: none; }
+.flo-story.is-simple .flo-hero-story{ height: auto; }
+.flo-story.is-simple .flo-hero-story .flo-screen{ position: static; height: auto; padding: 60px 0; }
+.flo-story.is-simple .flo-hero-night{ opacity: 1; }
+.flo-story.is-simple .flo-hero-ink{ opacity: 1 !important; transform: none !important; }
+.flo-story.is-simple .flo-worlds-story{ height: auto; }
+.flo-story.is-simple .flo-worlds-story .flo-screen{ position: static; height: auto; }
+.flo-story.is-simple .flo-worlds-track{ width: auto; flex-direction: column; padding: 0 24px 40px; }
+.flo-story.is-simple .flo-world{ width: 100%; max-width: 640px; }
+
+@media (max-width: 991px) {
+.flo-story .flo-rail{ display: none; }
+.flo-story .flo-character-grid, .flo-story .flo-make-grid, .flo-story .flo-keepsake-object{ grid-template-columns: 1fr; }
+.flo-story .flo-world{ width: 84vw; }
+.flo-story .flo-opening-half span{ font-size: 30px; }
+}
+
+/* — §2 editorial pass: imagery first, chrome recedes — */
+
+.flo-story h2{ font-size: clamp(48px, 7.5vw, 124px); }
+.flo-story section{ position: relative; }
+
+/* hero: full-bleed photograph, copy low-left in negative space */
+.flo-story .flo-hero-story{ height: 320vh; }
+.flo-story .flo-hero-frame{ width: 100%; max-width: none; height: 100vh; height: 100dvh; border-radius: 0; }
+.flo-story .flo-hero-photo{ width: 112%; height: 112%; object-fit: cover; display: block; }
+.flo-story .flo-hero-scrim{ position: absolute; inset: auto 0 0; height: 46%; background: linear-gradient(transparent, rgba(10, 14, 28, 0.55)); }
+.flo-story .flo-hero-headline{ position: absolute; left: 6vw; bottom: 9vh; margin: 0; text-align: left; color: #f6f0e2; font-size: clamp(48px, 8vw, 132px); line-height: 1.02; }
+.flo-story .flo-hero-headline span{ display: block; }
+.flo-story .flo-hero-headline strong{ font-weight: 400; color: var(--story-gold); }
+.flo-story .flo-hero-final{ position: absolute; left: 6vw; bottom: 9vh; }
+.flo-story .flo-hero-final p{ font-family: var(--story-display); font-size: clamp(40px, 6vw, 96px); line-height: 1.05; color: #f6f0e2; opacity: 0; }
+.flo-hero-centre, .flo-hero-daylight, .flo-hero-night, .flo-hero-medallion, .flo-hero-eyebrow, .flo-hero-ink,
+.flo-story .flo-hero-frame .flo-moon, .flo-story .flo-drift{ display: none; }
+.flo-story.is-reduced .flo-hero-final p, .flo-story.is-simple .flo-hero-final p{ opacity: 1; }
+.flo-story.is-reduced .flo-hero-headline, .flo-story.is-simple .flo-hero-headline{ display: none; }
+
+/* enter-book interstitial */
+.flo-story .flo-enter{ position: relative; height: 160vh; overflow: clip; background: var(--story-night); }
+.flo-story .flo-enter-photo{ position: sticky; top: -10vh; width: 100%; height: 120vh; object-fit: cover; display: block; }
+.flo-story .flo-enter-copy{ position: sticky; bottom: 12vh; margin: -40vh auto 0; max-width: 900px; padding: 0 24px; color: #f6f0e2; font-family: var(--story-display); font-size: clamp(34px, 5vw, 72px); line-height: 1.2; white-space: pre-line; }
+.flo-story.is-reduced .flo-enter, .flo-story.is-simple .flo-enter{ height: auto; }
+.flo-story.is-reduced .flo-enter-photo, .flo-story.is-simple .flo-enter-photo{ position: static; height: 70vh; }
+
+/* idea: paper whisper behind */
+.flo-story .flo-idea{ overflow: clip; }
+.flo-story .flo-idea-paper{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
+.flo-story .flo-idea-lines{ position: relative; }
+
+/* character: 40/60 editorial, underline fields, photo tray */
+.flo-story .flo-character{ max-width: 1280px; display: grid; grid-template-columns: 38% 1fr; gap: clamp(24px, 5vw, 90px); align-items: start; }
+.flo-story .flo-character h2{ font-size: clamp(44px, 5.5vw, 92px); }
+.flo-story .flo-line-field{ display: grid; gap: 6px; margin: 22px 0; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--story-ink-soft); font-weight: 600; }
+.flo-story .flo-line-field input, .flo-story .flo-line-field select{ border: none; border-bottom: 1px solid var(--story-ink); background: transparent; border-radius: 0; padding: 10px 2px; font-family: var(--story-display); font-size: 26px; color: var(--story-ink); width: 100%; }
+.flo-story .flo-line-field input:focus, .flo-story .flo-line-field select:focus{ outline: none; border-bottom-color: var(--story-rose); }
+.flo-story .flo-text-action{ background: none; border: none; padding: 0; font: inherit; font-size: 17px; color: var(--story-ink); border-bottom: 1px solid var(--story-ink); cursor: pointer; }
+.flo-story .flo-photo-note{ font-size: 13px; color: var(--story-ink-soft); margin: 14px 0 0; }
+.flo-story .flo-tray{ list-style: none; display: flex; gap: 10px; margin: 16px 0 0; padding: 0; }
+.flo-story .flo-tray img{ width: 72px; height: 72px; object-fit: cover; }
+.flo-story .flo-tray li{ position: relative; }
+.flo-story .flo-tray button{ position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: none; background: var(--story-ink); color: var(--story-paper); cursor: pointer; }
+.flo-story .flo-becoming{ list-style: none; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin: 0; padding: 0; }
+.flo-story .flo-becoming img{ width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+.flo-story .flo-becoming p{ margin: 12px 0 0; display: grid; gap: 2px; }
+.flo-story .flo-becoming strong{ font-family: var(--story-display); font-weight: 400; font-size: 21px; }
+.flo-story .flo-becoming span{ font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--story-ink-soft); }
+
+/* worlds: 80-90vw landscape panels, overlay copy, text action */
+.flo-story .flo-worlds-story .flo-screen{ padding: 0; justify-content: center; }
+.flo-story .flo-worlds-story .flo-kicker{ position: absolute; top: 40px; left: 48px; z-index: 2; color: #cfd4e4; }
+.flo-story .flo-world{ width: 84vw; max-width: 1180px; }
+.flo-story .flo-world-frame{ position: relative; }
+.flo-story .flo-world-photo{ width: 100%; height: min(62vh, 620px); object-fit: cover; display: block; }
+.flo-story .flo-world-copy{ position: absolute; left: 0; bottom: -8px; transform: translateY(100%); padding-top: 14px; display: grid; gap: 4px; }
+.flo-story .flo-world-copy .flo-kicker{ position: static; color: var(--story-gold); }
+.flo-story .flo-world-title{ font-family: var(--story-display); font-weight: 400; font-size: clamp(30px, 4vw, 58px); margin: 0; color: #f6f0e2; }
+.flo-story .flo-world-copy p{ margin: 0; color: #cfd4e4; }
+.flo-story .flo-world-imagine{ color: var(--story-gold); font-family: var(--story-book); font-style: italic; font-size: 18px; }
+.flo-story .flo-world-choose{ background: none; border: none; padding: 6px 0; font: inherit; font-size: 16px; color: #f6f0e2; border-bottom: 1px solid #f6f0e2; cursor: pointer; justify-self: start; }
+.flo-story .flo-world.is-chosen .flo-world-choose{ color: var(--story-gold); border-bottom-color: var(--story-gold); }
+
+/* make: calm questions, typeset choices, borrowed world backdrop */
+.flo-story .flo-make{ max-width: 860px; }
+.flo-story .flo-make h2{ font-size: clamp(44px, 6vw, 96px); }
+.flo-story .flo-make-world{ position: absolute; inset: 0; overflow: hidden; }
+.flo-story .flo-make-world img{ width: 100%; height: 100%; object-fit: cover; opacity: 0.12; filter: blur(18px); transform: scale(1.15); }
+.flo-story .flo-make-questions{ position: relative; display: grid; gap: clamp(48px, 8vh, 110px); margin-top: 40px; }
+.flo-story .flo-make-questions section{ display: grid; gap: 16px; }
+.flo-story .flo-make-questions h3{ font-family: var(--story-display); font-weight: 400; font-size: clamp(26px, 3.4vw, 44px); margin: 0; }
+.flo-story .flo-make-answer{ font-family: var(--story-book); font-style: italic; font-size: 20px; color: var(--story-rose); margin: 0; }
+.flo-story .flo-choices{ display: flex; flex-wrap: wrap; gap: 4px 22px; }
+.flo-story .flo-choices button{ background: none; border: none; padding: 6px 0; font-family: var(--story-display); font-size: clamp(19px, 2.4vw, 28px); color: var(--story-ink-soft); cursor: pointer; border-bottom: 1px solid transparent; }
+.flo-story .flo-choices button[aria-pressed="true"]{ color: var(--story-ink); border-bottom-color: var(--story-ink); }
+
+/* generation: image-led states then cover */
+.flo-story .flo-generate{ min-height: 100vh; min-height: 100dvh; display: grid; align-items: end; overflow: clip; background: var(--story-night); }
+.flo-story .flo-generate-image{ position: absolute; inset: 0; }
+.flo-story .flo-generate-image img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+.flo-story .flo-generate-states{ position: relative; padding: 0 24px 12vh; text-align: left; max-width: 900px; }
+.flo-story .flo-generate-states p{ font-family: var(--story-book); font-style: italic; font-size: clamp(26px, 4vw, 46px); color: #f6f0e2; margin: 0; }
+.flo-story .flo-generate-cover{ position: relative; padding: 0 24px 12vh; max-width: 900px; }
+.flo-story .flo-generate-cover .flo-kicker{ color: var(--story-gold); }
+.flo-story .flo-generate-cover h2{ color: #f6f0e2; margin: 10px 0; }
+.flo-story .flo-generate-title{ color: var(--story-gold); font-family: var(--story-book); font-style: italic; font-size: clamp(19px, 2.6vw, 30px); }
+
+/* reader: spreads first, reader chrome reduced to nothing */
+.flo-story .flo-read{ max-width: none; padding: 0; }
+.flo-story .flo-read-spread img{ width: 100%; height: auto; display: block; }
+.flo-story .flo-read .flo-story-preview{ background: transparent; border: none; border-radius: 0; max-width: 1060px; margin: 0 auto; padding: clamp(20px, 4vw, 48px) 24px 12vh; }
+.flo-story .flo-read .flo-reader-tabs [role="tab"]{ border-radius: 0; background: transparent; border: none; border-bottom: 1px solid var(--story-line); font-family: var(--story-display); font-size: 19px; }
+.flo-story .flo-read .flo-reader-tabs [role="tab"][aria-selected="true"]{ background: transparent; color: var(--story-ink); border-bottom-color: var(--story-ink); }
+.flo-story .flo-read .flo-reader-page{ border: none; background: transparent; padding-left: 0; padding-right: 0; }
+
+/* proof: magazine asymmetry */
+.flo-story .flo-proof{ max-width: 1280px; margin: 0 auto; padding: 14vh 24px; display: grid; grid-template-columns: 1.25fr 1fr; gap: clamp(20px, 4vw, 64px); align-items: start; }
+.flo-story .flo-proof figure{ margin: 0; }
+.flo-story .flo-proof img{ width: 100%; height: auto; display: block; }
+.flo-story .flo-proof-large img{ aspect-ratio: 3/4; object-fit: cover; }
+.flo-story .flo-proof-side{ display: grid; gap: clamp(20px, 4vw, 56px); padding-top: 12vh; }
+.flo-story .flo-proof-side img{ aspect-ratio: 4/5; object-fit: cover; }
+.flo-story .flo-proof-side figure:last-child{ margin-left: clamp(0px, 5vw, 70px); }
+.flo-story .flo-proof figcaption{ margin-top: 10px; font-family: var(--story-book); font-style: italic; font-size: 17px; color: var(--story-ink-soft); }
+
+/* keepsake: sticky crossfade frames */
+.flo-story .flo-keepsake{ background: #10162c; padding: 0; }
+.flo-story .flo-keepsake .flo-screen{ align-items: center; }
+.flo-story .flo-keep-digital, .flo-story .flo-keep-physical, .flo-story .flo-keep-open{ grid-area: 1 / 1; width: min(1020px, 92vw); }
+.flo-story .flo-keepsake .flo-screen{ display: grid; }
+.flo-story .flo-keep-digital img, .flo-story .flo-keep-physical > img, .flo-story .flo-keep-open img{ width: 100%; height: 76vh; object-fit: cover; display: block; }
+.flo-story .flo-keep-physical{ display: grid; grid-template-columns: 1fr minmax(220px, 300px); gap: 32px; align-items: end; }
+.flo-story .flo-keep-physical aside{ color: #c9cfe3; }
+.flo-story .flo-keep-physical h3{ font-family: var(--story-display); font-weight: 400; font-size: clamp(26px, 3vw, 44px); color: #f6f0e2; margin: 0 0 14px; }
+.flo-story .flo-keep-physical ul{ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; }
+.flo-story.is-reduced .flo-keep-digital, .flo-story.is-simple .flo-keep-digital{ display: none; }
+.flo-story.is-reduced .flo-keep-physical, .flo-story.is-simple .flo-keep-physical,
+.flo-story.is-reduced .flo-keep-open, .flo-story.is-simple .flo-keep-open{ opacity: 1 !important; transform: none !important; }
+.flo-story.is-simple .flo-keepsake .flo-screen{ display: flex; flex-direction: column; gap: 32px; height: auto; padding: 60px 24px; }
+.flo-story.is-simple .flo-keep-digital, .flo-story.is-simple .flo-keep-physical, .flo-story.is-simple .flo-keep-open{ width: 100%; }
+
+/* final: night photograph, copy low-left */
+.flo-story .flo-final{ position: relative; min-height: 100vh; min-height: 100dvh; display: flex; align-items: flex-end; padding: 0; text-align: left; background: var(--story-night); }
+.flo-story .flo-final-photo{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.flo-story .flo-final-copy{ position: relative; padding: 0 24px 12vh 6vw; max-width: 900px; }
+.flo-story .flo-final-copy h2{ color: #f6f0e2; margin: 0 0 22px; }
+.flo-story .flo-final-action{ background: none; border: none; padding: 0 0 6px; font-family: var(--story-display); font-size: clamp(24px, 3.4vw, 44px); color: var(--story-gold); border-bottom: 1px solid var(--story-gold); cursor: pointer; display: block; margin-bottom: 14px; text-align: left; }
+.flo-story .flo-final-secondary{ color: #c9cfe3; font-size: 15px; }
+.flo-story-foot{ clip-path: none; }
+
+/* retire the CSS-built product objects (story scope only — CreationFlow keeps its own) */
+.flo-story .flo-book-3d, .flo-story .flo-book-front, .flo-story .flo-book-spine, .flo-story .flo-book-cover,
+.flo-story .flo-create-cover, .flo-story .flo-create-placeholder, .flo-story .flo-make-scene, .flo-story .flo-sprite{ display: none; }
+
+@media (max-width: 991px) {
+.flo-story .flo-character{ grid-template-columns: 1fr; }
+.flo-story .flo-becoming{ grid-template-columns: 1fr 1fr 1fr; }
+.flo-story .flo-proof{ grid-template-columns: 1fr; }
+.flo-story .flo-proof-side{ padding-top: 0; }
+.flo-story .flo-keep-physical{ grid-template-columns: 1fr; }
+.flo-story .flo-world{ width: 86vw; }
+.flo-story .flo-world-copy{ position: static; transform: none; padding-top: 12px; }
+.flo-story .flo-world-title{ color: var(--story-paper); }
 }
