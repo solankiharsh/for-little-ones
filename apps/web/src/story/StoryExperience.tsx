@@ -16,6 +16,7 @@ import HumanProof from "./HumanProof";
 import Keepsake from "./Keepsake";
 import { FinalCta, StoryFooter } from "./Closing";
 import ProgressRail from "./ProgressRail";
+import { ASSETS } from "./assets";
 
 /** Event bridge into the existing creation flow without restructuring Site. */
 export const FLO_CREATE_EVENT = "flo:create-book";
@@ -27,6 +28,24 @@ export const FLO_CREATE_EVENT = "flo:create-book";
  */
 export default function StoryExperience({ onCreate, target }: { onCreate: () => void; target?: string | null }) {
   const { reduced, full } = useStoryMotion();
+
+  useEffect(() => {
+    const preload = [
+      ASSETS.heroRealityToStory.src,
+      ASSETS.heroEnterBook.src,
+      ASSETS.worldMoon.src,
+      ASSETS.worldGarden.src,
+      ASSETS.worldLighthouse.src
+    ];
+    const images = preload.map((src) => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+    return () => {
+      images.length = 0;
+    };
+  }, []);
 
   useEffect(() => {
     document.body.classList.add("flo-story-mode");

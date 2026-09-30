@@ -48,16 +48,17 @@ export function useStoryMotion() {
     // plain anchors, and Lenis anchor handling misparses path-like hashes.
     // In-story links navigate natively; smooth programmatic scroll goes
     // through scrollToStory below.
-    const lenis = new Lenis({ lerp: 0.11, smoothWheel: true });
+    const lenis = new Lenis({ lerp: 0.085, smoothWheel: true, wheelMultiplier: 0.9 });
     lenisInstance = lenis;
     lenis.on("scroll", ScrollTrigger.update);
+    let rafId = 0;
     const raf = (time: number) => {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      rafId = requestAnimationFrame(raf);
     };
-    const frame = requestAnimationFrame(raf);
+    rafId = requestAnimationFrame(raf);
     return () => {
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(rafId);
       lenisInstance = null;
       lenis.destroy();
       ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
