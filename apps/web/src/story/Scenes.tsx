@@ -15,4 +15,3 @@ export function Emblem({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-
