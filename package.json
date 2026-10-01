@@ -15,7 +15,8 @@
     "dev:api": "tsx apps/api/src/dev-server.ts",
     "dev:worker": "tsx apps/worker/src/dev-worker.ts",
     "start:api": "tsx apps/api/src/server.ts",
-    "start:worker": "tsx apps/worker/src/worker.ts"
+    "start:worker": "tsx apps/worker/src/worker.ts",
+    "build:vercel": "npm run build -w @for-little-ones/domain && npm run build -w @for-little-ones/providers && npm run build -w @for-little-ones/web"
   },
   "engines": {
     "node": ">=22"
@@ -29,6 +30,7 @@
     "@rolldown/binding-linux-x64-gnu": "1.2.9"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "@types/node": "^22.10.0",
     "tsx": "^4.23.15",
     "typescript": "^5.6.0",
