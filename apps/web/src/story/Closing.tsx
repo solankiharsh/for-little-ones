@@ -2,6 +2,7 @@ import { usePersonalization, requestCreation, requestSample } from "./personaliz
 import { ASSETS } from "./assets";
 import StoryImage from "./StoryImage";
 import { SAMPLE_TITLE } from "./samples";
+import { STORY_WORLDS } from "./Worlds";
 
 /**
  * Final CTA (§M): full-bleed night — book on the bedside table, large negative
@@ -14,11 +15,9 @@ export function FinalCta() {
   function createBook() {
     const hasDetails = Boolean(
       personal.childName.trim() || personal.childAge || personal.interests.length ||
-      personal.detail.trim() || personal.dedication.trim() || personal.selectedWorld || personal.photos.length
+      personal.detail.trim() || personal.dedication.trim() || personal.selectedWorld || personal.photos.length || personal.companions.length
     );
-    const world = personal.selectedWorld === null || personal.selectedWorld === "moon" ? "Bedtime wonder"
-      : personal.selectedWorld === "garden" || personal.selectedWorld === "dinosaurs" ? "Small adventures"
-      : "Big imagination";
+    const world = STORY_WORLDS.find((entry) => entry.id === personal.selectedWorld)?.title ?? STORY_WORLDS[0]!.title;
     requestCreation({
       localPhotoCount: personal.photos.length,
       ...(hasDetails ? {
@@ -26,6 +25,7 @@ export function FinalCta() {
           childName: personal.childName.trim(),
           age: personal.childAge,
           world,
+          companions: personal.companions,
           favourites: personal.interests,
           detail: personal.detail.trim(),
           dedication: personal.dedication.trim()
@@ -40,7 +40,7 @@ export function FinalCta() {
       <div className="flo-final-copy">
         <h2>Their story<br />is waiting.</h2>
         <button type="button" className="flo-final-action" onClick={createBook}>
-          {hasRealChild && generated ? `Continue ${heroName}’s story →` : "Create their book →"}
+          {hasRealChild && generated ? `Create ${heroName}’s book →` : "Create their book →"}
         </button>
         <button type="button" className="flo-final-secondary" onClick={() => requestSample(SAMPLE_TITLE)}>See an example</button>
       </div>

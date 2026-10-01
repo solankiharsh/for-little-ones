@@ -5,6 +5,7 @@ export interface CreationDraftRecord {
   childName: string;
   age: string;
   world: string;
+  companions: string[];
   favourites: string[];
   detail: string;
   dedication: string;
@@ -23,11 +24,13 @@ export function parseCreationDraft(value: unknown): CreationDraftRecord | null {
   if (typeof draft.childName !== "string" || !draft.childName.trim() || draft.childName.length > 40) return null;
   if (typeof draft.age !== "string" || !/^(?:[1-9]|1[0-2])$/.test(draft.age)) return null;
   if (typeof draft.world !== "string" || !draft.world.trim() || draft.world.length > 80) return null;
+  if (draft.companions !== undefined && (!Array.isArray(draft.companions) || draft.companions.length > 5 || !draft.companions.every((item) => typeof item === "string" && item.trim().length > 0 && item.length <= 40))) return null;
   if (!Array.isArray(draft.favourites) || draft.favourites.length > 8 || !draft.favourites.every((item) => typeof item === "string" && item.length <= 40)) return null;
   if (typeof draft.detail !== "string" || draft.detail.length > 120) return null;
   if (typeof draft.dedication !== "string" || draft.dedication.length > 150) return null;
   return {
     childName: draft.childName.trim(), age: draft.age, world: draft.world.trim(),
+    companions: Array.isArray(draft.companions) ? draft.companions.map((item) => item.trim()) : [],
     favourites: draft.favourites, detail: draft.detail.trim(), dedication: draft.dedication.trim()
   };
 }

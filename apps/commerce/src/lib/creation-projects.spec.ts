@@ -10,7 +10,7 @@ import {
 describe("creation project boundary", () => {
   it("accepts a bounded draft and normalises customer text", () => {
     expect(parseCreationDraft({ childName: " Milo ", age: "6", world: " Space ", favourites: ["Stars"], detail: " scarf ", dedication: " hello " })).toEqual({
-      childName: "Milo", age: "6", world: "Space", favourites: ["Stars"], detail: "scarf", dedication: "hello"
+      childName: "Milo", age: "6", world: "Space", companions: [], favourites: ["Stars"], detail: "scarf", dedication: "hello"
     });
     expect(parseCreationDraft({ childName: "", age: "99" })).toBeNull();
   });

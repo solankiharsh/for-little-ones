@@ -1,8 +1,7 @@
 import { ASSETS } from "./assets";
 import { STORY_WORLDS } from "./Worlds";
-import { usePersonalization } from "./personalization";
+import { STORY_COMPANIONS, usePersonalization } from "./personalization";
 
-const COMPANIONS = ["Sibling", "Mum", "Dad", "Friend", "Pet"];
 const INTERESTS = ["Dinosaurs", "Space", "Animals", "Magic", "Cars", "The sea"];
 
 /**
@@ -41,7 +40,7 @@ export default function Personalise() {
         <section aria-label="Who joins the adventure">
           <h3>Who joins the adventure?</h3>
           <div className="flo-choices" role="group" aria-label="Companions">
-            {COMPANIONS.map((option) => (
+            {STORY_COMPANIONS.map((option) => (
               <button key={option} type="button" aria-pressed={personal.companions.includes(option)} onClick={() => personal.toggleCompanion(option)}>{option}</button>
             ))}
           </div>

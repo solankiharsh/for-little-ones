@@ -7,13 +7,13 @@ const DraftSchema = z.strictObject({
   childName: z.string().trim().min(1).max(40),
   age: z.string().regex(/^(?:[1-9]|1[0-2])$/),
   world: z.string().trim().min(1).max(80),
+  companions: z.array(z.string().trim().min(1).max(40)).max(5).default([]),
   favourites: z.array(z.string().trim().min(1).max(40)).max(8),
   detail: z.string().trim().max(120),
   dedication: z.string().trim().max(150)
 });
 
-export default {
-  async fetch(request: Request) {
+export async function POST(request: Request) {
     if (request.method !== "POST") return Response.json({ error: "Method not allowed." }, { status: 405 });
     const parsed = DraftSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return Response.json({ error: "Check the story details and try again." }, { status: 400 });
@@ -38,5 +38,4 @@ export default {
       console.error("creation-project request failed", error);
       return Response.json({ error: "The creation service could not be reached." }, { status: 503 });
     }
-  }
-};
+}

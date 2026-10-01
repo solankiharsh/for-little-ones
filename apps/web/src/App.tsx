@@ -71,9 +71,9 @@ function Shell() {
     setCreating(true);
   }, []);
 
-  const addCreatedBook = useCallback((draft: CreationDraft) => {
+  const addCreatedBook = useCallback((_draft: CreationDraft) => {
     const option = demoPurchaseOption();
-    add({ ...option, cartKey: `draft:${crypto.randomUUID()}`, title: `Demo book: ${draft.childName}’s ${draft.world}` });
+    add({ ...option, cartKey: `draft:${crypto.randomUUID()}`, title: `Demo fixture: ${option.title}` });
     setCreating(false);
     setOpen(true);
   }, [add, setOpen]);
@@ -151,7 +151,7 @@ function Shell() {
       {route.story
         ? <StoryExperience target={route.target} />
         : <Site openCreation={openCreation} previewStory={previewStory} />}
-      <CreationFlow key={creationKey} open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} initialDraft={creationDraft} localPhotoCount={localPhotoCount} />
+      <CreationFlow key={creationKey} open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} {...(creationDraft ? { initialDraft: creationDraft } : {})} localPhotoCount={localPhotoCount} />
       {phase === "reader" && (
         <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
           <div className="flo-preview-modal" ref={previewRef}>

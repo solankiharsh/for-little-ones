@@ -298,6 +298,8 @@
 .flo-story .flo-generate-cover .flo-kicker{ color: var(--story-gold); }
 .flo-story .flo-generate-cover h2{ color: #f6f0e2; margin: 10px 0; }
 .flo-story .flo-generate-title{ color: var(--story-gold); font-family: var(--story-book); font-style: italic; font-size: clamp(19px, 2.6vw, 30px); }
+.flo-story .flo-generate-sample-note,.flo-story .flo-read-sample-note{ max-width: 620px; color: #cfd4e4; font-size: 14px; line-height: 1.5; }
+.flo-story .flo-read-sample-note{ margin: 0 auto 20px; padding: 0 24px; text-align: center; }
 
 /* reader: spreads first, reader chrome reduced to nothing */
 .flo-story .flo-read{ max-width: none; padding: 0; }

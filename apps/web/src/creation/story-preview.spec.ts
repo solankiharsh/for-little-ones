@@ -13,6 +13,7 @@ describe("guided creation persistence", () => {
         childName: "Milo",
         age: "6",
         world: "Bedtime wonder",
+        companions: [],
         favourites: ["Space"],
         detail: "Carries a red scarf",
         dedication: "Dream big."

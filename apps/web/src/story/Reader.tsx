@@ -45,7 +45,8 @@ export default function Reader() {
   );
 
   return (
-    <section className="flo-read" aria-label="Read their story" id="story-read">
+    <section className="flo-read" aria-label="Read an illustrated sample story" id="story-read">
+      <p className="flo-read-sample-note">Illustrated sample · a preview of how their details could shape a story</p>
       <figure className="flo-read-spread">
         <StoryImage asset={ASSETS.spreadAdventure} />
       </figure>

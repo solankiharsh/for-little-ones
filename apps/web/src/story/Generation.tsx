@@ -7,11 +7,11 @@ import { storyTitle } from "./Worlds";
 /** Generation states (§19): the wait continues the story. Never percentages. */
 function statesFor(name: string): string[] {
   return [
-    "Preparing the pages…",
-    "Drawing their world…",
-    `Bringing ${name} into the story…`,
-    "Adding a little magic…",
-    "Binding their adventure…"
+    "Imagining a world they might love…",
+    "Finding a gentle beginning…",
+    `Picturing ${name} in a story…`,
+    "Adding a little wonder…",
+    "A sample adventure is ready…"
   ];
 }
 
@@ -81,14 +81,16 @@ export default function Generation() {
         <StoryImage asset={bound ? ASSETS.coverMoonFox : ASSETS.digitalToPhysical} />
       </div>
       {!bound ? (
-        <div className="flo-generate-states" role="status" aria-live="polite">
-          <p key={stage}>{states[stage]}</p>
+        <div className="flo-generate-states">
+          <p className="flo-generate-sample-note">An illustrated sample of the experience — no book has been generated yet.</p>
+          <p key={stage} role="status" aria-live="polite">{states[stage]}</p>
         </div>
       ) : (
         <div className="flo-generate-cover">
-          <p className="flo-kicker">And just like that…</p>
-          <h2>A story<br />only they<br />could have.</h2>
+          <p className="flo-kicker">A glimpse of what’s possible…</p>
+          <h2>A story that<br />starts with<br />their world.</h2>
           <p className="flo-generate-title">{coverTail}</p>
+          <p className="flo-generate-sample-note">This is an illustrated sample experience. A personalised book is created in the next step.</p>
         </div>
       )}
     </section>

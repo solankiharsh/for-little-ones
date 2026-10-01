@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fallbackConcepts, normaliseConcepts, default as generateConcepts } from "./generate-concepts";
+import { fallbackConcepts, normaliseConcepts, POST as generateConcepts } from "./generate-concepts";
 
 describe("story concept policy", () => {
   it("accepts exactly three distinct age-banded concepts", () => {
@@ -102,7 +102,7 @@ describe("concept generation authorisation", () => {
   it("refuses a revoked purchase before enqueueing or generating", async () => {
     const { response, paths } = await withCreationService(
       { paymentState: "refunded", generation: { assetsGenerated: 0, conceptAttempts: 0 } },
-      () => generateConcepts.fetch(post())
+      () => generateConcepts(post())
     );
 
     expect(response.status).toBe(402);
@@ -114,7 +114,7 @@ describe("concept generation authorisation", () => {
   it("refuses once the idea allowance is spent, whatever the browser claims", async () => {
     const { response } = await withCreationService(
       { paymentState: "pending", generation: { assetsGenerated: 0, conceptAttempts: 3 } },
-      () => generateConcepts.fetch(post())
+      () => generateConcepts(post())
     );
 
     expect(response.status).toBe(402);
@@ -125,7 +125,7 @@ describe("concept generation authorisation", () => {
     generateText.mockResolvedValue({ output: { concepts: [] }, usage: {} });
     const { response, paths } = await withCreationService(
       { paymentState: "pending", generation: { assetsGenerated: 0, conceptAttempts: 2 } },
-      () => generateConcepts.fetch(post())
+      () => generateConcepts(post())
     );
 
     expect(response.status).toBe(200);
@@ -162,7 +162,7 @@ async function json(response: Response): Promise<ConceptResponse> {
 describe("concept generation moderation", () => {
   it("persists a bundle the provider allows", async () => {
     generateText.mockResolvedValue({ output: safeConcepts, usage: {} });
-    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts.fetch(post()));
+    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts(post()));
 
     expect(response.status).toBe(200);
     expect((await json(response)).servedFromFallback).toBe(false);
@@ -176,7 +176,7 @@ describe("concept generation moderation", () => {
       output: { concepts: safeConcepts.concepts.map((c, i) => ({ ...c, title: `${c.title} ${i}`, pitch: i === 0 ? "Milo finds a gun in the shed." : c.pitch })) },
       usage: {}
     });
-    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts.fetch(post()));
+    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts(post()));
 
     expect(response.status).toBe(200);
     const body = await json(response);
@@ -192,7 +192,7 @@ describe("concept generation moderation", () => {
       output: { concepts: safeConcepts.concepts.map((c, i) => ({ ...c, title: `${c.title} ${i}`, pitch: i === 0 ? "Milo meets Elsa in the snow." : c.pitch })) },
       usage: {}
     });
-    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts.fetch(post()));
+    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts(post()));
 
     expect(response.status).toBe(200);
     expect((await json(response)).servedFromFallback).toBe(false);
@@ -203,7 +203,7 @@ describe("concept generation moderation", () => {
 
   it("records that an unscreened fallback was never screened", async () => {
     generateText.mockRejectedValue(new Error("provider down"));
-    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts.fetch(post()));
+    const { response, patchBody } = await withCreationService(paidProject, () => generateConcepts(post()));
 
     expect(response.status).toBe(200);
     expect((await json(response)).servedFromFallback).toBe(true);
@@ -227,7 +227,7 @@ describe("concept generation moderation", () => {
       return Response.json({ jobId: "job_1234" }, { status: 201 });
     }));
     try {
-      const response = await generateConcepts.fetch(post());
+      const response = await generateConcepts(post());
       expect(response.status).toBe(503);
       expect(patches).toHaveLength(2);
       expect(patches[1]).toMatchObject({ status: "FAILED" });
@@ -241,7 +241,7 @@ describe("concept generation moderation", () => {
     const { response } = await withCreationService(paidProject, async () => {
       process.env.CREATION_API_URL = "";
       try {
-        return await generateConcepts.fetch(post());
+        return await generateConcepts(post());
       } finally {
         process.env.CREATION_API_URL = "https://creation.test";
       }

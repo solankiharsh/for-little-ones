@@ -9,6 +9,7 @@ import type { CreationDraft } from "../creation/story-preview";
  */
 
 export const DEMO_NAME = "Maya";
+export const STORY_COMPANIONS = ["Sibling", "Mum", "Dad", "Friend", "Pet"] as const;
 
 /** Bridges into App-level overlays without prop drilling (App always lives). */
 export const FLO_CREATE_EVENT = "flo:create-book";
