@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { StoryAsset } from "./assets";
+import { refreshAfterDecode } from "./useStoryMotion";
 
 /**
  * One image primitive for the whole story (§10): explicit dimensions against
@@ -27,6 +28,7 @@ export default function StoryImage({
       loading={eager ? "eager" : "lazy"}
       decoding="async"
       fetchPriority={eager ? "high" : "auto"}
+      onLoad={eager ? refreshAfterDecode : undefined}
     />
   );
 }

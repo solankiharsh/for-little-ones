@@ -3,6 +3,7 @@ import { gsap, ScrollTrigger } from "./useStoryMotion";
 import { ASSETS } from "./assets";
 import StoryImage from "./StoryImage";
 import { usePersonalization } from "./personalization";
+import { storyTitle } from "./Worlds";
 /** Generation states (§19): the wait continues the story. Never percentages. */
 function statesFor(name: string): string[] {
   return [
@@ -22,12 +23,7 @@ function statesFor(name: string): string[] {
  */
 export default function Generation() {
   const { heroName, markGenerated, selectedWorld } = usePersonalization();
-  const coverTail =
-    selectedWorld === "garden" ? "the Secret Garden Map" :
-    selectedWorld === "lighthouse" ? "the Lighthouse That Sang" :
-    selectedWorld === "dinosaurs" ? "the Gentle Giants" :
-    selectedWorld === "space" ? "the Quiet Stars" :
-    "the Moon That Followed Home";
+  const coverTail = storyTitle(selectedWorld, heroName);
   const [started, setStarted] = useState(false);
   const [stage, setStage] = useState(0);
   const [bound, setBound] = useState(false);
@@ -92,7 +88,7 @@ export default function Generation() {
         <div className="flo-generate-cover">
           <p className="flo-kicker">And just like that…</p>
           <h2>A story<br />only they<br />could have.</h2>
-          <p className="flo-generate-title">{heroName} and {coverTail}</p>
+          <p className="flo-generate-title">{coverTail}</p>
         </div>
       )}
     </section>

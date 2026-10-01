@@ -1,201 +1,164 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { gsap, ScrollTrigger } from "./useStoryMotion";
 import { ASSETS, type StoryAsset } from "./assets";
 import StoryImage from "./StoryImage";
-import { usePersonalization } from "./personalization";
+import { usePersonalization, requestSample } from "./personalization";
+import { sampleTitleForWorld } from "./samples";
 
 export interface StoryWorld {
   id: string;
   title: string;
   blurb: string;
   image: StoryAsset;
+  /** Focal protection: the crop anchor keeps faces/subjects in frame. */
+  objectPositionDesktop: string;
+  objectPositionMobile: string;
 }
-
-type AgeBand = "3-4" | "5-6" | "7-8";
-
-interface StorySpread {
-  left: string;
-  right: string;
-}
-
-interface AgeProfile {
-  label: string;
-  readingLine: string;
-  spreads(heroName: string, worldTitle: string): StorySpread[];
-}
-
-const AGE_BANDS: AgeBand[] = ["3-4", "5-6", "7-8"];
-
-const AGE_PROFILES: Record<AgeBand, AgeProfile> = {
-  "3-4": {
-    label: "Ages 3–4",
-    readingLine: "Very short lines, repeatable rhythm, gentle reassurance.",
-    spreads: (heroName, worldTitle) => [
-      { left: `${heroName} tiptoes into ${worldTitle.toLowerCase()}.`, right: "A lantern glows. A little friend waves hello." },
-      { left: "One tiny wobble appears on the path.", right: `${heroName} takes one brave breath, then one brave step.` },
-      { left: "The moon smiles. The world feels safe again.", right: `${heroName} carries the story home for bedtime.` }
-    ]
-  },
-  "5-6": {
-    label: "Ages 5–6",
-    readingLine: "Longer sentences, playful tension, warm emotional payoff.",
-    spreads: (heroName, worldTitle) => [
-      { left: `${heroName} finds a hidden path in ${worldTitle.toLowerCase()}.`, right: "Clues sparkle between trees and stone walls." },
-      { left: "A bridge of ribbons sways over deep water.", right: `${heroName} listens, balances, and crosses with courage.` },
-      { left: "Beyond the bridge is exactly the right surprise.", right: `${heroName} returns home glowing with a new story.` }
-    ]
-  },
-  "7-8": {
-    label: "Ages 7–8",
-    readingLine: "Richer language, stronger arc, reflective ending.",
-    spreads: (heroName, worldTitle) => [
-      { left: `${heroName} enters ${worldTitle.toLowerCase()} with a pocketful of questions.`, right: "The night hums with clues only careful eyes can catch." },
-      { left: "A choice appears: easy route, or the honest one.", right: `${heroName} chooses the honest way and earns the next door.` },
-      { left: "The final scene feels both vast and personal.", right: `${heroName} comes back steadier, kinder, and ready for tomorrow.` }
-    ]
-  }
-};
 
 export const STORY_WORLDS: StoryWorld[] = [
-  { id: "moon", title: "The Moon That Followed Home", blurb: "Bedtime wonder", image: ASSETS.worldMoon },
-  { id: "garden", title: "The Secret Garden Map", blurb: "Small adventures", image: ASSETS.worldGarden },
-  { id: "lighthouse", title: "The Lighthouse That Sang", blurb: "Big imagination", image: ASSETS.worldLighthouse },
-  { id: "dinosaurs", title: "Dinosaur Valley", blurb: "Gentle giants", image: ASSETS.worldDinosaurs },
-  { id: "space", title: "The Quiet Stars", blurb: "Cosmic wonder", image: ASSETS.worldSpace }
+  { id: "moon", title: "The Moon That Followed Home", blurb: "Bedtime wonder", image: ASSETS.worldMoon, objectPositionDesktop: "35% 55%", objectPositionMobile: "35% 50%" },
+  { id: "garden", title: "The Secret Garden Map", blurb: "Small adventures", image: ASSETS.worldGarden, objectPositionDesktop: "50% 38%", objectPositionMobile: "50% 35%" },
+  { id: "lighthouse", title: "The Lighthouse That Sang", blurb: "Big imagination", image: ASSETS.worldLighthouse, objectPositionDesktop: "42% 52%", objectPositionMobile: "40% 50%" },
+  { id: "dinosaurs", title: "Dinosaur Valley", blurb: "Gentle giants", image: ASSETS.worldDinosaurs, objectPositionDesktop: "50% 55%", objectPositionMobile: "50% 55%" },
+  { id: "space", title: "The Quiet Stars", blurb: "Cosmic wonder", image: ASSETS.worldSpace, objectPositionDesktop: "50% 45%", objectPositionMobile: "50% 45%" }
 ];
 
+/**
+ * Canonical personalised title — the single formatter for covers, reader,
+ * generation and CTAs, so articles never double ("Maya and the Moon…",
+ * never "Maya and the The Moon…").
+ */
+export function storyTitle(worldId: string | null, heroName: string): string {
+  switch (worldId) {
+    case "garden": return `${heroName} and the Secret Garden Map`;
+    case "lighthouse": return `${heroName} and the Lighthouse That Sang`;
+    case "dinosaurs": return `${heroName} and the Valley of Gentle Giants`;
+    case "space": return `${heroName} and the Quiet Stars`;
+    default: return `${heroName} and the Moon That Followed Home`;
+  }
+}
+
+/** World panel: generated art bleeds past the frame; copy overlays tightly. */
+export function WorldPanel({ world, heroName, chosen, onChoose }: {
+  world: StoryWorld;
+  heroName: string;
+  chosen: boolean;
+  onChoose: () => void;
+}) {
+  return (
+    <article className={`flo-world${chosen ? " is-chosen" : ""}`} aria-label={world.title}>
+      <div className="flo-world-frame">
+        <StoryImage
+          asset={world.image}
+          className="flo-world-photo"
+          style={{ "--world-pos-d": world.objectPositionDesktop, "--world-pos-m": world.objectPositionMobile } as CSSProperties}
+        />
+        <div className="flo-world-copy">
+          <p className="flo-kicker">{world.blurb}</p>
+          <h3 className="flo-world-title">{world.title}</h3>
+          <p className="flo-world-imagine">Imagine {heroName} here.</p>
+          <button type="button" className="flo-world-sample" onClick={() => requestSample(sampleTitleForWorld(world.title))}>
+            Read a sample book →
+          </button>
+          <button type="button" className="flo-world-choose" aria-pressed={chosen} onClick={onChoose}>
+            {chosen ? "This is their story ✓" : "Choose this story →"}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Worlds (§F, revised): a spatial gallery, not a carousel. The wrapper's
+ * height is viewport + travel distance so the sticky screen has real runway;
+ * the track glides horizontally while each panel's image drifts slightly
+ * slower and settles from 1.04 as it centres. Titles arrive discretely at
+ * centre; the next panel always peeks at the edge. Prev/next step through
+ * chapters; the rail reads 01–05.
+ */
 export default function Worlds({ active }: { active: boolean }) {
   const { heroName, selectedWorld, selectWorld } = usePersonalization();
-  const [activeWorldId, setActiveWorldId] = useState(selectedWorld ?? STORY_WORLDS[0]!.id);
-  const [ageBand, setAgeBand] = useState<AgeBand>("5-6");
-  const [spreadIndex, setSpreadIndex] = useState(0);
-  const [flipTick, setFlipTick] = useState(0);
-  const [flipDirection, setFlipDirection] = useState<"next" | "prev">("next");
-  const previewRef = useRef<HTMLDivElement>(null);
+  const wrap = useRef<HTMLElement>(null);
+  const [chapter, setChapter] = useState(0);
+  const travel = useRef<{ start: number; end: number }>({ start: 0, end: 1 });
 
-  const activeWorld = STORY_WORLDS.find((world) => world.id === activeWorldId) ?? STORY_WORLDS[0]!;
-  const profile = AGE_PROFILES[ageBand];
-  const spreads = useMemo(() => profile.spreads(heroName, activeWorld.title), [profile, heroName, activeWorld.title]);
-  const spread = spreads[spreadIndex] ?? spreads[0]!;
+  useEffect(() => {
+    if (!active) return;
+    const section = wrap.current!;
+    const track = section.querySelector(".flo-worlds-track") as HTMLElement;
+    const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
+    section.style.height = `${window.innerHeight + distance()}px`;
+    const ctx = gsap.context(() => {
+      const journey = gsap.to(track, {
+        x: () => -distance(),
+        ease: "none",
+        scrollTrigger: {
+          trigger: section,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.7,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            travel.current = { start: self.start, end: self.end };
+            setChapter(Math.min(STORY_WORLDS.length - 1, Math.round(self.progress * (STORY_WORLDS.length - 1))));
+          }
+        }
+      });
+      section.querySelectorAll<HTMLElement>(".flo-world").forEach((panel) => {
+        gsap.fromTo(panel.querySelector(".flo-world-photo"), { scale: 1.05, xPercent: -2 }, {
+          scale: 1, xPercent: 2, ease: "none",
+          scrollTrigger: { trigger: panel, containerAnimation: journey, start: "left right", end: "right left", scrub: true }
+        });
+        gsap.fromTo(panel.querySelector(".flo-world-copy"), { opacity: 0, y: 24 }, {
+          opacity: 1, y: 0, ease: "none", duration: 0.4,
+          scrollTrigger: { trigger: panel, containerAnimation: journey, start: "left 65%", end: "left 35%", scrub: true }
+        });
+      });
+      ScrollTrigger.refresh();
+    }, wrap);
+    const onResize = () => {
+      section.style.height = `${window.innerHeight + distance()}px`;
+      ScrollTrigger.refresh();
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      section.style.height = "";
+      ctx.revert();
+    };
+  }, [active]);
 
-  function openPreview(worldId: string) {
-    setActiveWorldId(worldId);
-    selectWorld(worldId);
-    setSpreadIndex(0);
-    window.requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
-  }
-
-  function chooseAge(nextBand: AgeBand) {
-    if (nextBand === ageBand) return;
-    setAgeBand(nextBand);
-    setSpreadIndex(0);
-    setFlipDirection("next");
-    setFlipTick((value) => value + 1);
-  }
-
-  function goToSpread(nextIndex: number, direction: "next" | "prev") {
-    if (nextIndex < 0 || nextIndex >= spreads.length) return;
-    setFlipDirection(direction);
-    setSpreadIndex(nextIndex);
-    setFlipTick((value) => value + 1);
-  }
-
-  const leftPage = spreadIndex * 2 + 1;
-  const rightPage = spreadIndex * 2 + 2;
+  const stepTo = (index: number) => {
+    const clamped = Math.max(0, Math.min(STORY_WORLDS.length - 1, index));
+    const { start, end } = travel.current;
+    const top = start + (end - start) * (clamped / (STORY_WORLDS.length - 1));
+    window.scrollTo({ top, behavior: "smooth" });
+    setChapter(clamped);
+  };
 
   return (
-    <section className={`flo-worlds-story flo-worlds-shelf${active ? " is-full" : " is-calm"}`} aria-label="Choose their world" id="story-worlds">
-      <div className="flo-worlds-head">
-        <div>
-          <p className="flo-kicker">A place to begin</p>
-          <h2>Start with a world they already love.</h2>
-        </div>
-        <p>
-          A bedtime question, a favourite creature, a family in-joke. Pick a spark,
-          then we shape the story around them.
-        </p>
-      </div>
-
-      <div className="flo-worlds-books" role="list" aria-label="Story worlds">
-        {STORY_WORLDS.map((world) => {
-          const activeCard = world.id === activeWorldId;
-          return (
-            <article key={world.id} className={`flo-world-card${activeCard ? " is-active" : ""}`} role="listitem" aria-label={world.title}>
-              <div className="flo-world-card-media">
-                <StoryImage asset={world.image} className="flo-world-card-image" />
-              </div>
-              <div className="flo-world-card-copy">
-                <p className="flo-kicker">{world.blurb}</p>
-                <h3>{world.title}</h3>
-                <p className="flo-world-card-imagine">Imagine {heroName} here.</p>
-                <button type="button" className="flo-world-card-action" onClick={() => openPreview(world.id)}>
-                  {activeCard ? "Preview open" : "Open preview →"}
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      <div className="flo-world-preview" ref={previewRef}>
-        <div className="flo-world-preview-head">
-          <div>
-            <p className="flo-kicker">Live preview</p>
-            <h3>{activeWorld.title}</h3>
-            <p>{profile.readingLine}</p>
-          </div>
-          <button type="button" className="flo-world-preview-choose" onClick={() => selectWorld(activeWorld.id)}>
-            Use this world for their book →
-          </button>
-        </div>
-
-        <div className="flo-world-age-tabs" role="tablist" aria-label="Preview age band">
-          {AGE_BANDS.map((band) => (
-            <button
-              key={band}
-              type="button"
-              role="tab"
-              aria-selected={ageBand === band}
-              className={ageBand === band ? "is-active" : ""}
-              onClick={() => chooseAge(band)}
-            >
-              {AGE_PROFILES[band].label}
-            </button>
+    <section ref={wrap} className="flo-worlds-story" aria-label="Choose their world" id="story-worlds">
+      <div className="flo-screen">
+        <p className="flo-kicker">Choose their world</p>
+        <div className="flo-worlds-track">
+          {STORY_WORLDS.map((world) => (
+            <WorldPanel
+              key={world.id}
+              world={world}
+              heroName={heroName}
+              chosen={selectedWorld === world.id}
+              onChoose={() => selectWorld(world.id)}
+            />
           ))}
         </div>
-
-        <div className="flo-world-book-row">
-          <button
-            type="button"
-            className="flo-world-book-nav"
-            onClick={() => goToSpread(spreadIndex - 1, "prev")}
-            disabled={spreadIndex === 0}
-            aria-label="Previous spread"
-          >
-            ←
-          </button>
-
-          <div className="flo-world-book-shell">
-            <div className={`flo-world-book flo-world-book--${flipDirection}`} key={`${activeWorld.id}-${ageBand}-${spreadIndex}-${flipTick}`}>
-              <article className="flo-world-book-page is-left">
-                <p className="flo-world-book-page-no">Page {leftPage}</p>
-                <p>{spread.left}</p>
-              </article>
-              <article className="flo-world-book-page is-right">
-                <p className="flo-world-book-page-no">Page {rightPage}</p>
-                <p>{spread.right}</p>
-              </article>
-            </div>
+        <div className="flo-worlds-ui">
+          <p className="flo-worlds-count" aria-live="polite">{String(chapter + 1).padStart(2, "0")} — 05</p>
+          <p className="flo-worlds-hint">Scroll to explore</p>
+          <div className="flo-worlds-steps">
+            <button type="button" aria-label="Previous world" disabled={chapter === 0} onClick={() => stepTo(chapter - 1)}>←</button>
+            <button type="button" aria-label="Next world" disabled={chapter === STORY_WORLDS.length - 1} onClick={() => stepTo(chapter + 1)}>→</button>
           </div>
-
-          <button
-            type="button"
-            className="flo-world-book-nav"
-            onClick={() => goToSpread(spreadIndex + 1, "next")}
-            disabled={spreadIndex >= spreads.length - 1}
-            aria-label="Next spread"
-          >
-            →
-          </button>
         </div>
       </div>
     </section>

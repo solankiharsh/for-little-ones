@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { CreationDraft } from "../creation/story-preview";
 
 /**
  * Central personalization state (§18). MARKETING MODE (nothing entered) uses
@@ -8,6 +9,23 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
  */
 
 export const DEMO_NAME = "Maya";
+
+/** Bridges into App-level overlays without prop drilling (App always lives). */
+export const FLO_CREATE_EVENT = "flo:create-book";
+export const FLO_SAMPLE_EVENT = "flo:sample-book";
+
+export interface StoryCreationHandoff {
+  draft?: CreationDraft;
+  localPhotoCount: number;
+}
+
+export function requestCreation(handoff: StoryCreationHandoff) {
+  window.dispatchEvent(new CustomEvent(FLO_CREATE_EVENT, { detail: handoff }));
+}
+
+export function requestSample(title: string) {
+  window.dispatchEvent(new CustomEvent(FLO_SAMPLE_EVENT, { detail: { title } }));
+}
 
 export interface Personalization {
   mode: "marketing" | "personalized";
@@ -56,6 +74,12 @@ export function PersonalizationProvider({ children }: { children: ReactNode }) {
   const [dedication, setDedication] = useState("");
   const [selectedWorld, setSelectedWorld] = useState<string | null>(null);
   const [generated, setGenerated] = useState(false);
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+
+  useEffect(() => () => {
+    for (const url of photosRef.current) URL.revokeObjectURL(url);
+  }, []);
 
   const addPhotos = useCallback((files: FileList | File[]) => {
     const incoming = [...files].filter((file) => file.type.startsWith("image/")).slice(0, MAX_PHOTOS);

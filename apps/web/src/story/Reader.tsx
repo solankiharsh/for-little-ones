@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
+import StoryReader from "../creation/StoryReader";
 import { ASSETS, type StoryAsset } from "./assets";
 import StoryImage from "./StoryImage";
 import { usePersonalization } from "./personalization";
-import { STORY_WORLDS } from "./Worlds";
+import { STORY_WORLDS, storyTitle } from "./Worlds";
 
-function storyFor(hero: string, worldTitle: string, companions: string[], interests: string[], detail: string): StoryPreviewResult {
+function storyFor(hero: string, worldId: string | null, worldTitle: string, companions: string[], interests: string[], detail: string): StoryPreviewResult {
   const friends = companions.length > 0 ? ` with ${companions.join(" and ")}` : "";
   const loves = interests.length > 0 ? ` who loves ${interests.join(" and ").toLowerCase()}` : "";
   const pages = [
@@ -18,7 +19,7 @@ function storyFor(hero: string, worldTitle: string, companions: string[], intere
   ];
   return {
     schemaVersion: "1",
-    title: `${hero} and the ${worldTitle}`,
+    title: storyTitle(worldId, hero),
     synopsis: `A personal adventure for ${hero}, woven around the things they love.`,
     emotionalGoal: "A story about being brave",
     pages: pages.map((text, index) => ({
@@ -30,14 +31,7 @@ function storyFor(hero: string, worldTitle: string, companions: string[], intere
 }
 
 function artForStory(worldArt: StoryAsset): StoryAsset[] {
-  return [
-    ASSETS.spreadAdventure,
-    worldArt,
-    ASSETS.spreadQuiet,
-    ASSETS.worldMoon,
-    ASSETS.spreadEnding,
-    ASSETS.productFinalNight
-  ];
+  return [ASSETS.spreadAdventure, worldArt, ASSETS.spreadQuiet, ASSETS.worldMoon, ASSETS.spreadEnding, ASSETS.productFinalNight];
 }
 
 export default function Reader() {
@@ -46,28 +40,29 @@ export default function Reader() {
   const worldTitle = selected?.title ?? "The Moon That Followed Home";
   const art = useMemo(() => artForStory(selected?.image ?? ASSETS.worldMoon), [selected]);
   const story = useMemo(
-    () => storyFor(heroName, worldTitle, companions, interests, detail.trim()),
-    [heroName, worldTitle, companions, interests, detail]
+    () => storyFor(heroName, selectedWorld, worldTitle, companions, interests, detail.trim()),
+    [heroName, selectedWorld, worldTitle, companions, interests, detail]
   );
 
   return (
     <section className="flo-read" aria-label="Read their story" id="story-read">
-      <div className="flo-read-intro">
-        <p className="flo-kicker">Read a few pages</p>
-        <h2>{story.title}</h2>
-        {dedication.trim() ? <p className="flo-read-dedication">“{dedication.trim()}”</p> : null}
-      </div>
-      <div className="flo-read-pages" role="list" aria-label="Story preview pages">
-        {story.pages.map((page, index) => (
-          <article key={page.pageNumber} className="flo-read-page" role="listitem" aria-label={`Page ${page.pageNumber}`}>
-            <StoryImage asset={art[index % art.length]!} className="flo-read-page-image" />
-            <div className="flo-read-page-copy">
-              <p className="flo-read-page-number">Page {page.pageNumber}</p>
-              <p>{page.text}</p>
-            </div>
-          </article>
-        ))}
-      </div>
+      <figure className="flo-read-spread">
+        <StoryImage asset={ASSETS.spreadAdventure} />
+      </figure>
+      <StoryReader
+        story={story}
+        childName={heroName}
+        world={worldTitle}
+        dedication={dedication.trim()}
+        visiblePages="ALL"
+        artwork={{
+          cover: selected?.image ?? ASSETS.coverMoonFox,
+          spreadForPage: (pageNumber) => art[(pageNumber - 1) % art.length]
+        }}
+      />
+      <figure className="flo-read-spread flo-read-spread-end">
+        <StoryImage asset={ASSETS.spreadEnding} />
+      </figure>
     </section>
   );
 }

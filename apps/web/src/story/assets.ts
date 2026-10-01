@@ -34,12 +34,12 @@ export const ASSETS = {
     "Demo storybook portrait of a child and fox on a moonlit hill"
   ),
   characterWorldDemo: asset(
-    "character-world-demo.webp", 1600, 800,
-    "Demo storybook scene of a child and fox by a lantern-lit stream under the moon"
+    "character-world-demo.webp", 1600, 900,
+    "Demo scene of a child with a fox plush walking a lantern-lit forest path toward a moonlit village"
   ),
   worldMoon: asset(
-    "world-moon.webp", 1122, 1402,
-    "A child and fox watching a huge moon rise over moonlit hills"
+    "world-moon.webp", 1600, 900,
+    "A child and fox standing on giant open book pages overlooking a moonlit village valley"
   ),
   worldGarden: asset(
     "world-garden.webp", 1600, 900,
@@ -66,8 +66,8 @@ export const ASSETS = {
     "A parent and child reading an open illustrated book spread together"
   ),
   spreadAdventure: asset(
-    "spread-adventure.webp", 1600, 900,
-    "A child and fox standing on giant open book pages above a moonlit waterfall"
+    "spread-adventure.webp", 1600, 800,
+    "A child hopping across stream stones with a fox under a bright moon"
   ),
   spreadEnding: asset(
     "spread-ending.webp", 1600, 900,
@@ -77,24 +77,21 @@ export const ASSETS = {
     "product-hardcover.webp", 1400, 788,
     "Personalised hardcover book resting on a bedside table in lamplight"
   ),
-  /** Shares the bedside-hardcover file: the open-book moment crops it differently. */
   productOpenBook: asset(
-    "product-hardcover.webp", 1400, 788,
-    "Personalised hardcover book resting on a bedside table in lamplight"
+    "product-open-book.webp", 1600, 900,
+    "A child reading a glowing open book as its story world streams off the pages"
   ),
-  /** Shares the book-emergence file: the digital-to-physical handoff. */
   digitalToPhysical: asset(
-    "hero-enter-book.webp", 1672, 941,
-    "A child and fox emerging from open book pages into a glowing moonlit valley"
+    "digital-to-physical.webp", 1600, 900,
+    "A child with a fox plush walking a lantern-lit path toward a moonlit village"
   ),
   memoryReadingTogether: asset(
     "memory-reading-together.webp", 1000, 1250,
     "A parent and child reading their personalised book together in bed"
   ),
-  /** Shares the demo photograph: pride is the same child with their book. */
   memoryPride: asset(
-    "character-photo-demo.webp", 1000, 1250,
-    "A child proudly hugging their personalised moon book"
+    "memory-pride.webp", 1000, 1250,
+    "The story heroine under a giant moon, the child every book is written for"
   ),
   memoryOneMorePage: asset(
     "memory-one-more-page.webp", 1000, 1250,

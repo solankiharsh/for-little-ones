@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { Emblem } from "./Scenes";
 
-/** Story progress (§15): stages, not numbers — how deep into the journey. */
-const STAGES = [
+/**
+ * Chapter marker (§15, revised): one quiet corner — "03 / 07 · THE WORLD" —
+ * never a rail. Hidden during the opening, fading on highly visual sections
+ * so imagery stays dominant.
+ */
+const CHAPTERS = [
   { id: "story-hero", label: "Hello" },
   { id: "story-hero-meet", label: "Hero" },
   { id: "story-worlds", label: "World" },
@@ -10,19 +13,27 @@ const STAGES = [
   { id: "story-keepsake", label: "Book" }
 ];
 
+const DIM_ON = new Set(["story-hero", "story-worlds", "story-keepsake"]);
+
 export default function ProgressRail() {
-  const [current, setCurrent] = useState(STAGES[0]!.id);
+  const [index, setIndex] = useState(0);
+  const [current, setCurrent] = useState(CHAPTERS[0]!.id);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) setCurrent(entry.target.id);
+          if (!entry.isIntersecting) continue;
+          const at = CHAPTERS.findIndex((chapter) => chapter.id === entry.target.id);
+          if (at !== -1) {
+            setIndex(at);
+            setCurrent(entry.target.id);
+          }
         }
       },
       { rootMargin: "-45% 0px -45% 0px" }
     );
-    for (const stage of STAGES) {
+    for (const stage of CHAPTERS) {
       const node = document.getElementById(stage.id);
       if (node) observer.observe(node);
     }
@@ -30,13 +41,8 @@ export default function ProgressRail() {
   }, []);
 
   return (
-    <div className="flo-rail" aria-hidden="true">
-      <Emblem className="flo-rail-emblem" />
-      <ol>
-        {STAGES.map((stage) => (
-          <li key={stage.id} className={stage.id === current ? "is-here" : ""}>{stage.label}</li>
-        ))}
-      </ol>
-    </div>
+    <p className={`flo-chapter${DIM_ON.has(current) ? " is-dim" : ""}`} aria-hidden="true">
+      {String(index + 1).padStart(2, "0")} / {String(CHAPTERS.length).padStart(2, "0")} · {CHAPTERS[index]?.label.toUpperCase()}
+    </p>
   );
 }

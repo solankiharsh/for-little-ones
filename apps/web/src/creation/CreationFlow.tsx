@@ -6,27 +6,33 @@ import StoryReader from "./StoryReader";
 
 const WORLDS = ["Bedtime wonder", "Small adventures", "Big imagination"];
 const STEPS = ["Your child", "Their world", "Little details", "Story ideas", "Preview"];
-const FAVOURITES = ["Animals", "Space", "The sea", "Dinosaurs", "Gardens"];
+const FAVOURITES = ["Animals", "Space", "The sea", "Dinosaurs", "Magic", "Cars", "Gardens"];
 
-export default function CreationFlow({ open, onClose, onAddToBasket }: { open: boolean; onClose: () => void; onAddToBasket: (draft: CreationDraft) => void }) {
+export default function CreationFlow({ open, onClose, onAddToBasket, initialDraft, localPhotoCount = 0 }: {
+  open: boolean;
+  onClose: () => void;
+  onAddToBasket: (draft: CreationDraft) => void;
+  initialDraft?: CreationDraft;
+  localPhotoCount?: number;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const saved = useRef(typeof window === "undefined" ? null : loadSavedCreation(window.localStorage)).current;
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(saved?.draft.childName ?? "");
-  const [age, setAge] = useState(saved?.draft.age ?? "");
-  const [world, setWorld] = useState(saved?.draft.world ?? WORLDS[0]!);
-  const [favourites, setFavourites] = useState<string[]>(saved?.draft.favourites ?? []);
-  const [detail, setDetail] = useState(saved?.draft.detail ?? "");
-  const [dedication, setDedication] = useState(saved?.draft.dedication ?? "");
-  const [story, setStory] = useState<StoryPreviewResult | undefined>(saved?.story);
-  const [project, setProject] = useState<StoryProjectCredential | undefined>(saved?.project);
-  const [concepts, setConcepts] = useState<StoryConcept[]>(saved?.concepts ?? []);
-  const [selectedConceptId, setSelectedConceptId] = useState(saved?.selectedConceptId ?? "");
+  const [name, setName] = useState(initialDraft?.childName ?? saved?.draft.childName ?? "");
+  const [age, setAge] = useState(initialDraft?.age ?? saved?.draft.age ?? "");
+  const [world, setWorld] = useState(initialDraft?.world ?? saved?.draft.world ?? WORLDS[0]!);
+  const [favourites, setFavourites] = useState<string[]>(initialDraft?.favourites ?? saved?.draft.favourites ?? []);
+  const [detail, setDetail] = useState(initialDraft?.detail ?? saved?.draft.detail ?? "");
+  const [dedication, setDedication] = useState(initialDraft?.dedication ?? saved?.draft.dedication ?? "");
+  const [story, setStory] = useState<StoryPreviewResult | undefined>(initialDraft ? undefined : saved?.story);
+  const [project, setProject] = useState<StoryProjectCredential | undefined>(initialDraft ? undefined : saved?.project);
+  const [concepts, setConcepts] = useState<StoryConcept[]>(initialDraft ? [] : saved?.concepts ?? []);
+  const [selectedConceptId, setSelectedConceptId] = useState(initialDraft ? "" : saved?.selectedConceptId ?? "");
   const [generatingConcepts, setGeneratingConcepts] = useState(false);
   const [selectingConcept, setSelectingConcept] = useState(false);
-  const [conceptAttempts, setConceptAttempts] = useState(saved?.concepts ? 1 : 0);
-  const [fallbackIdeas, setFallbackIdeas] = useState(saved?.concepts?.some((concept) => concept.source === "fallback") ?? false);
+  const [conceptAttempts, setConceptAttempts] = useState(initialDraft ? 0 : saved?.concepts ? 1 : 0);
+  const [fallbackIdeas, setFallbackIdeas] = useState(initialDraft ? false : saved?.concepts?.some((concept) => concept.source === "fallback") ?? false);
   const [generating, setGenerating] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [started, setStarted] = useState(false);
@@ -171,6 +177,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
               <label>Child’s name or nickname<input autoComplete="off" maxLength={40} required value={name} placeholder="Their first name" onChange={(e) => { revise(); setName(e.target.value); }} /></label>
               <label>Age<select required value={age} onChange={(e) => { revise(); setAge(e.target.value); }}><option value="">Choose their age</option>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? "year" : "years"}</option>)}</select></label>
               <p className="flo-create-hint">No photo is needed to begin. Your draft is saved in this browser so you can return to it.</p>
+              {localPhotoCount > 0 && <p className="flo-create-confirmation" role="status">{localPhotoCount === 1 ? "The photo was only a local preview and was not uploaded or added to this book." : "The photos were only local previews and were not uploaded or added to this book."}</p>}
             </div>}
             {step === 1 && <fieldset className="flo-create-worlds"><legend className="flo-create-hint">Choose one story world</legend>{WORLDS.map((item, index) => <label className="flo-create-world" key={item}>
               <input type="radio" name="world" value={item} checked={world === item} onChange={() => { revise(); setWorld(item); }} />
@@ -216,7 +223,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
               if (!started) { setStarted(true); return; }
               if (!story) { void writeStory(); return; }
               onAddToBasket(draft);
-            }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "Add hardcover to basket · £29.20" : started ? "Write story preview" : "Keep this book"}</button>}
+            }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "Add demo book to basket · £29.20" : started ? "Write story preview" : "Keep this book"}</button>}
           </footer>
         </form>
       </div>
