@@ -4,7 +4,10 @@
   "private": true,
   "description": "For Little One — personalised children's-book platform (monorepo bootstrap, milestone 0 rails)",
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
@@ -17,8 +20,13 @@
     "build:node-packages": "npm run build -w @for-little-ones/domain && npm run build -w @for-little-ones/providers",
     "build:vercel": "npm run build:node-packages && npm run build -w @for-little-ones/web"
   },
-  "engines": {"node": ">=22"},
-  "allowScripts": ["esbuild", "@astryxdesign/core"],
+  "engines": {
+    "node": ">=22"
+  },
+  "allowScripts": [
+    "esbuild",
+    "@astryxdesign/core"
+  ],
   "optionalDependencies": {
     "@rolldown/binding-linux-arm64-gnu": "1.2.9",
     "@rolldown/binding-linux-x64-gnu": "1.2.9"
