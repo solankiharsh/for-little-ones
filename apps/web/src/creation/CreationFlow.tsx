@@ -1,38 +1,46 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import { generationAccessFor } from "@for-little-ones/domain";
-import { createStoryProject, generateStoryConcepts, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, selectStoryConcept, type CreationDraft, type StoryConcept, type StoryProjectCredential } from "./story-preview";
+import { createStoryProject, generateStoryConcepts, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, selectStoryConcept, type CreationDraft, type StoryConcept } from "./story-preview";
 import StoryReader from "./StoryReader";
+import { STORY_COMPANIONS } from "../story/personalization";
 
-const WORLDS = ["Bedtime wonder", "Small adventures", "Big imagination"];
+const WORLDS = ["The Moon That Followed Home", "The Secret Garden Map", "The Lighthouse That Sang", "Dinosaur Valley", "The Quiet Stars"];
 const STEPS = ["Your child", "Their world", "Little details", "Story ideas", "Preview"];
-const FAVOURITES = ["Animals", "Space", "The sea", "Dinosaurs", "Gardens"];
+const FAVOURITES = ["Animals", "Space", "The sea", "Dinosaurs", "Magic", "Cars", "Gardens"];
 
-export default function CreationFlow({ open, onClose, onAddToBasket }: { open: boolean; onClose: () => void; onAddToBasket: (draft: CreationDraft) => void }) {
+export default function CreationFlow({ open, onClose, onAddToBasket, initialDraft, localPhotoCount = 0 }: {
+  open: boolean;
+  onClose: () => void;
+  onAddToBasket: (draft: CreationDraft) => void;
+  initialDraft?: CreationDraft;
+  localPhotoCount?: number;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const saved = useRef(typeof window === "undefined" ? null : loadSavedCreation(window.localStorage)).current;
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(saved?.draft.childName ?? "");
-  const [age, setAge] = useState(saved?.draft.age ?? "");
-  const [world, setWorld] = useState(saved?.draft.world ?? WORLDS[0]!);
-  const [favourites, setFavourites] = useState<string[]>(saved?.draft.favourites ?? []);
-  const [detail, setDetail] = useState(saved?.draft.detail ?? "");
-  const [dedication, setDedication] = useState(saved?.draft.dedication ?? "");
-  const [story, setStory] = useState<StoryPreviewResult | undefined>(saved?.story);
-  const [project, setProject] = useState<StoryProjectCredential | undefined>(saved?.project);
-  const [concepts, setConcepts] = useState<StoryConcept[]>(saved?.concepts ?? []);
-  const [selectedConceptId, setSelectedConceptId] = useState(saved?.selectedConceptId ?? "");
+  const [name, setName] = useState(initialDraft?.childName ?? saved?.draft.childName ?? "");
+  const [age, setAge] = useState(initialDraft?.age ?? saved?.draft.age ?? "");
+  const [world, setWorld] = useState(initialDraft?.world ?? saved?.draft.world ?? WORLDS[0]!);
+  const [companions, setCompanions] = useState<string[]>(initialDraft?.companions ?? saved?.draft.companions ?? []);
+  const [favourites, setFavourites] = useState<string[]>(initialDraft?.favourites ?? saved?.draft.favourites ?? []);
+  const [detail, setDetail] = useState(initialDraft?.detail ?? saved?.draft.detail ?? "");
+  const [dedication, setDedication] = useState(initialDraft?.dedication ?? saved?.draft.dedication ?? "");
+  const [story, setStory] = useState<StoryPreviewResult | undefined>(initialDraft ? undefined : saved?.story);
+  const [project, setProject] = useState<StoryProjectCredential | undefined>(initialDraft ? undefined : saved?.project);
+  const [concepts, setConcepts] = useState<StoryConcept[]>(initialDraft ? [] : saved?.concepts ?? []);
+  const [selectedConceptId, setSelectedConceptId] = useState(initialDraft ? "" : saved?.selectedConceptId ?? "");
   const [generatingConcepts, setGeneratingConcepts] = useState(false);
   const [selectingConcept, setSelectingConcept] = useState(false);
-  const [conceptAttempts, setConceptAttempts] = useState(saved?.concepts ? 1 : 0);
-  const [fallbackIdeas, setFallbackIdeas] = useState(saved?.concepts?.some((concept) => concept.source === "fallback") ?? false);
+  const [conceptAttempts, setConceptAttempts] = useState(initialDraft ? 0 : saved?.concepts ? 1 : 0);
+  const [fallbackIdeas, setFallbackIdeas] = useState(initialDraft ? false : saved?.concepts?.some((concept) => concept.source === "fallback") ?? false);
   const [generating, setGenerating] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [started, setStarted] = useState(false);
   const [error, setError] = useState("");
   const child = name.trim();
-  const draft: CreationDraft = { childName: child, age, world, favourites, detail: detail.trim(), dedication: dedication.trim() };
+  const draft: CreationDraft = { childName: child, age, world, companions, favourites, detail: detail.trim(), dedication: dedication.trim() };
   const selectedConcept = concepts.find((concept) => concept.id === selectedConceptId);
   // Derived from the server-resolved entitlement. The page text itself is already
   // shaped server-side, so this only decides how a page is presented.
@@ -72,7 +80,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
   }, [open, project?.projectId, story]);
   useEffect(() => {
     if (typeof window !== "undefined") saveCreation(window.localStorage, { draft, ...(story ? { story } : {}), ...(project ? { project } : {}), ...(concepts.length === 3 ? { concepts } : {}), ...(selectedConceptId ? { selectedConceptId } : {}) });
-  }, [name, age, world, favourites, detail, dedication, story, project, concepts, selectedConceptId]);
+  }, [name, age, world, companions, favourites, detail, dedication, story, project, concepts, selectedConceptId]);
 
   function revise() {
     setStory(undefined);
@@ -171,12 +179,14 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
               <label>Child’s name or nickname<input autoComplete="off" maxLength={40} required value={name} placeholder="Their first name" onChange={(e) => { revise(); setName(e.target.value); }} /></label>
               <label>Age<select required value={age} onChange={(e) => { revise(); setAge(e.target.value); }}><option value="">Choose their age</option>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? "year" : "years"}</option>)}</select></label>
               <p className="flo-create-hint">No photo is needed to begin. Your draft is saved in this browser so you can return to it.</p>
+              {localPhotoCount > 0 && <p className="flo-create-confirmation" role="status">{localPhotoCount === 1 ? "The photo was only a local preview and was not uploaded or added to this book." : "The photos were only local previews and were not uploaded or added to this book."}</p>}
             </div>}
-            {step === 1 && <fieldset className="flo-create-worlds"><legend className="flo-create-hint">Choose one story world</legend>{WORLDS.map((item, index) => <label className="flo-create-world" key={item}>
+            {step === 1 && <fieldset className="flo-create-worlds"><legend className="flo-create-hint">Choose one story world</legend>{!WORLDS.includes(world) && <p className="flo-create-hint">Your saved story world “{world}” is kept. Choose a new world below if you’d like to change it.</p>}{WORLDS.map((item, index) => <label className="flo-create-world" key={item}>
               <input type="radio" name="world" value={item} checked={world === item} onChange={() => { revise(); setWorld(item); }} />
-              <span><strong>{item}</strong><small>{["A gentle journey for the end of the day.", "A curious discovery just around the corner.", "An extraordinary adventure far from home."][index]}</small></span>
+              <span><strong>{item}</strong><small>{["A gentle journey for the end of the day.", "A curious discovery just around the corner.", "An extraordinary adventure by the sea.", "A warm discovery with gentle giants.", "A quiet adventure among the stars."][index]}</small></span>
             </label>)}</fieldset>}
             {step === 2 && <div className="flo-create-fields">
+              <fieldset className="flo-create-favourites"><legend>Who might join the adventure?</legend><div>{STORY_COMPANIONS.map((item) => <button key={item} type="button" aria-pressed={companions.includes(item)} onClick={() => { revise(); setCompanions((values) => values.includes(item) ? values.filter((value) => value !== item) : [...values, item]); }}>{item}</button>)}</div></fieldset>
               <fieldset className="flo-create-favourites"><legend>What do they love?</legend><div>{FAVOURITES.map((item) => <button key={item} type="button" aria-pressed={favourites.includes(item)} onClick={() => { revise(); setFavourites((values) => values.includes(item) ? values.filter((value) => value !== item) : [...values, item]); }}>{item}</button>)}</div></fieldset>
               <label>A detail that makes them, them <span>(optional)</span><input value={detail} maxLength={120} placeholder="Their teddy is called Mr Bear" onChange={(e) => { revise(); setDetail(e.target.value); }} /></label>
               <label>A dedication <span>(optional)</span><textarea value={dedication} maxLength={150} rows={3} placeholder={`A few words for ${child} to keep forever…`} onChange={(e) => { revise(); setDedication(e.target.value); }} /><small>{dedication.length}/150 characters</small></label>
@@ -197,15 +207,28 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
             {step === 4 && <>
               <div className="flo-create-preview">
                 <div className="flo-create-cover"><span>Made for {child}</span><div className="flo-create-placeholder" role="img" aria-label={`${world} cover artwork for ${child}`}><span aria-hidden="true">✧</span><small>{world} artwork</small></div><h3>{selectedConcept?.title ?? world}</h3><p>A story for {child}</p></div>
-                <div className="flo-create-summary"><h3>Their book, at a glance</h3><dl><dt>For</dt><dd>{child} · age {age}</dd><dt>Chosen story</dt><dd>{selectedConcept?.title ?? "Story idea ready"}</dd><dt>Story world</dt><dd>{world}</dd>{favourites.length > 0 && <><dt>Favourite things</dt><dd>{favourites.join(", ")}</dd></>}{detail.trim() && <><dt>A personal detail</dt><dd>{detail}</dd></>}{dedication.trim() && <><dt>Dedication</dt><dd className="flo-create-dedication">{dedication}</dd></>}</dl><p className="flo-create-hint">You can go back and change any detail before adding the hardcover to your basket.</p></div>
+                <div className="flo-create-summary">
+                  <h3>Their book, at a glance</h3>
+                  <dl>
+                    <dt>For</dt><dd>{child} · age {age}</dd>
+                    <dt>Chosen story</dt><dd>{selectedConcept?.title ?? "Story idea ready"}</dd>
+                    <dt>Story world</dt><dd>{world}</dd>
+                    {companions.length > 0 && <><dt>Story companions</dt><dd>{companions.join(", ")}</dd></>}
+                    {favourites.length > 0 && <><dt>Favourite things</dt><dd>{favourites.join(", ")}</dd></>}
+                    {detail.trim() && <><dt>A personal detail</dt><dd>{detail}</dd></>}
+                    {dedication.trim() && <><dt>Dedication</dt><dd className="flo-create-dedication">{dedication}</dd></>}
+                  </dl>
+                  <p className="flo-create-hint">You can go back and change any detail before adding the hardcover to your basket.</p>
+                </div>
               </div>
               {restoring && <p className="flo-create-confirmation" role="status">Restoring your saved story…</p>}
               {started && !story && !restoring && <p className="flo-create-confirmation" role="status">The details are ready. We’ll now write a six-page story preview for you to review before checkout.</p>}
               {generating && <div className="flo-create-generating" role="status"><span aria-hidden="true" /> <div><strong>Writing {child}’s story…</strong><small>Creating the title, story arc and six page drafts. This can take around a minute.</small></div></div>}
               {story && <>
+                <p className="flo-create-confirmation" role="note">The basket checkout is a sandbox test order for the fixed Fox and Moon fixture. It does not include this personalized story.</p>
                 <StoryReader story={story} childName={child} world={world} dedication={dedication.trim()} visiblePages={visiblePages} />
-                {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse before you buy</strong><p>Your title, synopsis, first page and a little of what follows are ready to review. Payment unlocks the complete story, finished illustrations, page regeneration and the editing studio.</p></div>}
-                <p className="flo-create-hint">Image generation will be limited to two low-resolution, watermarked previews before payment. Production artwork starts only after payment is confirmed.</p>
+                {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse before you buy</strong><p>Your title, synopsis, first page and a little of what follows are ready to review. In the future production flow, payment will unlock the complete story, finished illustrations, page regeneration and the editing studio. This sandbox test order does not unlock them.</p></div>}
+                <p className="flo-create-hint">The production flow is planned to allow two low-resolution, watermarked image previews before payment; final artwork would start only after a real payment is confirmed. This test order does not start production artwork.</p>
               </>}
             </>}
             {error && <p role="alert" className="flo-cart-form-error">{error}</p>}
@@ -216,7 +239,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket }: { open: b
               if (!started) { setStarted(true); return; }
               if (!story) { void writeStory(); return; }
               onAddToBasket(draft);
-            }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "Add hardcover to basket · £29.20" : started ? "Write story preview" : "Keep this book"}</button>}
+            }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "Add test fixture to basket · £29.20" : started ? "Write story preview" : "Keep this book"}</button>}
           </footer>
         </form>
       </div>

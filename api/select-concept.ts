@@ -8,8 +8,7 @@ const RequestSchema = z.strictObject({
   conceptId: z.string().startsWith("concept_").max(80)
 });
 
-export default {
-  async fetch(request: Request) {
+export async function POST(request: Request) {
     if (request.method !== "POST") return Response.json({ error: "Method not allowed." }, { status: 405 });
     const parsed = RequestSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return Response.json({ error: "Story choice is invalid." }, { status: 400 });
@@ -28,5 +27,4 @@ export default {
       console.error("concept selection request failed", error);
       return Response.json({ error: "The creation service could not be reached." }, { status: 503 });
     }
-  }
-};
+}

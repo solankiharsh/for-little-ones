@@ -13,6 +13,7 @@ const RequestSchema = z.strictObject({
   childName: z.string().trim().min(1).max(40),
   age: z.number().int().min(1).max(12),
   world: z.string().trim().min(1).max(80),
+  companions: z.array(z.string().trim().min(1).max(40)).max(5).default([]),
   favourites: z.array(z.string().trim().min(1).max(40)).max(8),
   detail: z.string().trim().max(120),
   projectId: z.string().startsWith("project_").max(80),
@@ -91,8 +92,7 @@ function readingLevelFor(age: number): StoryConcept["readingLevel"] {
   return "10-12";
 }
 
-export default {
-  async fetch(request: Request) {
+export async function POST(request: Request) {
     if (request.method !== "POST") return Response.json({ error: "Method not allowed." }, { status: 405 });
     const input = RequestSchema.safeParse(await request.json().catch(() => null));
     if (!input.success) return Response.json({ error: "Check the story details and try again." }, { status: 400 });
@@ -186,8 +186,7 @@ export default {
       return Response.json({ error: "Your story ideas could not be saved. Please try again." }, { status: 503 });
     }
     return Response.json({ schemaVersion: "1", concepts, servedFromFallback, generationMetadata });
-  }
-};
+}
 
 function paymentStateOf(value: unknown): PaymentState {
   return value === "authorized" || value === "captured" || value === "refunded" || value === "cancelled" ? value : "pending";
@@ -218,6 +217,7 @@ async function projectRequest(
 function conceptPrompt(input: z.infer<typeof RequestSchema>): string {
   return `Create three story ideas for ${input.childName}, age ${input.age}.
 Story world: ${input.world}
+Story companions: ${input.companions.join(", ") || "none selected"}
 Favourite things: ${input.favourites.join(", ") || "gentle surprises"}
 Personal detail: ${input.detail || "none supplied"}
 Each pitch should make the beginning, manageable challenge and kind emotional direction clear without resolving the ending.`;

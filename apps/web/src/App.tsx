@@ -9,6 +9,8 @@ import { demoPurchaseOption } from "./commerce/approval";
 
 import CreationFlow from "./creation/CreationFlow";
 import type { CreationDraft } from "./creation/story-preview";
+import StoryExperience from "./story/StoryExperience";
+import { FLO_CREATE_EVENT, FLO_SAMPLE_EVENT, type StoryCreationHandoff } from "./story/personalization";
 
 const STUDIO = "For Little One";
 const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
@@ -39,37 +41,49 @@ function Logo() {
 export default function App() {
   return (
     <CartProvider>
-      <Site />
+      <Shell />
     </CartProvider>
   );
 }
 
-function Site() {
-  const reduced = useReducedMotion();
+function Shell() {
+  const [route, setRoute] = useState(() => parseStoryHash());
   const [creating, setCreating] = useState(false);
-  const { setOpen, cartCount, add } = useCart();
+  const [creationDraft, setCreationDraft] = useState<CreationDraft | undefined>();
+  const [localPhotoCount, setLocalPhotoCount] = useState(0);
+  const [creationKey, setCreationKey] = useState(0);
   const [phase, setPhase] = useState<"idle" | "reader">("idle");
   const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
   const previewRef = useRef<HTMLDivElement>(null);
   const previewTriggerRef = useRef<HTMLElement | null>(null);
+  const { setOpen, add } = useCart();
 
-  const open = useCallback(() => {
+  useEffect(() => {
+    const onHash = () => setRoute(parseStoryHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const openCreation = useCallback(() => {
+    setCreationDraft(undefined);
+    setLocalPhotoCount(0);
+    setCreationKey((key) => key + 1);
     setCreating(true);
   }, []);
 
-  const addCreatedBook = useCallback((draft: CreationDraft) => {
+  const addCreatedBook = useCallback((_draft: CreationDraft) => {
     const option = demoPurchaseOption();
-    add({ ...option, cartKey: `draft:${crypto.randomUUID()}`, title: `${draft.childName}’s ${draft.world}` });
+    add({ ...option, cartKey: `draft:${crypto.randomUUID()}`, title: `Demo fixture: ${option.title}` });
     setCreating(false);
     setOpen(true);
   }, [add, setOpen]);
 
-  const close = useCallback(() => {
+  const closePreview = useCallback(() => {
     setPhase("idle");
     window.requestAnimationFrame(() => previewTriggerRef.current?.focus());
   }, []);
 
-  const previewStory = useCallback((title: string, trigger?: HTMLElement) => {
+  const previewStory = useCallback((title: string, trigger?: HTMLElement | null) => {
     previewTriggerRef.current = trigger ?? null;
     setPreviewTitle(title);
     setPhase("reader");
@@ -79,9 +93,32 @@ function Site() {
     if (phase === "reader") previewRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
   }, [phase]);
 
+  // Bridges from the story journey (which mounts without Site): App always
+  // lives, so these can never miss while a mode is unmounted.
+  useEffect(() => {
+    const create = (event: Event) => {
+      const handoff = (event as CustomEvent<StoryCreationHandoff>).detail;
+      setCreationDraft(handoff?.draft);
+      setLocalPhotoCount(handoff?.localPhotoCount ?? 0);
+      setCreationKey((key) => key + 1);
+      setCreating(true);
+      if (window.location.hash.startsWith("#/story")) window.location.hash = "#top";
+    };
+    const sample = (event: Event) => {
+      const title = (event as CustomEvent<{ title?: string }>).detail?.title ?? SAMPLE_TITLE;
+      previewStory(title);
+    };
+    window.addEventListener(FLO_CREATE_EVENT, create);
+    window.addEventListener(FLO_SAMPLE_EVENT, sample as EventListener);
+    return () => {
+      window.removeEventListener(FLO_CREATE_EVENT, create);
+      window.removeEventListener(FLO_SAMPLE_EVENT, sample as EventListener);
+    };
+  }, [previewStory]);
+
   const trapPreviewFocus = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
-      close();
+      closePreview();
       return;
     }
     if (event.key !== "Tab") return;
@@ -96,7 +133,7 @@ function Site() {
       event.preventDefault();
       first.focus();
     }
-  }, [close]);
+  }, [closePreview]);
 
   const previewBook = useMemo(
     () => ({
@@ -108,6 +145,47 @@ function Site() {
     }),
     [previewTitle],
   );
+
+  return (
+    <>
+      {route.story
+        ? <StoryExperience target={route.target} />
+        : <Site openCreation={openCreation} previewStory={previewStory} />}
+      <CreationFlow key={creationKey} open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} {...(creationDraft ? { initialDraft: creationDraft } : {})} localPhotoCount={localPhotoCount} />
+      {phase === "reader" && (
+        <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
+          <div className="flo-preview-modal" ref={previewRef}>
+            <p className="flo-preview-kicker">Preview: {previewTitle}</p>
+            <BookReader
+              book={previewBook}
+              child={sampleChild}
+              printSpec={samplePrintSpec}
+              onExit={closePreview}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** `#/story` opens the journey; `#/story/<section-id>` deep-links a moment. */
+function parseStoryHash(): { story: boolean; target: string | null } {
+  if (typeof window === "undefined") return { story: false, target: null };
+  const match = window.location.hash.match(/^#\/story(?:\/([\w-]+))?/);
+  if (!match) return { story: false, target: null };
+  return { story: true, target: match[1] ?? null };
+}
+
+function Site({ openCreation, previewStory }: {
+  openCreation: () => void;
+  previewStory: (title: string, trigger?: HTMLElement | null) => void;
+}) {
+  const reduced = useReducedMotion();
+  const { setOpen, cartCount, add } = useCart();
+  const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const previewTriggerRef = useRef<HTMLElement | null>(null);
 
   return (
     <div className="flo-site">
@@ -127,6 +205,7 @@ function Site() {
             <a href="#how">How it works</a>
             <a href="#story">Your book</a>
             <a href="#about">The studio</a>
+            <a href="#/story">The story →</a>
           </nav>
           <div className="flo-mast-actions">
             <button
@@ -141,7 +220,7 @@ function Site() {
             <motion.button
               type="button"
               className="flo-btn flo-btn-primary"
-              onClick={open}
+              onClick={openCreation}
               {...(reduced ? {} : { whileHover: { scale: 1.03 }, whileTap: { scale: 0.96 } })}
             >
               Make <span className="flo-btn-arrow" aria-hidden="true">→</span>
@@ -167,7 +246,7 @@ function Site() {
                 that arrives at your door.
               </p>
               <div className="flo-hero-actions">
-                <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>
+                <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={openCreation}>
                   Start their story <span className="flo-btn-arrow" aria-hidden="true">→</span>
                 </button>
                 <a href="#story-worlds" className="flo-btn flo-btn-ghost">
@@ -340,7 +419,7 @@ function Site() {
             <div className="flo-world-actions">
               <button type="button" className="flo-btn flo-btn-ghost" onClick={(event) => previewStory(SAMPLE_TITLE, event.currentTarget)}>See a sample story <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
               <button type="button" className="flo-btn flo-btn-ghost" onClick={() => { add(demoPurchaseOption()); setOpen(true); }}>Buy the sample book <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
-              <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={open}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
+              <button type="button" className="flo-btn flo-btn-primary flo-btn-lg" onClick={openCreation}>Create their own <span className="flo-btn-arrow" aria-hidden="true">→</span></button>
             </div>
           </div>
         </section>
@@ -399,21 +478,6 @@ function Site() {
       </main>
 
       <CartDrawer />
-      <CreationFlow open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} />
-
-      {phase === "reader" && (
-        <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
-          <div className="flo-preview-modal" ref={previewRef}>
-            <p className="flo-preview-kicker">Preview: {previewTitle}</p>
-            <BookReader
-              book={previewBook}
-              child={sampleChild}
-              printSpec={samplePrintSpec}
-              onExit={close}
-            />
-          </div>
-        </div>
-      )}
 
       <footer className="flo-foot" id="foot">
         <div className="flo-foot-inner">
