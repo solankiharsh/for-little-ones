@@ -4,27 +4,21 @@
   "private": true,
   "description": "For Little One — personalised children's-book platform (monorepo bootstrap, milestone 0 rails)",
   "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "pretest": "npm run build:node-packages",
     "test:watch": "vitest",
     "dev:api": "tsx apps/api/src/dev-server.ts",
     "dev:worker": "tsx apps/worker/src/dev-worker.ts",
     "start:api": "tsx apps/api/src/server.ts",
     "start:worker": "tsx apps/worker/src/worker.ts",
-    "build:vercel": "npm run build -w @for-little-ones/domain && npm run build -w @for-little-ones/providers && npm run build -w @for-little-ones/web"
+    "build:node-packages": "npm run build -w @for-little-ones/domain && npm run build -w @for-little-ones/providers",
+    "build:vercel": "npm run build:node-packages && npm run build -w @for-little-ones/web"
   },
-  "engines": {
-    "node": ">=22"
-  },
-  "allowScripts": [
-    "esbuild",
-    "@astryxdesign/core"
-  ],
+  "engines": {"node": ">=22"},
+  "allowScripts": ["esbuild", "@astryxdesign/core"],
   "optionalDependencies": {
     "@rolldown/binding-linux-arm64-gnu": "1.2.9",
     "@rolldown/binding-linux-x64-gnu": "1.2.9"
