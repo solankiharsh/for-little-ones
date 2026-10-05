@@ -13,6 +13,7 @@ import {
   QualityEvaluationResultSchema,
   StoryOutlineRequestSchema,
   StoryOutlineResultSchema,
+  StoryPreviewResultSchema,
   parseContract,
   summarizeQa
 } from "../src/index";
@@ -205,6 +206,29 @@ describe("contracts: strict boundary (seam 1)", () => {
     expect(() => parseContract("PagePlan", PagePlanSchema, null)).not.toThrow();
     expect(() => parseContract("PagePlan", PagePlanSchema, [{ a: 1 }])).not.toThrow();
     expect(() => parseContract("PagePlan", PagePlanSchema, "nope")).not.toThrow();
+  });
+});
+
+describe("story preview result", () => {
+  const result = {
+    schemaVersion: "1",
+    title: "A Gentle Adventure",
+    synopsis: "A child finds a little wonder.",
+    emotionalGoal: "Curiosity",
+    pages: Array.from({ length: 6 }, (_, index) => ({
+      pageNumber: index + 1,
+      text: `Story page ${index + 1}.`,
+      illustrationCue: `Scene ${index + 1}.`
+    }))
+  };
+
+  it("accepts six pages in reading order", () => {
+    expect(StoryPreviewResultSchema.safeParse(result).success).toBe(true);
+  });
+
+  it("rejects duplicate or skipped page numbers instead of rendering a broken book", () => {
+    const pages = result.pages.map((page, index) => index === 5 ? { ...page, pageNumber: 5 } : page);
+    expect(StoryPreviewResultSchema.safeParse({ ...result, pages }).success).toBe(false);
   });
 });
 

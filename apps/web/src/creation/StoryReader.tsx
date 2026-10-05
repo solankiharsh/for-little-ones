@@ -49,7 +49,7 @@ export default function StoryReader({
         <p className="flo-kicker">A preview made for {childName}</p>
         <h3>{story.title}</h3>
         <p>{story.synopsis}</p>
-        <p className="flo-create-hint">Turn the pages to read the opening. Sample world artwork is watermarked; your finished illustrations come with the complete book.</p>
+        <p className="flo-create-hint">Turn the pages to read the opening. The watermarked pictures are sample world artwork, not illustrations made for this story.</p>
       </div>
       <BookReader
         key={`${story.title}:${childName}`}

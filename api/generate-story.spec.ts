@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { storyPolicyForAge, POST as generateStory } from "./generate-story";
+import { storyPolicyForAge, storyPrompt, POST as generateStory } from "./generate-story";
 import { LOCKED_ILLUSTRATION_CUE, LOCKED_PAGE_TEXT } from "@for-little-ones/domain";
 
 const { generateText } = vi.hoisted(() => ({ generateText: vi.fn() }));
 vi.mock("ai", () => ({ generateText, Output: { object: () => ({}) } }));
 
 const request = {
-  schemaVersion: "1",
+  schemaVersion: "1" as const,
   childName: "Milo",
   age: 6,
   world: "Bedtime wonder",
+  companions: ["Juniper"],
   favourites: ["Space"],
   detail: "Carries a red scarf",
   dedication: "Dream big.",
@@ -29,7 +30,7 @@ const generated = {
   emotionalGoal: "Courage can be quiet and kind.",
   pages: Array.from({ length: 6 }, (_, index) => ({
     pageNumber: index + 1,
-    text: `Secret page ${index + 1}: ${"milo walked quietly ".repeat(20)}`,
+    text: `Secret page ${index + 1}: ${"milo walked quietly ".repeat(15)}`,
     illustrationCue: `Secret illustration ${index + 1}`
   }))
 };
@@ -142,12 +143,84 @@ describe("age-specific story policy", () => {
   });
 });
 
+describe("personalised story brief", () => {
+  it("carries the selected idea and personal details through one coherent six-page arc", () => {
+    const prompt = storyPrompt(request);
+
+    expect(prompt).toContain("Milo");
+    expect(prompt).toContain("Bedtime wonder");
+    expect(prompt).toContain("Space");
+    expect(prompt).toContain("Juniper");
+    expect(prompt).toContain("Carries a red scarf");
+    expect(prompt).toContain("The Quiet Star");
+    expect(prompt).toContain("Use British English spelling");
+    expect(prompt).toMatch(/page-by-page|page 1/i);
+    expect(prompt).toMatch(/same cast|continuity/i);
+    expect(prompt).toMatch(/safe, familiar resting place/i);
+    expect(storyPrompt({ ...request, locale: "en-US" })).toContain("Use American English spelling");
+  });
+});
+
+describe("story quality gate", () => {
+  it("repairs out-of-band page length once before the story is persisted", async () => {
+    const tooShort = {
+      ...generated,
+      pages: generated.pages.map((page) => ({ ...page, text: "Milo found a star." }))
+    };
+    generateText
+      .mockResolvedValueOnce({ output: tooShort, usage: {} })
+      .mockResolvedValueOnce({ output: generated, usage: {} });
+
+    const { response, calls } = await withCreationService(paidProject, () => generateStory(post()));
+
+    expect(response.status).toBe(200);
+    expect(generateText).toHaveBeenCalledTimes(2);
+    expect(String(generateText.mock.calls[1]?.[0]?.prompt)).toMatch(/words per page/i);
+    const completion = calls.find((call) => call.path.endsWith("/story-jobs/job_1234"));
+    expect(JSON.stringify(completion?.body)).toContain(generated.pages[5]?.text);
+  });
+
+  it("repairs skipped page numbers before building the book preview", async () => {
+    const outOfOrder = {
+      ...generated,
+      pages: generated.pages.map((page, index) => index === 5 ? { ...page, pageNumber: 4 } : page)
+    };
+    generateText
+      .mockResolvedValueOnce({ output: outOfOrder, usage: {} })
+      .mockResolvedValueOnce({ output: generated, usage: {} });
+
+    const { response } = await withCreationService(paidProject, () => generateStory(post()));
+
+    expect(response.status).toBe(200);
+    expect(generateText).toHaveBeenCalledTimes(2);
+    expect(String(generateText.mock.calls[1]?.[0]?.prompt)).toMatch(/numbered 1 through 6/i);
+  });
+
+  it("repairs common US spellings in the British English edition", async () => {
+    const americanSpelling = {
+      ...generated,
+      pages: generated.pages.map((page, index) => index === 0
+        ? { ...page, text: "Milo took a cozy walk beneath moonlit trees while Juniper followed happily. ".repeat(4).trim() }
+        : page)
+    };
+    generateText
+      .mockResolvedValueOnce({ output: americanSpelling, usage: {} })
+      .mockResolvedValueOnce({ output: generated, usage: {} });
+
+    const { response } = await withCreationService(paidProject, () => generateStory(post()));
+
+    expect(response.status).toBe(200);
+    expect(generateText).toHaveBeenCalledTimes(2);
+    expect(String(generateText.mock.calls[1]?.[0]?.prompt)).toMatch(/American spelling "cozy"; use British "cosy"/i);
+  });
+});
+
 /** A copy that trips the hard-block tier, with the rest of the story left intact. */
 function storyWithUnsafePage() {
   return {
     ...generated,
     pages: generated.pages.map((page, index) =>
-      index === 2 ? { ...page, text: `Milo found a gun in the shed and felt trapped and terrified.` } : page)
+      index === 2 ? { ...page, text: `Milo found a gun in the shed and felt trapped and terrified. ${"He held his red scarf and walked gently beneath the stars. ".repeat(3)}` } : page)
   };
 }
 const paidProject = { paymentState: "pending", generation: { assetsGenerated: 0, storyAttempts: 0, conceptAttempts: 0 } };
