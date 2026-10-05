@@ -12,6 +12,7 @@ export default function StoryReader({
   dedication,
   visiblePages,
   artwork,
+  artworkNote,
 }: {
   story: StoryPreviewResult;
   childName: string;
@@ -19,6 +20,7 @@ export default function StoryReader({
   dedication: string;
   visiblePages: "ALL" | number;
   artwork?: { cover?: StoryAsset; spreadForPage?: (pageNumber: number) => StoryAsset | undefined };
+  artworkNote?: string;
 }) {
   const pages = readerPages(story, visiblePages);
   const book = previewBook(story, childName, dedication, pages);
@@ -49,7 +51,7 @@ export default function StoryReader({
         <p className="flo-kicker">A preview made for {childName}</p>
         <h3>{story.title}</h3>
         <p>{story.synopsis}</p>
-        <p className="flo-create-hint">Turn the pages to read the opening. The watermarked pictures are sample world artwork, not illustrations made for this story.</p>
+        <p className="flo-create-hint">{artworkNote ?? "Turn the pages to read the opening. The watermarked pictures are sample world artwork, not illustrations made for this story."}</p>
       </div>
       <BookReader
         key={`${story.title}:${childName}`}

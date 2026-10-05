@@ -8,7 +8,7 @@ import type { CreationDraft } from "../creation/story-preview";
  * Components consume this; nobody keeps a private copy of the child.
  */
 
-export const DEMO_NAME = "Maya";
+export const DEMO_NAME = "Aarav";
 export const STORY_COMPANIONS = ["Sibling", "Mum", "Dad", "Friend", "Pet"] as const;
 
 /** Bridges into App-level overlays without prop drilling (App always lives). */

@@ -104,6 +104,34 @@ export const ASSETS = {
   productFinalNight: asset(
     "product-final-night.webp", 1600, 800,
     "A child asleep in bed beneath a moonlit window with their storybook"
+  ),
+  aaravCharacter: asset(
+    "aarav/character.jpg", 1024, 1535,
+    "Illustrated portrait for the Aarav sample book, based on supplied family photo references"
+  ),
+  aaravCover: asset(
+    "aarav/cover.jpg", 1122, 1402,
+    "Aarav meets a little moon elephant beneath the stars on the sample book cover"
+  ),
+  aaravSceneOne: asset(
+    "aarav/scene-1.jpg", 1448, 1086,
+    "Aarav and the moon elephant follow glowing stars through a marigold courtyard"
+  ),
+  aaravSceneTwo: asset(
+    "aarav/scene-2.jpg", 1448, 1086,
+    "Aarav and the moon elephant find a fallen star among lotus flowers"
+  ),
+  aaravSceneThree: asset(
+    "aarav/scene-3.jpg", 1448, 1086,
+    "Aarav waves goodbye to the moon elephant at a warm courtyard doorway"
+  ),
+  aaravHardcover: asset(
+    "aarav/hardcover.jpg", 1672, 941,
+    "Personalized sample hardcover featuring Aarav and the moon elephant"
+  ),
+  aaravOpenBook: asset(
+    "aarav/open-book.jpg", 1672, 941,
+    "Open picture book showing Aarav's moon elephant story illustrations"
   )
 } as const satisfies Record<string, StoryAsset>;
 
