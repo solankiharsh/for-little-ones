@@ -77,7 +77,7 @@ function Shell() {
     const option = demoPurchaseOption();
     const cartKey = `draft:${crypto.randomUUID()}`;
     setCreatedStoryDraft({ cartKey, draft, storyTitle });
-    add({ ...option, cartKey, title: "Personalised hardcover" });
+    add({ ...option, cartKey, title: "Sample hardcover" });
     setCreating(false);
     setOpen(true);
   }, [add, setOpen]);

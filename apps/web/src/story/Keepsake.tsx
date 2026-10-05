@@ -18,7 +18,7 @@ const SPECS = [
 ];
 
 export default function Keepsake({ active }: { active: boolean }) {
-  const { heroName, dedication } = usePersonalization();
+  const { heroName, dedication, mode } = usePersonalization();
   const wrap = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -39,10 +39,10 @@ export default function Keepsake({ active }: { active: boolean }) {
     <section ref={wrap} className="flo-keepsake" aria-label="A keepsake to hold" id="story-keepsake">
       <div className="flo-screen">
         <div className="flo-keep-digital">
-          <StoryImage asset={ASSETS.digitalToPhysical} />
+          <StoryImage asset={mode === "marketing" ? ASSETS.aaravOpenBook : ASSETS.digitalToPhysical} />
         </div>
         <div className="flo-keep-physical">
-          <StoryImage asset={ASSETS.productHardcover} eager={false} />
+          <StoryImage asset={mode === "marketing" ? ASSETS.aaravHardcover : ASSETS.productHardcover} eager={false} />
           <aside aria-label="Book specifications">
             <h3>{heroName}&rsquo;s hardcover</h3>
             <ul>
@@ -52,7 +52,7 @@ export default function Keepsake({ active }: { active: boolean }) {
           </aside>
         </div>
         <figure className="flo-keep-open">
-          <StoryImage asset={ASSETS.productOpenBook} />
+          <StoryImage asset={mode === "marketing" ? ASSETS.aaravOpenBook : ASSETS.productOpenBook} />
         </figure>
       </div>
     </section>

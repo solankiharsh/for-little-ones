@@ -211,7 +211,13 @@ export const StoryPreviewResultSchema = z.strictObject({
     pageNumber: z.number().int().min(1).max(12),
     text: z.string().trim().min(1).max(700),
     illustrationCue: z.string().trim().min(1).max(500)
-  })).length(6),
+  })).length(6).superRefine((pages, context) => {
+    pages.forEach((page, index) => {
+      if (page.pageNumber !== index + 1) {
+        context.addIssue({ code: "custom", path: [index, "pageNumber"], message: "Story pages must be numbered consecutively from 1 to 6." });
+      }
+    });
+  }),
   generationMetadata: GenerationMetadataSchema.optional()
 });
 

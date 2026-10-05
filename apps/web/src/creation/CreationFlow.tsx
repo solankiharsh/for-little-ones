@@ -208,7 +208,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
                 <small><span>{concept.tone}</span><span>Ages {concept.readingLevel}</span><span>A story about {concept.emotionalGoal}</span></small>
               </label>)}</div>}
               {concepts.length > 0 && conceptAttempts < 3 && <button type="button" className="flo-btn flo-btn-ghost flo-concepts-again" disabled={generatingConcepts} onClick={() => void findStoryIdeas()}>Different ideas</button>}
-              {conceptAttempts >= 3 && <p className="flo-create-hint">Choose the closest idea for now. You’ll still be able to adjust individual pages later.</p>}
+              {conceptAttempts >= 3 && <p className="flo-create-hint">Choose the closest idea for now. You can go back to change their details before reading the preview.</p>}
             </section>}
             {step === 3 && <>
               <div className="flo-create-preview">
@@ -232,8 +232,8 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
               {generating && <div className="flo-create-generating" role="status"><span aria-hidden="true" /> <div><strong>Writing {child}’s story…</strong><small>Creating the title, story arc and six page drafts. This can take around a minute.</small></div></div>}
               {story && <>
                 <StoryReader story={story} childName={child} world={world} dedication={dedication.trim()} visiblePages={visiblePages} />
-                {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse before checkout</strong><p>Read the first story page and up to 140 characters of the next. The remaining pages stay locked; checkout carries these details into the complete personalised book.</p></div>}
-                <p className="flo-create-hint">The cover and opening spread use existing story-world artwork, marked as a sample. Your finished illustrations are created for the complete book.</p>
+                {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse of the story</strong><p>Read the first page and a short excerpt of the next. The rest stays locked. You can keep these details in your saved draft; today’s sample basket is a demo and won’t purchase this story or unlock the full book.</p></div>}
+                <p className="flo-create-hint">The pictures are sample world artwork, not illustrations made for this story. The preview shows the real story text and illustration directions.</p>
               </>}
             </>}
             {error && <p role="alert" className="flo-cart-form-error">{error}</p>}
@@ -243,7 +243,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
             {step < 2 ? <button className="flo-btn flo-btn-primary" type="submit">{step === 1 ? "Find story ideas" : "Continue"} →</button> : step === 2 ? <button type="button" className="flo-btn flo-btn-primary" onClick={() => concepts.length === 0 ? void findStoryIdeas() : void chooseStoryIdea()} disabled={generatingConcepts || selectingConcept || (concepts.length > 0 && !selectedConceptId)}>{generatingConcepts ? "Finding ideas…" : selectingConcept ? "Saving your choice…" : concepts.length === 0 ? "Find three story ideas" : "Read this story"}</button> : <button type="button" className="flo-btn flo-btn-primary" onClick={() => {
               if (!story) { setStarted(true); void writeStory(); return; }
               onAddToBasket(draft, story.title);
-            }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "Continue to test basket · £29.20" : "Create sample preview"}</button>}
+            }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "See sample basket · £29.20" : "Create sample preview"}</button>}
           </footer>
         </form>
       </div>

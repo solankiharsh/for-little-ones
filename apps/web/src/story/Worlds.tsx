@@ -16,7 +16,7 @@ export interface StoryWorld {
 }
 
 export const STORY_WORLDS: StoryWorld[] = [
-  { id: "moon", title: "The Moon That Followed Home", blurb: "Bedtime wonder", image: ASSETS.worldMoon, objectPositionDesktop: "35% 55%", objectPositionMobile: "35% 50%" },
+  { id: "moon", title: "The Little Moon Elephant", blurb: "Bedtime wonder", image: ASSETS.worldMoon, objectPositionDesktop: "35% 55%", objectPositionMobile: "35% 50%" },
   { id: "garden", title: "The Secret Garden Map", blurb: "Small adventures", image: ASSETS.worldGarden, objectPositionDesktop: "50% 38%", objectPositionMobile: "50% 35%" },
   { id: "lighthouse", title: "The Lighthouse That Sang", blurb: "Big imagination", image: ASSETS.worldLighthouse, objectPositionDesktop: "42% 52%", objectPositionMobile: "40% 50%" },
   { id: "dinosaurs", title: "Dinosaur Valley", blurb: "Gentle giants", image: ASSETS.worldDinosaurs, objectPositionDesktop: "50% 55%", objectPositionMobile: "50% 55%" },
@@ -25,8 +25,8 @@ export const STORY_WORLDS: StoryWorld[] = [
 
 /**
  * Canonical personalised title — the single formatter for covers, reader,
- * generation and CTAs, so articles never double ("Maya and the Moon…",
- * never "Maya and the The Moon…").
+ * generation and CTAs, so articles never double ("Aarav and the Moon…",
+ * never "Aarav and the The Moon…").
  */
 export function storyTitle(worldId: string | null, heroName: string): string {
   switch (worldId) {
@@ -34,7 +34,7 @@ export function storyTitle(worldId: string | null, heroName: string): string {
     case "lighthouse": return `${heroName} and the Lighthouse That Sang`;
     case "dinosaurs": return `${heroName} and the Valley of Gentle Giants`;
     case "space": return `${heroName} and the Quiet Stars`;
-    default: return `${heroName} and the Moon That Followed Home`;
+    default: return `${heroName} and the Little Moon Elephant`;
   }
 }
 
@@ -78,7 +78,7 @@ export function WorldPanel({ world, heroName, chosen, onChoose }: {
  * chapters; the rail reads 01–05.
  */
 export default function Worlds({ active }: { active: boolean }) {
-  const { heroName, selectedWorld, selectWorld } = usePersonalization();
+  const { heroName, selectedWorld, selectWorld, mode } = usePersonalization();
   const wrap = useRef<HTMLElement>(null);
   const [chapter, setChapter] = useState(0);
   const travel = useRef<{ start: number; end: number }>({ start: 0, end: 1 });
@@ -154,7 +154,7 @@ export default function Worlds({ active }: { active: boolean }) {
           {STORY_WORLDS.map((world) => (
             <WorldPanel
               key={world.id}
-              world={world}
+              world={mode === "marketing" && world.id === "moon" ? { ...world, image: ASSETS.aaravSceneOne } : world}
               heroName={heroName}
               chosen={selectedWorld === world.id}
               onChoose={() => selectWorld(world.id)}

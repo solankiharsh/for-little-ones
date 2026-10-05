@@ -13,7 +13,7 @@ const GUIDANCE = ["Front", "Side", "Smiling", "Full face"];
  */
 export default function Character() {
   const personal = usePersonalization();
-  const { childName, childAge, photos } = personal;
+  const { childName, childAge, photos, mode } = personal;
   const input = useRef<HTMLInputElement>(null);
   const firstPhoto = photos[0];
 
@@ -23,7 +23,7 @@ export default function Character() {
         <p className="flo-kicker">First, meet our hero</p>
         <h2>Who is this story for?</h2>
         <label className="flo-line-field">Child&rsquo;s first name
-          <input value={childName} maxLength={40} autoComplete="off" placeholder="Maya" onChange={(e) => personal.setChildName(e.target.value)} />
+          <input value={childName} maxLength={40} autoComplete="off" placeholder="Aarav" onChange={(e) => personal.setChildName(e.target.value)} />
         </label>
         <label className="flo-line-field">Age
           <select value={childAge} onChange={(e) => personal.setChildAge(e.target.value)}>
@@ -36,7 +36,7 @@ export default function Character() {
         </button>
         <input ref={input} type="file" accept="image/*" multiple hidden aria-label="Upload photos of your child"
           onChange={(e) => { if (e.target.files) personal.addPhotos(e.target.files); e.target.value = ""; }} />
-        <p className="flo-photo-note">Front · side · smiling · full face. Photos stay in this browser while you explore.</p>
+        <p className="flo-photo-note">Front · side · smiling · full face. Photos stay in this browser while you explore; this sample character art is not saved to your child's profile.</p>
         {photos.length > 0 && (
           <ul className="flo-tray">
             {photos.map((src, index) => (
@@ -56,12 +56,12 @@ export default function Character() {
           <p><strong>Real child</strong><span>{firstPhoto ? "Your photo" : "Demo photo"}</span></p>
         </li>
         <li>
-          <StoryImage asset={ASSETS.characterIllustratedDemo} />
-          <p><strong>Story character</strong><span>Demo illustration</span></p>
+          <StoryImage asset={mode === "marketing" ? ASSETS.aaravCharacter : ASSETS.characterIllustratedDemo} />
+          <p><strong>Story character</strong><span>{mode === "marketing" ? "Aarav sample illustration" : "Demo illustration"}</span></p>
         </li>
         <li>
-          <StoryImage asset={ASSETS.characterWorldDemo} />
-          <p><strong>Their world</strong><span>Demo scene</span></p>
+          <StoryImage asset={mode === "marketing" ? ASSETS.aaravSceneOne : ASSETS.characterWorldDemo} />
+          <p><strong>Their world</strong><span>{mode === "marketing" ? "Aarav's moon-elephant story" : "Demo scene"}</span></p>
         </li>
       </ol>
     </section>

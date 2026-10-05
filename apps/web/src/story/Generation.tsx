@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "./useStoryMotion";
 import { ASSETS } from "./assets";
 import StoryImage from "./StoryImage";
-import { usePersonalization } from "./personalization";
+import { DEMO_NAME, usePersonalization } from "./personalization";
 import { storyTitle } from "./Worlds";
 /** Generation states (§19): the wait continues the story. Never percentages. */
 function statesFor(name: string): string[] {
@@ -22,8 +22,8 @@ function statesFor(name: string): string[] {
  * into imagery.
  */
 export default function Generation() {
-  const { heroName, markGenerated, selectedWorld } = usePersonalization();
-  const coverTail = storyTitle(selectedWorld, heroName);
+  const { heroName, markGenerated, selectedWorld, mode } = usePersonalization();
+  const coverTail = mode === "marketing" ? `${DEMO_NAME} and the Little Moon Elephant` : storyTitle(selectedWorld, heroName);
   const [started, setStarted] = useState(false);
   const [stage, setStage] = useState(0);
   const [bound, setBound] = useState(false);
@@ -78,7 +78,7 @@ export default function Generation() {
   return (
     <section ref={wrap} className={`flo-generate${bound ? " is-bound" : ""}`} aria-label="Watch the story come alive" id="story-generate">
       <div className="flo-generate-image" aria-hidden="true">
-        <StoryImage asset={bound ? ASSETS.coverMoonFox : ASSETS.digitalToPhysical} />
+        <StoryImage asset={bound ? (mode === "marketing" ? ASSETS.aaravCover : ASSETS.coverMoonFox) : (mode === "marketing" ? ASSETS.aaravOpenBook : ASSETS.digitalToPhysical)} />
       </div>
       {!bound ? (
         <div className="flo-generate-states">
@@ -90,7 +90,7 @@ export default function Generation() {
           <p className="flo-kicker">A glimpse of what’s possible…</p>
           <h2>A story that<br />starts with<br />their world.</h2>
           <p className="flo-generate-title">{coverTail}</p>
-          <p className="flo-generate-sample-note">This is an illustrated sample experience. A personalised book is created in the next step.</p>
+          <p className="flo-generate-sample-note">This Aarav sample uses generated storybook art. Start the creation flow to make a story for your child.</p>
         </div>
       )}
     </section>
