@@ -18,6 +18,7 @@ const storefrontCors = process.env.STORE_CORS ?? [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://for-little-ones.vercel.app",
+  "/^https:\\/\\/for-little-ones(?:-[a-z0-9-]+)?-solankiharshs-projects\\.vercel\\.app$/",
   "/^https:\\/\\/for-little-ones(?:-[a-z0-9-]+)?-flo-58c54c24\\.vercel\\.app$/",
 ].join(",");
 

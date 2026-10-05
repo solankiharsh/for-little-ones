@@ -38,8 +38,13 @@ export default async function seed({ container }: ExecArgs) {
   if (!await db.schema.hasColumn("flo_creation_project", "claim_id")) {
     await db.schema.alterTable("flo_creation_project", (table) => table.text("claim_id").nullable());
   }
-  await db.raw(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
-  await db("flo_creation_project").whereNull("claim_id").update({ claim_id: db.raw(`'claim_' || encode(gen_random_bytes(32), 'hex')`) });
+  // Use pg_catalog's built-in UUID generator so this works when extensions such
+  // as pgcrypto are installed outside the application's search_path (Supabase
+  // installs them in the `extensions` schema). Two UUIDs retain a 64-hex opaque
+  // claim while avoiding a dependency on the pgcrypto schema location.
+  await db("flo_creation_project").whereNull("claim_id").update({
+    claim_id: db.raw(`'claim_' || replace(pg_catalog.gen_random_uuid()::text || pg_catalog.gen_random_uuid()::text, '-', '')`),
+  });
   await db.schema.alterTable("flo_creation_project", (table) => table.text("claim_id").notNullable().alter());
   await db.raw(`DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'flo_creation_project_claim_id_unique') THEN

@@ -17,6 +17,7 @@ const StoryPreviewRequestSchema = z.strictObject({
   childName: z.string().trim().min(1).max(40),
   age: z.number().int().min(1).max(12),
   world: z.string().trim().min(1).max(80),
+  companions: z.array(z.string().trim().min(1).max(40)).max(5).default([]),
   favourites: z.array(z.string().trim().min(1).max(40)).max(8),
   detail: z.string().trim().max(120),
   dedication: z.string().trim().max(150),
@@ -207,11 +208,9 @@ async function projectRequest(
   return body;
 }
 
-export default {
-  async fetch(request: Request) {
-    return handle(request);
-  }
-};
+export async function POST(request: Request) {
+  return handle(request);
+}
 
 function storyPrompt(input: StoryPreviewRequest): string {
   const favourites = input.favourites.length > 0 ? input.favourites.join(", ") : "gentle surprises";
@@ -220,6 +219,7 @@ function storyPrompt(input: StoryPreviewRequest): string {
   return `Create a six-page personalised story preview with this brief:
 - Main character: ${input.childName}, age ${input.age}
 - Story world: ${input.world}
+- Story companions: ${input.companions.join(", ") || "none selected"}
 - Favourite things: ${favourites}
 - Personal detail: ${personalDetail}
 - Selected concept title: ${input.selectedConcept.title}

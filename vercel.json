@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "npm run build -w @for-little-ones/web",
+  "buildCommand": "npm run build:vercel",
   "outputDirectory": "apps/web/dist",
   "installCommand": "npm install --workspace @for-little-ones/web --include-workspace-root --no-audit --no-fund"
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { storyPolicyForAge, default as generateStory } from "./generate-story";
+import { storyPolicyForAge, POST as generateStory } from "./generate-story";
 import { LOCKED_ILLUSTRATION_CUE, LOCKED_PAGE_TEXT } from "@for-little-ones/domain";
 
 const { generateText } = vi.hoisted(() => ({ generateText: vi.fn() }));
@@ -69,7 +69,7 @@ describe("pre-payment story response", () => {
   it("sends one full page, one excerpt and no later story text to the browser", async () => {
     const { response, calls } = await withCreationService(
       { paymentState: "pending", generation: { assetsGenerated: 0, storyAttempts: 0, conceptAttempts: 0 } },
-      () => generateStory.fetch(post())
+      () => generateStory(post())
     );
 
     expect(response.status).toBe(200);
@@ -93,7 +93,7 @@ describe("pre-payment story response", () => {
   it("returns the complete story once payment is captured", async () => {
     const { response } = await withCreationService(
       { paymentState: "captured", generation: { assetsGenerated: 0, storyAttempts: 0, conceptAttempts: 0 } },
-      () => generateStory.fetch(post())
+      () => generateStory(post())
     );
 
     expect(response.status).toBe(200);
@@ -105,7 +105,7 @@ describe("server-side authorisation before provider work", () => {
   it("refuses a refunded purchase before enqueueing or generating", async () => {
     const { response, calls } = await withCreationService(
       { paymentState: "refunded", generation: { assetsGenerated: 0, storyAttempts: 0, conceptAttempts: 0 } },
-      () => generateStory.fetch(post())
+      () => generateStory(post())
     );
 
     expect(response.status).toBe(402);
@@ -117,7 +117,7 @@ describe("server-side authorisation before provider work", () => {
   it("refuses once the teaser story allowance is spent, whatever the browser claims", async () => {
     const { response } = await withCreationService(
       { paymentState: "pending", generation: { assetsGenerated: 0, storyAttempts: 1, conceptAttempts: 0 } },
-      () => generateStory.fetch(post())
+      () => generateStory(post())
     );
 
     expect(response.status).toBe(402);
@@ -126,7 +126,7 @@ describe("server-side authorisation before provider work", () => {
 
   it("does not spend provider work when the creation service cannot be read", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
-    const response = await generateStory.fetch(post());
+    const response = await generateStory(post());
 
     expect(response.status).toBe(503);
     expect(generateText).not.toHaveBeenCalled();
@@ -163,7 +163,7 @@ describe("story generation moderation", () => {
       output: { ...generated, pages: generated.pages.map((page, index) => index === 0 ? { ...page, illustrationCue: "A painted scene of Elsa" } : page) },
       usage: {}
     });
-    const { response, calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+    const { response, calls } = await withCreationService(paidProject, () => generateStory(post()));
 
     expect(response.status).toBe(200);
     const completion = calls.find((call) => call.path.endsWith("/story-jobs/job_1234"));
@@ -175,7 +175,7 @@ describe("story generation moderation", () => {
     generateText
       .mockResolvedValueOnce({ output: storyWithUnsafePage(), usage: {} })
       .mockResolvedValueOnce({ output: generated, usage: {} });
-    const { response, calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+    const { response, calls } = await withCreationService(paidProject, () => generateStory(post()));
 
     expect(response.status).toBe(200);
     expect(generateText).toHaveBeenCalledTimes(2);
@@ -189,7 +189,7 @@ describe("story generation moderation", () => {
     generateText
       .mockResolvedValueOnce({ output: storyWithUnsafePage(), usage: {} })
       .mockResolvedValueOnce({ output: generated, usage: {} });
-    const { calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+    const { calls } = await withCreationService(paidProject, () => generateStory(post()));
 
     // One user command must start exactly one job, or a TEASER parent's single
     // preview would be burned by a moderation retry.
@@ -198,7 +198,7 @@ describe("story generation moderation", () => {
 
   it("fails the job and returns a retryable error when the retry is blocked too", async () => {
     generateText.mockResolvedValue({ output: storyWithUnsafePage(), usage: {} });
-    const { response, calls } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+    const { response, calls } = await withCreationService(paidProject, () => generateStory(post()));
 
     expect(response.status).toBe(503);
     expect(generateText).toHaveBeenCalledTimes(2);
@@ -208,7 +208,7 @@ describe("story generation moderation", () => {
 
   it("never ships blocked story text to the browser", async () => {
     generateText.mockResolvedValue({ output: storyWithUnsafePage(), usage: {} });
-    const { response } = await withCreationService(paidProject, () => generateStory.fetch(post()));
+    const { response } = await withCreationService(paidProject, () => generateStory(post()));
 
     expect(await response.json()).not.toHaveProperty("pages");
   });

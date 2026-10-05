@@ -12,8 +12,7 @@ function paymentStateOf(value: unknown): PaymentState {
   return value === "authorized" || value === "captured" || value === "refunded" || value === "cancelled" ? value : "pending";
 }
 
-export default {
-  async fetch(request: Request) {
+export async function POST(request: Request) {
     if (request.method !== "POST") return Response.json({ error: "Method not allowed." }, { status: 405 });
     const parsed = RequestSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return Response.json({ error: "Saved project details are invalid." }, { status: 400 });
@@ -38,5 +37,4 @@ export default {
       console.error("creation-project status request failed", error);
       return Response.json({ error: "The creation service could not be reached." }, { status: 503 });
     }
-  }
-};
+}

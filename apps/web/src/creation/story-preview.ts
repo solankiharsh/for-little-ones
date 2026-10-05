@@ -8,6 +8,7 @@ export interface CreationDraft {
   childName: string;
   age: string;
   world: string;
+  companions: string[];
   favourites: string[];
   detail: string;
   dedication: string;
@@ -63,7 +64,13 @@ export async function createStoryProject(draft: CreationDraft): Promise<StoryPro
       ? body.error : "Your draft could not be saved. Please try again.";
     throw new Error(message);
   }
-  return body;
+  const project = body as StoryProjectCredential;
+  return {
+    projectId: project.projectId,
+    revisionId: project.revisionId,
+    ownerToken: project.ownerToken,
+    entitlement: project.entitlement
+  };
 }
 
 export async function loadStoryProject(project: StoryProjectCredential): Promise<StoryProjectSnapshot> {
@@ -84,7 +91,7 @@ export async function generateStoryConcepts(draft: CreationDraft, project: Story
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      childName: draft.childName, age: Number(draft.age), world: draft.world,
+      childName: draft.childName, age: Number(draft.age), world: draft.world, companions: draft.companions,
       favourites: draft.favourites, detail: draft.detail,
       projectId: project.projectId, revisionId: project.revisionId, ownerToken: project.ownerToken
     })
@@ -111,6 +118,7 @@ export async function generateStoryPreview(draft: CreationDraft, project: StoryP
     childName: draft.childName,
     age: Number(draft.age),
     world: draft.world,
+    companions: draft.companions,
     favourites: draft.favourites,
     detail: draft.detail,
     dedication: draft.dedication,
@@ -148,7 +156,7 @@ export function loadSavedCreation(storage: Pick<Storage, "getItem">): SavedCreat
     const concepts = parseStoryConcepts(value.concepts);
     const selectedConceptId = typeof value.selectedConceptId === "string" && concepts?.some((concept) => concept.id === value.selectedConceptId) ? value.selectedConceptId : undefined;
     return {
-      draft: value.draft,
+      draft: { ...value.draft, companions: Array.isArray(value.draft.companions) ? value.draft.companions : [] },
       ...(story.success ? { story: story.data } : {}),
       ...(project ? { project } : {}),
       ...(concepts ? { concepts } : {}),
@@ -247,6 +255,7 @@ function isDraft(value: unknown): value is CreationDraft {
   return typeof draft.childName === "string"
     && typeof draft.age === "string"
     && typeof draft.world === "string"
+    && (draft.companions === undefined || (Array.isArray(draft.companions) && draft.companions.every((item) => typeof item === "string")))
     && Array.isArray(draft.favourites)
     && draft.favourites.every((item) => typeof item === "string")
     && typeof draft.detail === "string"

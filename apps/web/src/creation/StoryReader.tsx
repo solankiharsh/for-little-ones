@@ -4,6 +4,14 @@ import { initialPageIndex, readerPages, type ReaderPage } from "./story-reader";
 
 type ReaderTab = "cover" | "dedication" | "story";
 
+/** Real artwork for marketing/sample mode. Absent in production flow (placeholders stay). */
+export interface ReaderArtwork {
+  src: string;
+  width: number;
+  height: number;
+  alt: string;
+}
+
 /**
  * Tabbed book reader (F-011 v0): Cover / Dedication / Story tabs with
  * page-by-page story navigation and a thumbnail rail. Replaces the long
@@ -17,13 +25,19 @@ export default function StoryReader({
   childName,
   world,
   dedication,
-  visiblePages
+  visiblePages,
+  artwork
 }: {
   story: StoryPreviewResult;
   childName: string;
   world: string;
   dedication: string;
   visiblePages: "ALL" | number;
+  /** Marketing/sample mode only: real cover + per-page spread art. */
+  artwork?: {
+    cover?: ReaderArtwork;
+    spreadForPage?: (pageNumber: number) => ReaderArtwork | undefined;
+  };
 }) {
   const pages = readerPages(story, visiblePages);
   const hasDedication = dedication.trim().length > 0;
@@ -45,7 +59,14 @@ export default function StoryReader({
         <button type="button" role="tab" aria-selected={tab === "story"} aria-controls="flo-reader-panel" onClick={() => openTab("story")}>Story</button>
       </div>
       <div id="flo-reader-panel" role="tabpanel" aria-live="polite">
-        {tab === "cover" && <div className="flo-create-cover"><span>Made for {childName}</span><div className="flo-create-placeholder" role="img" aria-label={`${world} cover artwork for ${childName}`}><span aria-hidden="true">✧</span><small>{world} artwork</small></div><h3>{story.title}</h3><p>A story for {childName}</p></div>}
+        {tab === "cover" && (artwork?.cover ? (
+          <figure className="flo-reader-cover-art">
+            <img src={artwork.cover.src} width={artwork.cover.width} height={artwork.cover.height} alt={artwork.cover.alt} loading="lazy" decoding="async" />
+            <figcaption><span>Made for {childName}</span><strong>{story.title}</strong></figcaption>
+          </figure>
+        ) : (
+          <div className="flo-create-cover"><span>Made for {childName}</span><div className="flo-create-placeholder" role="img" aria-label={`${world} cover artwork for ${childName}`}><span aria-hidden="true">✧</span><small>{world} artwork</small></div><h3>{story.title}</h3><p>A story for {childName}</p></div>
+        ))}
         {tab === "dedication" && hasDedication && <div className="flo-reader-dedication"><p className="flo-kicker">For {childName}</p><p className="flo-create-dedication">{dedication}</p></div>}
         {tab === "story" && (
           <div className="flo-reader-story">
@@ -62,7 +83,7 @@ export default function StoryReader({
                 </li>
               ))}
             </ol>
-            <ReaderPageView page={page} />
+            <ReaderPageView page={page} art={artwork?.spreadForPage?.(page.pageNumber)} />
             <div className="flo-reader-nav">
               <button type="button" className="flo-btn flo-btn-ghost" disabled={pageIndex === 0} onClick={() => setPageIndex((value) => Math.max(0, value - 1))}>← Previous</button>
               <span aria-hidden="true">Page {page.pageNumber} of {pages.length}</span>
@@ -80,11 +101,15 @@ export default function StoryReader({
   );
 }
 
-function ReaderPageView({ page }: { page: ReaderPage }) {
+function ReaderPageView({ page, art }: { page: ReaderPage; art?: ReaderArtwork | undefined }) {
   const unlocked = page.mode !== "locked";
   return (
     <div className={unlocked ? "flo-reader-page" : "flo-reader-page flo-story-page-locked"}>
-      <div className="flo-story-art-placeholder" role="img" aria-label={unlocked ? `Artwork placeholder for page ${page.pageNumber}` : `Locked artwork for page ${page.pageNumber}`}><span>{unlocked ? `Page ${page.pageNumber}` : "Locked"}</span><small>{unlocked ? "Illustration artwork comes next" : "Unlocks after payment"}</small></div>
+      {unlocked && art ? (
+        <img className="flo-reader-spread" src={art.src} width={art.width} height={art.height} alt={art.alt} loading="lazy" decoding="async" />
+      ) : (
+        <div className="flo-story-art-placeholder" role="img" aria-label={unlocked ? `Artwork placeholder for page ${page.pageNumber}` : `Locked artwork for page ${page.pageNumber}`}><span>{unlocked ? `Page ${page.pageNumber}` : "Locked"}</span><small>{unlocked ? "Illustration artwork comes next" : "Unlocks after payment"}</small></div>
+      )}
       <div><strong>Page {page.pageNumber}</strong>
         {page.mode === "full" && <><p>{page.text}</p><small>{page.illustrationCue}</small></>}
         {page.mode === "excerpt" && <><p className="flo-story-excerpt">{page.text}</p><small>Continue with the finished book</small></>}

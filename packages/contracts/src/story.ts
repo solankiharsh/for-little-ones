@@ -195,6 +195,7 @@ export const StoryPreviewRequestSchema = z.strictObject({
   childName: z.string().trim().min(1).max(40),
   age: z.number().int().min(1).max(12),
   world: z.string().trim().min(1).max(80),
+  companions: z.array(z.string().trim().min(1).max(40)).max(5).default([]),
   favourites: z.array(z.string().trim().min(1).max(40)).max(8),
   detail: z.string().trim().max(120),
   dedication: z.string().trim().max(150),
