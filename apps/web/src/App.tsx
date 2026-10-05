@@ -50,6 +50,7 @@ function Shell() {
   const [route, setRoute] = useState(() => parseStoryHash());
   const [creating, setCreating] = useState(false);
   const [creationDraft, setCreationDraft] = useState<CreationDraft | undefined>();
+  const [createdStoryDraft, setCreatedStoryDraft] = useState<{ cartKey: string; draft: CreationDraft; storyTitle: string } | null>(null);
   const [localPhotoCount, setLocalPhotoCount] = useState(0);
   const [creationKey, setCreationKey] = useState(0);
   const [phase, setPhase] = useState<"idle" | "reader">("idle");
@@ -66,14 +67,17 @@ function Shell() {
 
   const openCreation = useCallback(() => {
     setCreationDraft(undefined);
+    setCreatedStoryDraft(null);
     setLocalPhotoCount(0);
     setCreationKey((key) => key + 1);
     setCreating(true);
   }, []);
 
-  const addCreatedBook = useCallback((_draft: CreationDraft) => {
+  const addCreatedBook = useCallback((draft: CreationDraft, storyTitle: string) => {
     const option = demoPurchaseOption();
-    add({ ...option, cartKey: `draft:${crypto.randomUUID()}`, title: `Demo fixture: ${option.title}` });
+    const cartKey = `draft:${crypto.randomUUID()}`;
+    setCreatedStoryDraft({ cartKey, draft, storyTitle });
+    add({ ...option, cartKey, title: "Personalised hardcover" });
     setCreating(false);
     setOpen(true);
   }, [add, setOpen]);
@@ -99,6 +103,7 @@ function Shell() {
     const create = (event: Event) => {
       const handoff = (event as CustomEvent<StoryCreationHandoff>).detail;
       setCreationDraft(handoff?.draft);
+      setCreatedStoryDraft(null);
       setLocalPhotoCount(handoff?.localPhotoCount ?? 0);
       setCreationKey((key) => key + 1);
       setCreating(true);
@@ -152,6 +157,7 @@ function Shell() {
         ? <StoryExperience target={route.target} />
         : <Site openCreation={openCreation} previewStory={previewStory} />}
       <CreationFlow key={creationKey} open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} {...(creationDraft ? { initialDraft: creationDraft } : {})} localPhotoCount={localPhotoCount} />
+      <CartDrawer creationDraft={createdStoryDraft} />
       {phase === "reader" && (
         <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
           <div className="flo-preview-modal" ref={previewRef}>
@@ -476,8 +482,6 @@ function Site({ openCreation, previewStory }: {
           </div>
         </section>
       </main>
-
-      <CartDrawer />
 
       <footer className="flo-foot" id="foot">
         <div className="flo-foot-inner">

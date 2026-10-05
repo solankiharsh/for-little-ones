@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Badge } from "@astryxdesign/core/Badge";
 import type { Book, ChildProfile, PrintSpec } from "@for-little-ones/domain";
 import { validateGeometry } from "@for-little-ones/domain";
-import { PageSpread } from "./PageSpread";
+import { PageSpread, type PreviewArtworkByPage } from "./PageSpread";
 import { pageLayout, spreadPages, type PageLayout } from "./page-geometry";
 
 export interface BookReaderProps {
@@ -11,12 +11,20 @@ export interface BookReaderProps {
   child?: ChildProfile;
   printSpec?: PrintSpec;
   onExit?: () => void;
+  artworkByPage?: PreviewArtworkByPage;
+  lockedPageNumbers?: readonly number[];
+  watermarked?: boolean;
+  showPrintInfo?: boolean;
 }
 
 export default function BookReader({
   book: maybeBook,
   printSpec: maybeSpec,
   onExit,
+  artworkByPage,
+  lockedPageNumbers,
+  watermarked = false,
+  showPrintInfo = true,
 }: BookReaderProps) {
   const reduced = useReducedMotion();
   const [idx, setIdx] = useState(0);
@@ -68,9 +76,12 @@ export default function BookReader({
     <div className="flo-reader">
       <header className="flo-reader-head">
         <Badge label={`Spread ${idx + 1} of ${spreads.length}`} />
-        <Badge variant={specOk ? "success" : "warning"} label={specOk ? "Print spec valid" : "Check print spec"} />
-        <Badge variant="neutral" label={`${layout.pageWidthPx.toFixed(0)} × ${layout.pageHeightPx.toFixed(0)} px`} />
-        <button type="button" className="flo-reader-exit" onClick={onExit}>Close</button>
+        {watermarked && <Badge variant="neutral" label="Watermarked sample" />}
+        {showPrintInfo && <>
+          <Badge variant={specOk ? "success" : "warning"} label={specOk ? "Print spec valid" : "Check print spec"} />
+          <Badge variant="neutral" label={`${layout.pageWidthPx.toFixed(0)} × ${layout.pageHeightPx.toFixed(0)} px`} />
+        </>}
+        {onExit && <button type="button" className="flo-reader-exit" onClick={onExit}>Close</button>}
       </header>
 
       <div className="flo-reader-stage" style={{ perspective: 1800 }}>
@@ -85,7 +96,13 @@ export default function BookReader({
           exit={reduced ? { opacity: 0 } : { opacity: 0.18, rotateY: dir > 0 ? -88 : 88, x: -dir * 32 }}
           transition={{ duration: reduced ? 0.15 : 0.56, ease: [0.32, 0.72, 0, 1] }}
         >
-          <PageSpread pages={current.pages} layout={layout} />
+          <PageSpread
+            pages={current.pages}
+            layout={layout}
+            {...(artworkByPage ? { artworkByPage } : {})}
+            {...(lockedPageNumbers ? { lockedPageNumbers } : {})}
+            watermarked={watermarked}
+          />
         </motion.div>
       </AnimatePresence>
       </div>

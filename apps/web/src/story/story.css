@@ -529,6 +529,14 @@
   align-items: end;
 }
 
+/* The original full-screen world section anchored this kicker over the panel.
+   The shelf redesign puts the heading back in document flow, so reset that
+   positioning here to keep the eyebrow above the title on small screens. */
+.flo-story .flo-worlds-shelf .flo-worlds-head > div > .flo-kicker{
+  position: static;
+  color: var(--story-ink-soft);
+}
+
 .flo-story .flo-worlds-head h2{
   margin: 8px 0 0;
   font-size: clamp(56px, 8.1vw, 120px);

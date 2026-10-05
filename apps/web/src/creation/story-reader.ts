@@ -1,4 +1,5 @@
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
+import type { Book, Page } from "@for-little-ones/domain";
 
 /**
  * Pure reader model for the book preview (F-011 v0 slice). The component owns
@@ -48,4 +49,58 @@ export function readerPages(
 export function initialPageIndex(pages: ReaderPage[]): number {
   const first = pages.findIndex((page) => page.mode !== "locked");
   return first === -1 ? 0 : first;
+}
+
+/**
+ * Build the small, read-only Book projection used by the creation teaser.
+ * The server has already removed locked text; this adapter preserves that
+ * boundary by making locked physical pages PENDING with no text blocks.
+ */
+export function previewBook(
+  story: StoryPreviewResult,
+  childName: string,
+  dedication: string,
+  pages: ReaderPage[],
+): Book {
+  const physicalPages: Page[] = [
+    {
+      pageNumber: 1,
+      status: "READY",
+      textBlocks: [
+        { id: "preview-cover-title", kind: "cover-title", text: story.title },
+        { id: "preview-cover-caption", kind: "caption", text: `A story made for ${childName}` },
+      ],
+    },
+    {
+      pageNumber: 2,
+      status: "READY",
+      textBlocks: [{ id: "preview-dedication", kind: "body", text: dedication || `Made especially for ${childName}.` }],
+    },
+    ...pages.map((page): Page => ({
+      pageNumber: page.pageNumber + 2,
+      status: page.mode === "locked" ? "PENDING" : "READY",
+      textBlocks: page.mode === "locked" ? [] : [{
+        id: `preview-story-${page.pageNumber}`,
+        kind: "body",
+        text: page.text,
+      }],
+      ...(page.mode === "locked" ? {} : {
+        illustration: {
+          assetRef: `sample-world-art/${page.pageNumber}`,
+          planKey: page.illustrationCue,
+        },
+      }),
+    })),
+  ];
+
+  return {
+    id: "creation-story-teaser",
+    status: "DRAFT",
+    metadata: { title: story.title, locale: "en" },
+    childProfileIds: ["preview-child"],
+    characters: [],
+    relationships: [],
+    pages: physicalPages,
+    revisions: [],
+  };
 }
