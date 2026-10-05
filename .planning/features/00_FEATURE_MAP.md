@@ -76,7 +76,7 @@ Canonical Book/Layout → PrintSpec/PreflightContract → F-015 core QA → F-01
 | F-008 | 08_STORY_GENERATION.md | Outline + page-text pipeline | P0 | F-007, F-006, F-003, DurableExecutionContract (foundation — D019) | agreed |
 | F-009 | 09_ILLUSTRATION_GENERATION.md | Illustration plans + image generation | P0 | F-005, F-008, DurableExecutionContract (foundation — D019) | proposed |
 | F-010 | 10_GENERATION_PROGRESS.md | Persistent, observable, resumable jobs | P0 | F-008/F-009 GenerationStep units, DurableExecutionContract/F-028 principles | proposed |
-| F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, canonical layout, F-010 (v0, M1); F-009 (illustrated preview, M2) | proposed |
+| F-011 | 11_BOOK_PREVIEW.md | Reading-mode book preview | P0 | F-008, canonical layout, F-010 (v0, M1); F-009 (illustrated preview, M2) | agreed (teaser v0) |
 | F-012 | 12_PAGE_CORRECTION.md | Page-level text/image repair | P1 | F-011, F-010 | proposed |
 | F-013 | 13_GLOBAL_CHARACTER_CORRECTION.md | Character-wide correction (hair, outfit, likeness) | P1 | F-005, F-012 | proposed |
 | F-014 | 14_BOOK_EDITOR.md | Custom editor above OpenPolotno | P1 | F-011, F-012, F-013 | agreed |

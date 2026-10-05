@@ -166,7 +166,22 @@ function ShippingForm({ attempted }: { attempted: boolean }) {
   );
 }
 
-export default function CartDrawer() {
+export default function CartDrawer({
+  creationDraft,
+}: {
+  creationDraft?: {
+    cartKey: string;
+    storyTitle: string;
+    draft: {
+      childName: string;
+      age: string;
+      world: string;
+      favourites: string[];
+      detail: string;
+      dedication: string;
+    };
+  } | null;
+}) {
   const { open, setOpen, status, entries, addSample, cartCount, cartTotals, shippingAddress, checkout } = useCart();
   const reduced = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -256,6 +271,18 @@ export default function CartDrawer() {
                   <ul className="flo-cart-lines">
                     {entries.map((entry) => <LineRow key={entry.key} entry={entry} />)}
                   </ul>
+                  {creationDraft && entries.some((entry) => entry.key === creationDraft.cartKey) && <section className="flo-cart-story-draft" aria-label="Story details from your preview">
+                    <p className="flo-kicker">From your story preview</p>
+                    <h3>{creationDraft.storyTitle}</h3>
+                    <dl>
+                      <dt>For</dt><dd>{creationDraft.draft.childName} · age {creationDraft.draft.age}</dd>
+                      <dt>Story world</dt><dd>{creationDraft.draft.world}</dd>
+                      {creationDraft.draft.favourites.length > 0 && <><dt>Favourite things</dt><dd>{creationDraft.draft.favourites.join(", ")}</dd></>}
+                      {creationDraft.draft.detail && <><dt>Personal detail</dt><dd>{creationDraft.draft.detail}</dd></>}
+                      {creationDraft.draft.dedication && <><dt>Dedication</dt><dd>{creationDraft.draft.dedication}</dd></>}
+                    </dl>
+                    <p className="flo-cart-story-draft-note">This sandbox order uses a sample book and does not attach this story draft or unlock its full pages.</p>
+                  </section>}
                   <ShippingForm attempted={addressAttempted} />
                   <footer className="flo-cart-foot">
                     <dl className="flo-cart-totals">

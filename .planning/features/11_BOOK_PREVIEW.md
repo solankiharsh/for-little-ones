@@ -1,16 +1,18 @@
 # 11_BOOK_PREVIEW.md — Reading-Mode Book Preview
 
-> **Spec ID:** F-011 · **Priority:** P0 · **Status:** draft
+> **Spec ID:** F-011 · **Priority:** P0 · **Status:** agreed (teaser v0 slice)
 > **Depends on:** **Preview v0 (M1):** F-008 Story Generation (canonical page text), the basic canonical `layout`, F-010 Generation Progress (per-page `READY`/`FAILED` state); fixture/placeholder illustrations are fine at this stage. **Illustrated preview (M2):** additionally F-009 Illustration Generation (final-quality illustrated assets).
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
 
 ## Summary
 
+**Agreed implementation scope for this increment:** add a four-step creation journey ending in a payment-gated teaser. Before payment the parent can read the title and synopsis, one complete story page, and at most 140 characters of the next page; later pages remain locked and carry no story text in the client projection (D025). Use the existing homepage `BookReader`, with up to two existing story-world images visibly marked as sample artwork. Keep the current story marketing section untouched. The basket may show the draft details in browser memory, but the current sandbox order remains generic: it neither attaches the draft to the order nor unlocks the full story. The remaining full-book, library, zoom, editing, illustration-generation, and recovery requirements below are roadmap goals, not permission to expose the whole book before payment.
+
 Reading-mode preview is the way a parent sees the finished book before paying: a real, flip-through book (`../../project-spec-initial.md` §8 — "The Preview Should Be the Product", §15 — digital experience). It is the **reading renderer** of the three-renderer split (`_SPEC_GUIDE.md` §2, `DECISIONS.md` D005): lightweight, polished, read-only, and it never ships or loads the editor framework. It renders the canonical `Book` model directly and is reused by the purchased/digital view and the family library (F-021). Preview lands in two increments: **preview v0 (M1)** renders text + canonical layout with fixture/placeholder illustrations (no child photos, no real illustration generation); the **illustrated preview (M2)** additionally renders F-009's final-quality illustrated assets. The reading surface itself is identical in both.
 
 ## 1. Goal
 
-Generation must not end in a spinner followed by checkout (spec §8 criticises exactly this pattern in the category). The parent must feel the emotional "wow" before payment and be confident the printed book will be excellent. Preview is the honest representation of what is being bought — the same canonical pages, layout and assets the print renderer consumes, not a mockup.
+Generation must not end in a spinner followed by checkout. The parent can choose a story idea, read a useful opening in the same flipbook used by the homepage sample, and see the exact personal details carried into the basket. The teaser is intentionally limited by D025; the full story and production artwork stay payment-gated.
 
 ## 2. User value
 
@@ -22,8 +24,7 @@ Generation must not end in a spinner followed by checkout (spec §8 criticises e
 ## 3. Current implementation
 
 ```text
-None (Observed). No application code exists anywhere in the workspace.
-See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
+The creation flow now uses four steps and reuses the existing homepage `BookReader` for the teaser. A read-only adapter builds a canonical `Book` projection from the server-shaped story response; locked pages have no text blocks. The cover and first story page can show existing, watermarked world artwork. The current story marketing section remains separate and unchanged.
 ```
 
 Proposed subsystems this spec feeds into (not existing): `BookService` (assembles reading projections), `BookRepository` (canonical read source), `GenerationJob` (produces the page assets it displays).

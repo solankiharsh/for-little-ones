@@ -67,6 +67,7 @@ function Site() {
   const reduced = useReducedMotion();
   const [creating, setCreating] = useState(false);
   const { setOpen, cartCount, add } = useCart();
+  const [createdStoryDraft, setCreatedStoryDraft] = useState<{ cartKey: string; draft: CreationDraft; storyTitle: string } | null>(null);
   const [phase, setPhase] = useState<"idle" | "reader">("idle");
   const [previewTitle, setPreviewTitle] = useState(SAMPLE_TITLE);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -76,9 +77,11 @@ function Site() {
     setCreating(true);
   }, []);
 
-  const addCreatedBook = useCallback((draft: CreationDraft) => {
+  const addCreatedBook = useCallback((draft: CreationDraft, storyTitle: string) => {
     const option = demoPurchaseOption();
-    add({ ...option, cartKey: `draft:${crypto.randomUUID()}`, title: `${draft.childName}’s ${draft.world}` });
+    const cartKey = `draft:${crypto.randomUUID()}`;
+    setCreatedStoryDraft({ cartKey, draft, storyTitle });
+    add({ ...option, cartKey, title: "Personalised hardcover" });
     setCreating(false);
     setOpen(true);
   }, [add, setOpen]);
@@ -424,7 +427,7 @@ function Site() {
         </section>
       </main>
 
-      <CartDrawer />
+      <CartDrawer creationDraft={createdStoryDraft} />
       <CreationFlow open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} />
 
       {phase === "reader" && (

@@ -947,6 +947,13 @@ span.flo-block-caption {
 .flo-cart-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .flo-cart-lines { flex: none; overflow: visible; padding: 0 32px; }
 .flo-cart-line { padding: 24px 0; }
+.flo-cart-story-draft { margin: 0 32px 24px; padding: 20px; border: 1px solid var(--flo-line); border-radius: 14px; background: #fffdf7; }
+.flo-cart-story-draft .flo-kicker { margin: 0 0 8px; }
+.flo-cart-story-draft h3 { margin: 0 0 16px; font: 400 23px/1.2 var(--font-family-heading); overflow-wrap: anywhere; }
+.flo-cart-story-draft dl { margin: 0; }
+.flo-cart-story-draft dt { margin-top: 12px; color: var(--flo-ink-soft); font-size: 12px; }
+.flo-cart-story-draft dd { margin: 4px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
+.flo-cart-story-draft-note { margin: 18px 0 0; color: var(--flo-ink-soft); font-size: 12px; line-height: 1.55; }
 .flo-cart-delivery { padding: 28px 32px 32px; border-top: 1px solid var(--flo-line); background: rgb(255 253 247 / .52); }
 .flo-cart-section-head { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 22px; }
 .flo-cart-section-number { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--flo-ink); color: var(--flo-surface); font-size: 12px; font-weight: 800; }
@@ -1039,6 +1046,20 @@ span.flo-block-caption {
 .flo-story-preview-head { max-width: 680px; }
 .flo-story-preview-head h3 { margin: 6px 0 10px; font: 400 32px/1.2 var(--font-family-heading); }
 .flo-story-preview-head > p:last-child { color: var(--flo-ink-soft); line-height: 1.6; }
+.flo-create-personal-details { max-width: 720px; }
+.flo-create-personal-details .flo-create-worlds { margin-bottom: 4px; }
+.flo-create-personal-details .flo-create-favourites { display: grid; gap: 8px; }
+.flo-story-preview .flo-reader { min-height: 0; }
+.flo-story-preview .flo-reader-stage { min-height: min(62vh, 620px); }
+.flo-story-preview .flo-reader .flo-spread { max-width: 100%; }
+.flo-preview-image { position: relative; width: 100%; max-height: 34vh; margin: 0 0 16px; overflow: hidden; border-radius: 6px; background: #d7c6a8; }
+.flo-preview-image img { display: block; width: 100%; height: clamp(90px, 24vh, 210px); object-fit: cover; }
+.flo-preview-image-watermarked::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(-28deg, transparent 0 44px, rgb(26 18 12 / .2) 45px 46px, transparent 47px 90px); pointer-events: none; }
+.flo-preview-image-watermarked > span { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; transform: rotate(-24deg); color: rgb(255 249 230 / .88); font-size: clamp(12px, 2vw, 22px); font-weight: 900; letter-spacing: .18em; text-shadow: 0 2px 4px rgb(0 0 0 / .6); }
+.flo-preview-locked { height: 100%; min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; box-sizing: border-box; text-align: center; border: 1px dashed #b9a17d; border-radius: 12px; background: repeating-linear-gradient(135deg, #f6eedf, #f6eedf 14px, #eee2cd 14px, #eee2cd 28px); color: var(--flo-ink-soft); }
+.flo-preview-locked > span { color: var(--flo-sienna-deep); font-size: 30px; }
+.flo-preview-locked strong { font: 400 20px/1.2 var(--font-family-heading); color: var(--flo-ink); }
+.flo-preview-locked small { max-width: 22ch; line-height: 1.45; }
 .flo-story-preview ol { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 18px; }
 .flo-story-preview li { display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: stretch; padding: 14px; border: 1px solid var(--flo-line); border-radius: 14px; background: #fffdf7; }
 .flo-story-preview li p { line-height: 1.65; margin: 8px 0; }
@@ -1074,6 +1095,7 @@ span.flo-block-caption {
   .flo-cart-panel { max-height: calc(100dvh - 20px); border-radius: 18px; }
   .flo-cart-head, .flo-cart-foot { padding: 20px; }
   .flo-cart-lines { padding: 0 20px; }
+  .flo-cart-story-draft { margin-inline: 20px; }
   .flo-cart-delivery { padding: 24px 20px; }
   .flo-cart-delivery-grid { grid-template-columns: 1fr; }
   .flo-create { width: calc(100% - 20px); max-height: calc(100dvh - 20px); border-radius: 18px; }
