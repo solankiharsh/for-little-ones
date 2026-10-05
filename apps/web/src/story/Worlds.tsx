@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { gsap, ScrollTrigger } from "./useStoryMotion";
+import { gsap, ScrollTrigger, scrollStoryToY } from "./useStoryMotion";
 import { ASSETS, type StoryAsset } from "./assets";
 import StoryImage from "./StoryImage";
 import { usePersonalization, requestSample } from "./personalization";
@@ -133,7 +133,7 @@ export default function Worlds({ active }: { active: boolean }) {
     const clamped = Math.max(0, Math.min(STORY_WORLDS.length - 1, index));
     const { start, end } = travel.current;
     const top = start + (end - start) * (clamped / (STORY_WORLDS.length - 1));
-    window.scrollTo({ top, behavior: "smooth" });
+    scrollStoryToY(top);
     setChapter(clamped);
   };
 

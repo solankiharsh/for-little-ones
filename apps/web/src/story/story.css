@@ -367,11 +367,71 @@
 }
 
 .flo-story .flo-worlds-story .flo-screen{
-  position: relative;
-  top: auto;
+  position: sticky;
+  top: 0;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+}
+
+.flo-story .flo-worlds-ui{
+  position: absolute;
+  z-index: 4;
+  right: clamp(24px, 5vw, 72px);
+  bottom: clamp(24px, 5vh, 52px);
+  left: clamp(24px, 5vw, 72px);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: var(--story-paper);
+}
+
+.flo-story .flo-worlds-count,
+.flo-story .flo-worlds-hint{
+  margin: 0;
+}
+
+.flo-story .flo-worlds-count{
+  color: var(--story-gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+}
+
+.flo-story .flo-worlds-hint{
+  color: #cfd4e4;
+  font-size: 13px;
+}
+
+.flo-story .flo-worlds-steps{
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.flo-story .flo-worlds-steps button{
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(246, 240, 226, 0.6);
+  border-radius: 50%;
+  background: rgba(20, 27, 51, 0.72);
+  color: var(--story-paper);
+  font: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.flo-story .flo-worlds-steps button:disabled{
+  opacity: 0.4;
+  cursor: default;
+}
+
+.flo-story .flo-worlds-steps button:focus-visible{
+  outline: 2px solid var(--story-gold);
+  outline-offset: 3px;
 }
 
 .flo-story .flo-worlds-track{
@@ -482,7 +542,13 @@
 @media (max-width: 991px) {
   .flo-story .flo-worlds-story .flo-screen{
     height: auto;
+    position: static;
     overflow: visible;
+  }
+
+  .flo-story .flo-worlds-ui{
+    position: static;
+    padding: 0 24px 32px;
   }
 
   .flo-story .flo-worlds-track{
