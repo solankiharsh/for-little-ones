@@ -213,6 +213,24 @@ describe("story quality gate", () => {
     expect(generateText).toHaveBeenCalledTimes(2);
     expect(String(generateText.mock.calls[1]?.[0]?.prompt)).toMatch(/American spelling "cozy"; use British "cosy"/i);
   });
+
+  it("repairs quality and moderation findings together in its single retry", async () => {
+    const combinedDefects = {
+      ...storyWithUnsafePage(),
+      pages: storyWithUnsafePage().pages.map((page, index) => index === 0 ? { ...page, text: "Milo found a star." } : page)
+    };
+    generateText
+      .mockResolvedValueOnce({ output: combinedDefects, usage: {} })
+      .mockResolvedValueOnce({ output: generated, usage: {} });
+
+    const { response } = await withCreationService(paidProject, () => generateStory(post()));
+
+    expect(response.status).toBe(200);
+    expect(generateText).toHaveBeenCalledTimes(2);
+    const repairPrompt = String(generateText.mock.calls[1]?.[0]?.prompt);
+    expect(repairPrompt).toMatch(/words per page/i);
+    expect(repairPrompt).toMatch(/matched "gun"/i);
+  });
 });
 
 /** A copy that trips the hard-block tier, with the rest of the story left intact. */

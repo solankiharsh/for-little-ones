@@ -105,12 +105,15 @@ async function handle(request: Request): Promise<Response> {
     jobId = job.jobId;
     let { output, usage } = await writeStory(input.data);
     let qualityFindings = storyQualityFindings(input.data, output);
-    let screened = qualityFindings.length === 0 ? await screenStory(input.data, output) : undefined;
-    if (qualityFindings.length > 0 || screened?.verdict === "BLOCK") {
+    let screened = await screenStory(input.data, output);
+    if (qualityFindings.length > 0 || screened.verdict === "BLOCK") {
       // One narrowed retry, inside the same job, so a blocked draft costs the parent
       // one story attempt rather than two. Quality and safety repairs share the same
       // single retry; there is no authored fallback for a story.
-      const findings = qualityFindings.length > 0 ? qualityFindings : screened!.findings;
+      const findings = [
+        ...qualityFindings,
+        ...(screened.verdict === "BLOCK" ? screened.findings : [])
+      ];
       console.warn("story draft needs a quality or safety repair; retrying once", findings);
       ({ output, usage } = await writeStory(input.data, repairInstruction(findings, output)));
       qualityFindings = storyQualityFindings(input.data, output);
