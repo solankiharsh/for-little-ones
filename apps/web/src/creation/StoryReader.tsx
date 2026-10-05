@@ -1,7 +1,7 @@
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import { samplePrintSpec } from "../data/sample-book";
 import BookReader from "../reader/BookReader";
-import { ASSETS } from "../story/assets";
+import { ASSETS, type StoryAsset } from "../story/assets";
 import { previewBook, readerPages } from "./story-reader";
 
 /** The creation teaser uses the same physical-book reader as the homepage sample. */
@@ -11,24 +11,34 @@ export default function StoryReader({
   world,
   dedication,
   visiblePages,
+  artwork,
 }: {
   story: StoryPreviewResult;
   childName: string;
   world: string;
   dedication: string;
   visiblePages: "ALL" | number;
+  artwork?: { cover?: StoryAsset; spreadForPage?: (pageNumber: number) => StoryAsset | undefined };
 }) {
   const pages = readerPages(story, visiblePages);
   const book = previewBook(story, childName, dedication, pages);
-  const selectedWorld = world === "Small adventures"
+  const normalizedWorld = world.toLowerCase();
+  const selectedWorld = normalizedWorld.includes("garden")
     ? ASSETS.worldGarden
-    : world === "Big imagination"
+    : normalizedWorld.includes("lighthouse") || normalizedWorld.includes("sea")
       ? ASSETS.worldLighthouse
-      : ASSETS.worldMoon;
-  const artworkByPage = {
-    1: selectedWorld,
-    3: selectedWorld,
+      : normalizedWorld.includes("dinosaur")
+        ? ASSETS.worldDinosaurs
+        : normalizedWorld.includes("star") || normalizedWorld.includes("space")
+          ? ASSETS.worldSpace
+          : ASSETS.worldMoon;
+  const artworkByPage: Record<number, { src: string; alt: string }> = {
+    1: artwork?.cover ?? selectedWorld,
   };
+  for (const page of pages) {
+    if (page.mode === "locked") continue;
+    artworkByPage[page.pageNumber + 2] = artwork?.spreadForPage?.(page.pageNumber) ?? selectedWorld;
+  }
   const lockedPageNumbers = pages
     .filter((page) => page.mode === "locked")
     .map((page) => page.pageNumber + 2);

@@ -31,11 +31,12 @@ export default function Hero({ active }: { active: boolean }) {
         <div className="flo-hero-frame">
           <StoryImage asset={ASSETS.heroRealityToStory} eager className="flo-hero-photo" />
           <div className="flo-hero-scrim" aria-hidden="true" />
-          <h2 className="flo-hero-headline">
+          <h1 className="flo-hero-headline">
             <span>Every child deserves</span>
             <span>a story where</span>
             <strong>they are the hero.</strong>
-          </h2>
+          </h1>
+          <p className="flo-hero-cue" aria-hidden="true">Scroll to enter</p>
           <div className="flo-hero-final" aria-hidden="true">
             <p>Your child.</p>
             <p>Their adventure.</p>

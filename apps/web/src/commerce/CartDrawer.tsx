@@ -176,6 +176,7 @@ export default function CartDrawer({
       childName: string;
       age: string;
       world: string;
+      companions: string[];
       favourites: string[];
       detail: string;
       dedication: string;
@@ -277,6 +278,7 @@ export default function CartDrawer({
                     <dl>
                       <dt>For</dt><dd>{creationDraft.draft.childName} · age {creationDraft.draft.age}</dd>
                       <dt>Story world</dt><dd>{creationDraft.draft.world}</dd>
+                      {creationDraft.draft.companions.length > 0 && <><dt>Story companions</dt><dd>{creationDraft.draft.companions.join(", ")}</dd></>}
                       {creationDraft.draft.favourites.length > 0 && <><dt>Favourite things</dt><dd>{creationDraft.draft.favourites.join(", ")}</dd></>}
                       {creationDraft.draft.detail && <><dt>Personal detail</dt><dd>{creationDraft.draft.detail}</dd></>}
                       {creationDraft.draft.dedication && <><dt>Dedication</dt><dd>{creationDraft.draft.dedication}</dd></>}

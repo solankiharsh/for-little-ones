@@ -149,3 +149,14 @@ through the vite `/api` prefix proxy (dev only). Boot order migrate → api →
 worker is recommended because pg-boss's own bootstrap DDL races on a fresh DB
 (`PgBossDurableRuntime.init` now retries it, so any order converges). Smoke:
 anonymous session → profile → book → concepts enqueue → worker-claimed bundle.
+
+## 12. Production host scaffolding (D032)
+
+One image (`Dockerfile.api`), two Cloud Run services (`flo-api` on `:8080`,
+`flo-worker` overriding the command), built by `cloudbuild-api.yaml` and
+deployed by `scripts/deploy-api.py` with `DATABASE_URL` + `GEMINI_API_KEY`
+Secret Manager bindings. Prod entries (`server.ts`, `worker.ts`) compose
+`productionProviders()` — Gemini text + rules-engine moderation, failing fast
+without keys and refusing all stubs. Remaining human steps: enable the Cloud
+Run API, provision Postgres + the two secrets, deploy, point the web at the
+service, re-decide cookie/CORS, verify a live story — then delete Path B.

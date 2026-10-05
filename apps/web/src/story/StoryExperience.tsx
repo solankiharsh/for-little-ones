@@ -18,15 +18,12 @@ import { FinalCta, StoryFooter } from "./Closing";
 import ProgressRail from "./ProgressRail";
 import { ASSETS } from "./assets";
 
-/** Event bridge into the existing creation flow without restructuring Site. */
-export const FLO_CREATE_EVENT = "flo:create-book";
-
 /**
  * The continuous story (§22): reality → imagination → book → keepsake.
  * Heavy scrub choreography mounts only when `full` (desktop, motion OK);
  * otherwise every section renders in its resting state with full function.
  */
-export default function StoryExperience({ onCreate, target }: { onCreate: () => void; target?: string | null }) {
+export default function StoryExperience({ target }: { target?: string | null }) {
   const { reduced, full } = useStoryMotion();
 
   useEffect(() => {
@@ -63,7 +60,7 @@ export default function StoryExperience({ onCreate, target }: { onCreate: () => 
   return (
     <PersonalizationProvider>
       <div className={`flo-story${reduced ? " is-reduced" : ""}${full ? "" : " is-simple"}`}>
-        <Opening onBegin={() => scrollToStory("story-hero", reduced)} />
+        <Opening />
         <ProgressRail />
         <main aria-label="For Little One — a story in one scroll">
           <Hero active={full} />
@@ -77,7 +74,7 @@ export default function StoryExperience({ onCreate, target }: { onCreate: () => 
           <Emotion />
           <HumanProof />
           <Keepsake active={full} />
-          <FinalCta onCreate={onCreate} />
+          <FinalCta />
         </main>
         <StoryFooter />
       </div>
