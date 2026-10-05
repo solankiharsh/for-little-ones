@@ -6,10 +6,11 @@ import { usePersonalization } from "./personalization";
 import { STORY_WORLDS } from "./Worlds";
 
 function storyFor(hero: string, worldTitle: string, companions: string[], interests: string[], detail: string): StoryPreviewResult {
+  const worldName = worldTitle.replace(/^the\s+/i, "");
   const friends = companions.length > 0 ? ` with ${companions.join(" and ")}` : "";
   const loves = interests.length > 0 ? ` who loves ${interests.join(" and ").toLowerCase()}` : "";
   const pages = [
-    `${hero} woke to a morning that hummed a brand-new tune${loves}. Today, the ${worldTitle.toLowerCase()} was waiting.`,
+    `${hero} woke to a morning that hummed a brand-new tune${loves}. Today, the ${worldName.toLowerCase()} was waiting.`,
     `${hero} packed courage in one pocket and curiosity in the other${friends}, and stepped through the doorway only heroes can see.`,
     `The path wound past whispering trees and windows glowing gold. ${detail ? `${detail} — and ${hero} smiled, because some things are only theirs to know.` : `${hero} waved at every small creature along the way.`}`,
     `Then came the wobble every adventure needs: a bridge of ribbons, swaying high above a sea of pillows. ${hero} took one brave breath — and crossed.`,
@@ -18,7 +19,7 @@ function storyFor(hero: string, worldTitle: string, companions: string[], intere
   ];
   return {
     schemaVersion: "1",
-    title: `${hero} and the ${worldTitle}`,
+    title: `${hero} and the ${worldName}`,
     synopsis: `A personal adventure for ${hero}, woven around the things they love.`,
     emotionalGoal: "A story about being brave",
     pages: pages.map((text, index) => ({
