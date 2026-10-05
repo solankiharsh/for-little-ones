@@ -157,6 +157,7 @@ function Shell() {
         ? <StoryExperience target={route.target} />
         : <Site openCreation={openCreation} previewStory={previewStory} />}
       <CreationFlow key={creationKey} open={creating} onClose={() => setCreating(false)} onAddToBasket={addCreatedBook} {...(creationDraft ? { initialDraft: creationDraft } : {})} localPhotoCount={localPhotoCount} />
+      <CartDrawer creationDraft={createdStoryDraft} />
       {phase === "reader" && (
         <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
           <div className="flo-preview-modal" ref={previewRef}>
@@ -481,8 +482,6 @@ function Site({ openCreation, previewStory }: {
           </div>
         </section>
       </main>
-
-      <CartDrawer creationDraft={createdStoryDraft} />
 
       <footer className="flo-foot" id="foot">
         <div className="flo-foot-inner">
