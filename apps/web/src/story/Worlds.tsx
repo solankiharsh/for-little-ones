@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { gsap, ScrollTrigger } from "./useStoryMotion";
+import { gsap, ScrollTrigger, scrollStoryToY } from "./useStoryMotion";
 import { ASSETS, type StoryAsset } from "./assets";
 import StoryImage from "./StoryImage";
 import { usePersonalization, requestSample } from "./personalization";
@@ -88,7 +88,12 @@ export default function Worlds({ active }: { active: boolean }) {
     const section = wrap.current!;
     const track = section.querySelector(".flo-worlds-track") as HTMLElement;
     const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
+    const updateTravel = () => {
+      const start = section.getBoundingClientRect().top + window.scrollY;
+      travel.current = { start, end: start + section.offsetHeight - window.innerHeight };
+    };
     section.style.height = `${window.innerHeight + distance()}px`;
+    updateTravel();
     const ctx = gsap.context(() => {
       const journey = gsap.to(track, {
         x: () => -distance(),
@@ -99,6 +104,9 @@ export default function Worlds({ active }: { active: boolean }) {
           end: "bottom bottom",
           scrub: 0.7,
           invalidateOnRefresh: true,
+          onRefresh: (self) => {
+            travel.current = { start: self.start, end: self.end };
+          },
           onUpdate: (self) => {
             travel.current = { start: self.start, end: self.end };
             setChapter(Math.min(STORY_WORLDS.length - 1, Math.round(self.progress * (STORY_WORLDS.length - 1))));
@@ -119,6 +127,7 @@ export default function Worlds({ active }: { active: boolean }) {
     }, wrap);
     const onResize = () => {
       section.style.height = `${window.innerHeight + distance()}px`;
+      updateTravel();
       ScrollTrigger.refresh();
     };
     window.addEventListener("resize", onResize);
@@ -133,7 +142,7 @@ export default function Worlds({ active }: { active: boolean }) {
     const clamped = Math.max(0, Math.min(STORY_WORLDS.length - 1, index));
     const { start, end } = travel.current;
     const top = start + (end - start) * (clamped / (STORY_WORLDS.length - 1));
-    window.scrollTo({ top, behavior: "smooth" });
+    scrollStoryToY(top);
     setChapter(clamped);
   };
 

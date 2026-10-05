@@ -75,4 +75,13 @@ export function scrollToStory(target: string, instant = false) {
   }
 }
 
+/** Scroll to a document position through the same engine used by the story. */
+export function scrollStoryToY(top: number) {
+  if (lenisInstance) {
+    lenisInstance.scrollTo(top);
+  } else {
+    window.scrollTo({ top, behavior: "smooth" });
+  }
+}
+
 export { gsap, ScrollTrigger };
