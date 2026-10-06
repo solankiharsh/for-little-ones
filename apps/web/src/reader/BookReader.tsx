@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { readEdits, writeEdits } from "./edit-storage";
+import type { StoryProjectCredential } from "../creation/story-preview";
+import IllustrationEditor from "./IllustrationEditor";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Badge } from "@astryxdesign/core/Badge";
 import type { Book, ChildProfile, PrintSpec } from "@for-little-ones/domain";
@@ -8,6 +11,7 @@ import { pageLayout, spreadPages, type PageLayout } from "./page-geometry";
 
 export interface BookReaderProps {
   book?: Book;
+  project?: StoryProjectCredential;
   child?: ChildProfile;
   printSpec?: PrintSpec;
   onExit?: () => void;
@@ -19,6 +23,7 @@ export interface BookReaderProps {
 
 export default function BookReader({
   book: maybeBook,
+  project,
   printSpec: maybeSpec,
   onExit,
   artworkByPage,
@@ -27,17 +32,41 @@ export default function BookReader({
   showPrintInfo = true,
 }: BookReaderProps) {
   const reduced = useReducedMotion();
+  const container = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(typeof window === "undefined" ? 1000 : window.innerWidth - 80);
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => { if (entry) setWidth(entry.contentRect.width); });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const singlePage = width < 620;
   const [idx, setIdx] = useState(0);
+  const [editingPage, setEditingPage] = useState<number | null>(null);
+  const [edits, setEdits] = useState<PreviewArtworkByPage>({});
+  const [editMessage, setEditMessage] = useState("");
+  const editKey = project ? `${project.projectId}:${project.revisionId}` : `catalogue:${maybeBook?.metadata.title ?? "sample"}`;
+  useEffect(() => {
+    let active = true; setEdits({});
+    readEdits(editKey).then((value) => { if (active) setEdits(value); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [editKey]);
+  async function acceptEdits(next: PreviewArtworkByPage) {
+    try { await writeEdits(editKey, next); setEdits(next); setEditingPage(null); setEditMessage("Saved on this device. Your original illustrations are still available."); }
+    catch (error) { setEditMessage("Your edit could not be saved on this device. Please try again."); throw error; }
+  }
   const [dir, setDir] = useState<1 | -1>(1);
 
-  const spreads = useMemo(() => (maybeBook ? spreadPages(maybeBook.pages) : []), [maybeBook]);
+  const spreads = useMemo(() => (maybeBook ? singlePage ? maybeBook.pages.map((page) => ({ key: `page-${page.pageNumber}`, pages: [page] })) : spreadPages(maybeBook.pages) : []), [maybeBook, singlePage]);
+  useEffect(() => { setIdx((current) => Math.min(current, Math.max(0, spreads.length - 1))); }, [spreads.length]);
   const layout: PageLayout | null = useMemo(() => {
     if (!maybeSpec || typeof window === "undefined") return null;
     // The preview modal is capped at 1180px, so calculate width per page from
     // its content area rather than letting a full spread overflow the frame.
-    const modalContentWidth = Math.min(1180, window.innerWidth - 48) - 42;
-    return pageLayout(maybeSpec, Math.round(window.innerHeight * 0.62), Math.floor(modalContentWidth / 2));
-  }, [maybeSpec]);
+    const modalContentWidth = Math.max(240, width - 32);
+    return pageLayout(maybeSpec, Math.min(650, Math.max(360, window.innerHeight * 0.7)), Math.floor(modalContentWidth / (singlePage ? 1 : 2)));
+  }, [maybeSpec, width, singlePage]);
   const geometry = useMemo(() => {
     if (!maybeSpec) return null;
     return validateGeometry(maybeSpec, maybeBook ? { pageCount: maybeBook.pages.length } : {});
@@ -55,6 +84,7 @@ export default function BookReader({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
+      if (document.querySelector(".flo-illustration-editor[open]")) return;
       if (target?.matches("input, textarea, [contenteditable='true']")) return;
       if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); go(1); }
       else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(-1); }
@@ -68,15 +98,15 @@ export default function BookReader({
     return <div className="flo-reader-empty"><Badge label="Waiting for a book" /></div>;
   }
 
-  const current = spreads[idx];
+  const current = spreads[Math.min(idx, spreads.length - 1)];
   if (!current) return null;
   const specOk = geometry?.ok === true;
 
   return (
-    <div className="flo-reader">
+    <div className="flo-reader" ref={container}>
       <header className="flo-reader-head">
-        <Badge label={`Spread ${idx + 1} of ${spreads.length}`} />
-        {watermarked && <Badge variant="neutral" label="Watermarked sample" />}
+        <Badge label={`${singlePage ? "Page" : "Spread"} ${Math.min(idx + 1, spreads.length)} of ${spreads.length}`} />
+        {watermarked && <Badge variant="neutral" label="Personalised preview" />}
         {showPrintInfo && <>
           <Badge variant={specOk ? "success" : "warning"} label={specOk ? "Print spec valid" : "Check print spec"} />
           <Badge variant="neutral" label={`${layout.pageWidthPx.toFixed(0)} × ${layout.pageHeightPx.toFixed(0)} px`} />
@@ -99,7 +129,7 @@ export default function BookReader({
           <PageSpread
             pages={current.pages}
             layout={layout}
-            {...(artworkByPage ? { artworkByPage } : {})}
+            {...(artworkByPage ? { artworkByPage: { ...artworkByPage, ...edits }, onEdit: (page: number) => setEditingPage(page) } : {})}
             {...(lockedPageNumbers ? { lockedPageNumbers } : {})}
             watermarked={watermarked}
           />
@@ -107,6 +137,9 @@ export default function BookReader({
       </AnimatePresence>
       </div>
 
+      {editingPage !== null && (edits[editingPage] ?? artworkByPage?.[editingPage]) && <IllustrationEditor {...(project ? { project } : {})} artwork={(edits[editingPage] ?? artworkByPage?.[editingPage])!} onClose={() => setEditingPage(null)} onAccept={(artwork) => { return acceptEdits({ ...edits, [editingPage]: artwork }); }} />}
+      {Object.keys(edits).length > 0 && <p className="flo-reader-edit-status" role="status">Your edited preview is saved on this device. <button type="button" onClick={() => void acceptEdits({}).catch(() => undefined)}>Restore original illustrations</button></p>}
+      {editMessage && <p className="flo-reader-edit-status" role="status">{editMessage}</p>}
       <footer className="flo-reader-foot">
         <button type="button" disabled={idx === 0} onClick={() => go(-1)}>← Prev</button>
         <button type="button" disabled={idx === spreads.length - 1} onClick={() => go(1)}>Next →</button>

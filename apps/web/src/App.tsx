@@ -1,3 +1,5 @@
+import StoryReader from "./creation/StoryReader";
+import { sampleForWorld, GARDEN_COVER, LIGHTHOUSE_COVER } from "./story/samples";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { sampleBook, sampleChild, samplePrintSpec } from "./data/sample-book";
@@ -13,7 +15,7 @@ import StoryExperience from "./story/StoryExperience";
 import { FLO_CREATE_EVENT, FLO_SAMPLE_EVENT, type StoryCreationHandoff } from "./story/personalization";
 
 const STUDIO = "For Little One";
-const SAMPLE_TITLE = sampleBook.metadata.title ?? "The Fox Who Lost the Moon";
+const SAMPLE_TITLE = "Aarav and the Little Moon Elephant";
 
 function Logo() {
   return (
@@ -140,16 +142,7 @@ function Shell() {
     }
   }, [closePreview]);
 
-  const previewBook = useMemo(
-    () => ({
-      ...sampleBook,
-      metadata: { ...sampleBook.metadata, title: previewTitle },
-      pages: sampleBook.pages.map((page) => page.pageNumber === 1
-        ? { ...page, textBlocks: page.textBlocks.map((block) => block.kind === "cover-title" ? { ...block, text: previewTitle } : block) }
-        : page),
-    }),
-    [previewTitle],
-  );
+  const previewSample = sampleForWorld(previewTitle);
 
   return (
     <>
@@ -162,12 +155,8 @@ function Shell() {
         <div className="flo-preview-overlay" role="dialog" aria-modal="true" aria-label={`${previewTitle} preview`} onKeyDown={trapPreviewFocus}>
           <div className="flo-preview-modal" ref={previewRef}>
             <p className="flo-preview-kicker">Preview: {previewTitle}</p>
-            <BookReader
-              book={previewBook}
-              child={sampleChild}
-              printSpec={samplePrintSpec}
-              onExit={closePreview}
-            />
+            <button type="button" className="flo-reader-exit" onClick={closePreview}>Close preview</button>
+            <StoryReader story={previewSample.story} childName={previewSample.childName} world={previewSample.id} dedication="A little adventure to share." visiblePages="ALL" artworkNote="An illustrated catalogue sample." artwork={{ cover: previewSample.cover, spreadForPage: (page) => previewSample.art[(page - 1) % previewSample.art.length] }} />
           </div>
         </div>
       )}
@@ -403,19 +392,22 @@ function Site({ openCreation, previewStory }: {
               </p>
             </div>
             <div className="flo-world-grid">
-              <button type="button" className="flo-world flo-world-night" onClick={(event) => previewStory("The Moon That Followed Home", event.currentTarget)}>
+              <button type="button" className="flo-world flo-world-night" onClick={(event) => previewStory(SAMPLE_TITLE, event.currentTarget)}>
+                <img className="flo-world-cover-art" src="/story/aarav/cover.jpg" alt="Aarav and the moon elephant, illustrated book cover" />
                 <span className="flo-world-kicker">Bedtime wonder</span>
-                <h3>The moon that followed home</h3>
+                <h3>The little moon elephant</h3>
                 <p>For the child who always has one more question about the sky.</p>
                 <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
               </button>
               <button type="button" className="flo-world flo-world-garden" onClick={(event) => previewStory("The Secret Garden Map", event.currentTarget)}>
+                <img className="flo-world-cover-art" src={GARDEN_COVER.src} alt={GARDEN_COVER.alt} />
                 <span className="flo-world-kicker">Small adventures</span>
                 <h3>The secret garden map</h3>
                 <p>A rainy-day expedition with a brave companion and a pocketful of clues.</p>
                 <span className="flo-world-preview">Open preview <span aria-hidden="true">→</span></span>
               </button>
               <button type="button" className="flo-world flo-world-sea" onClick={(event) => previewStory("The Lighthouse That Sang", event.currentTarget)}>
+                <img className="flo-world-cover-art" src={LIGHTHOUSE_COVER.src} alt={LIGHTHOUSE_COVER.alt} />
                 <span className="flo-world-kicker">Big imagination</span>
                 <h3>The lighthouse that sang</h3>
                 <p>A sea-swept story for a little explorer who never misses a wave.</p>

@@ -24,9 +24,11 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/store/flo/projects`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-publishable-api-key": publishableKey },
-        body: JSON.stringify({ draft: parsed.data })
+        body: JSON.stringify({ draft: parsed.data }),
+        signal: AbortSignal.timeout(10_000)
       });
       const body: unknown = await response.json().catch(() => null);
+      if (response.status >= 500) return Response.json({ error: "Story creation is temporarily unavailable. Your details are still here; please try again shortly." }, { status: 503, headers: { "retry-after": "30" } });
       if (!response.ok) return Response.json({ error: "Your draft could not be saved." }, { status: 502 });
       if (typeof body !== "object" || body === null) return Response.json({ error: "Your draft could not be saved." }, { status: 502 });
       // A newly created project has no payment record yet, so the entitlement the

@@ -10,7 +10,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   if (!project) return res.status(404).json({ message: "Project not found." });
   const paymentState = parsePaymentState(project.payment_state);
   const revision = await db("flo_creation_revision").where({ project_id: project.id }).orderBy("version", "desc").first();
-  const job = revision ? await db("flo_generation_job").where({ revision_id: revision.id }).orderBy("created_at", "desc").first() : null;
+  const job = revision ? await db("flo_generation_job").where({ revision_id: revision.id }).whereIn("kind", ["CONCEPT_BUNDLE", "STORY_PREVIEW"]).orderBy("created_at", "desc").first() : null;
   return res.json({
     projectId: project.id, paymentState, claimId: project.claim_id ?? null,
     revision: revision ? { revisionId: revision.id, version: revision.version, status: revision.status, draft: revision.draft, concepts: revision.concepts, selectedConceptId: revision.selected_concept_id, teaser: revision.teaser, story: readableStory(revision, paymentState) } : null,

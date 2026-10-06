@@ -11,6 +11,7 @@ export default defineConfig({
     // the existing SameSite=Lax setting. Dev only — production serves Path A
     // from its own host (D028), never through this proxy.
     proxy: {
+      "/api/edit-illustration": { target: "http://127.0.0.1:8788", changeOrigin: false },
       "/api": {
         target: "http://127.0.0.1:8787",
         changeOrigin: false

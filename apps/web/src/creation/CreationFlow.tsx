@@ -231,7 +231,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
               {started && !story && !restoring && !generating && <p className="flo-create-confirmation" role="status">Your choices are saved. Start the sample preview when you’re ready.</p>}
               {generating && <div className="flo-create-generating" role="status"><span aria-hidden="true" /> <div><strong>Writing {child}’s story…</strong><small>Creating the title, story arc and six page drafts. This can take around a minute.</small></div></div>}
               {story && <>
-                <StoryReader story={story} childName={child} world={world} dedication={dedication.trim()} visiblePages={visiblePages} />
+                <StoryReader {...(project ? { project } : {})} story={story} childName={child} world={world} dedication={dedication.trim()} visiblePages={visiblePages} />
                 {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse of the story</strong><p>Read the first page and a short excerpt of the next. The rest stays locked. You can keep these details in your saved draft; today’s sample basket is a demo and won’t purchase this story or unlock the full book.</p></div>}
                 <p className="flo-create-hint">The pictures are sample world artwork, not illustrations made for this story. The preview shows the real story text and illustration directions.</p>
               </>}
