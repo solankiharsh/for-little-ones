@@ -3,7 +3,7 @@ import { gsap, ScrollTrigger, scrollStoryToY } from "./useStoryMotion";
 import { ASSETS, type StoryAsset } from "./assets";
 import StoryImage from "./StoryImage";
 import { usePersonalization, requestSample } from "./personalization";
-import { sampleTitleForWorld } from "./samples";
+import { sampleTitleForWorld, sampleForWorld } from "./samples";
 
 export interface StoryWorld {
   id: string;
@@ -78,7 +78,7 @@ export function WorldPanel({ world, heroName, chosen, onChoose }: {
  * chapters; the rail reads 01–05.
  */
 export default function Worlds({ active }: { active: boolean }) {
-  const { heroName, selectedWorld, selectWorld, mode } = usePersonalization();
+  const { heroName, selectedWorld, selectWorld } = usePersonalization();
   const wrap = useRef<HTMLElement>(null);
   const [chapter, setChapter] = useState(0);
   const travel = useRef<{ start: number; end: number }>({ start: 0, end: 1 });
@@ -154,7 +154,7 @@ export default function Worlds({ active }: { active: boolean }) {
           {STORY_WORLDS.map((world) => (
             <WorldPanel
               key={world.id}
-              world={mode === "marketing" && world.id === "moon" ? { ...world, image: ASSETS.aaravSceneOne } : world}
+              world={{ ...world, image: sampleForWorld(world.id).cover }}
               heroName={heroName}
               chosen={selectedWorld === world.id}
               onChoose={() => selectWorld(world.id)}

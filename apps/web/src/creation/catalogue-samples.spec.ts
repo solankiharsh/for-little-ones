@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sampleForWorld } from '../story/samples';
+import { sampleForWorld, sampleTitleForWorld } from '../story/samples';
 
 describe('catalogue sample selection', () => {
   it('opens distinct stories and artwork for the chosen world', () => {
@@ -16,4 +16,15 @@ describe('catalogue sample selection', () => {
     expect(sampleForWorld('garden').childName).toBe('Mira');
     expect(sampleForWorld('lighthouse').childName).toBe('Leo');
   });
+});
+
+it('resolves every sample button title to its own complete illustrated book', () => {
+  const ids = ['moon', 'garden', 'lighthouse', 'dinosaurs', 'space'];
+  for (const id of ids) {
+    const sample = sampleForWorld(sampleTitleForWorld(id));
+    expect(sample.id).toBe(id);
+    expect(sample.story.pages).toHaveLength(6);
+    expect(new Set(sample.art.map((art) => art.src)).size).toBe(3);
+  }
+  expect(new Set(ids.map((id) => sampleForWorld(id).story.title)).size).toBe(5);
 });
