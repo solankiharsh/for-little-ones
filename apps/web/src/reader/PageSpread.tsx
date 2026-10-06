@@ -6,6 +6,7 @@ import { Scene, toneForPage } from "./Scene";
 export interface PreviewArtwork {
   src: string;
   alt: string;
+  generated?: boolean;
 }
 
 export type PreviewArtworkByPage = Record<number, PreviewArtwork>;
@@ -58,12 +59,14 @@ export function PageSpread({
   artworkByPage,
   lockedPageNumbers,
   watermarked = false,
+  onEdit,
 }: {
   pages: Page[];
   layout: PageLayout;
   artworkByPage?: PreviewArtworkByPage;
   lockedPageNumbers?: readonly number[];
   watermarked?: boolean;
+  onEdit?: (page: number) => void;
 }) {
   const spreadWidth = pages.length * layout.pageWidthPx;
   const spreadStyle = {
@@ -95,7 +98,7 @@ export function PageSpread({
                 </div>
               ) : cover ? (
                 <div className="flo-cover" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-                  {artwork ? <PreviewImage artwork={artwork} watermarked={watermarked} /> : <div className="flo-moon" style={{ width: 72, height: 72, marginBottom: 16 }} />}
+                  {artwork ? <PreviewImage artwork={artwork} watermarked={artwork.generated ?? watermarked} /> : <div className="flo-moon" style={{ width: 72, height: 72, marginBottom: 16 }} />}
                   <Blocks blocks={p.textBlocks} onCover />
                 </div>
               ) : dedication ? (
@@ -104,15 +107,16 @@ export function PageSpread({
                 </div>
               ) : (
                 <>
-                  <div className="flo-text" style={{ flex: "1 1 auto" }}>
+                  <div className={`flo-text${!artwork && !p.illustration ? " flo-text-full-page" : ""}`}>
                     <Blocks blocks={p.textBlocks} onCover={false} />
                   </div>
-                  <div className="flo-scene" style={{ marginTop: 12 }}>
-                    {artwork ? <PreviewImage artwork={artwork} watermarked={watermarked} /> : <Scene tone={toneForPage(p.pageNumber)} pageNumber={p.pageNumber} />}
-                  </div>
+                  {(artwork || p.illustration) && <div className="flo-scene">
+                    {artwork ? <PreviewImage artwork={artwork} watermarked={artwork.generated ?? watermarked} /> : <Scene tone={toneForPage(p.pageNumber)} pageNumber={p.pageNumber} />}
+                  </div>}
                 </>
               )}
             </div>
+            {!locked && artwork && onEdit && <button type="button" className="flo-edit-illustration" onClick={() => onEdit(p.pageNumber)}>Edit illustration</button>}
             <div className="flo-page-num">{p.pageNumber}</div>
           </div>
         );
@@ -125,7 +129,7 @@ function PreviewImage({ artwork, watermarked }: { artwork: PreviewArtwork; water
   return (
     <div className={`flo-preview-image${watermarked ? " flo-preview-image-watermarked" : ""}`}>
       <img src={artwork.src} alt={artwork.alt} />
-      {watermarked && <span aria-hidden="true">SAMPLE PREVIEW</span>}
+      {watermarked && <span aria-hidden="true">PERSONALISED PREVIEW</span>}
     </div>
   );
 }

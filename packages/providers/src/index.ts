@@ -27,3 +27,5 @@ export type {
   DeletionMechanism,
   StyleTokens
 } from "./shared";
+export { imageEditPrompt, GeminiImageEditProvider, GEMINI_IMAGE_MODEL, imageEditProviderCard } from './image-edit';
+export type { ImageEditInput } from './image-edit';

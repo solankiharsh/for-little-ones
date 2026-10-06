@@ -1110,3 +1110,73 @@ span.flo-block-caption {
   .flo-reader-page { grid-template-columns: 1fr; }
   .flo-concept-grid { grid-template-columns: 1fr; }
 }
+
+/* Illustrated catalogue and responsive book reading surface. */
+.flo-world { isolation: isolate; overflow: hidden; min-height: 460px; justify-content: flex-start; }
+.flo-world-cover-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+.flo-world::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgb(15 22 25 / .76), transparent 54%, rgb(15 22 25 / .8)); }
+.flo-world h3 { color: #fff9e8; max-width: 13ch; font-size: clamp(28px, 3vw, 42px); margin-top: 12px; text-shadow: 0 1px 5px #182323; }
+.flo-world p { margin-top: auto; color: #fff9e8; }
+.flo-world-kicker, .flo-world-preview { color: #fff3cd; }
+.flo-story-preview { padding-top: 32px; margin-top: 32px; }
+.flo-story-preview-head { max-width: 780px; margin-bottom: 28px; }
+.flo-story-preview-head .flo-kicker { position: static; padding: 0; background: transparent; margin: 0 0 14px; }
+.flo-story-preview-head h3 { margin: 0 0 14px; line-height: 1.18; }
+.flo-reader { width: 100%; box-sizing: border-box; }
+.flo-reader-head { margin-bottom: 22px; flex-wrap: wrap; }
+.flo-story-preview .flo-reader-stage { min-height: 0; padding: 10px 0 24px; }
+.flo-page-inner { gap: 16px; padding: clamp(18px, 2.2vw, 30px) !important; padding-bottom: 30px !important; }
+.flo-page-inner > .flo-text { flex: 0 0 auto; order: 2; }
+.flo-page-inner > .flo-scene { flex: 1 1 auto; order: 1; min-height: 0; }
+.flo-scene .flo-preview-image { height: 100%; }
+.flo-preview-image { margin: 0; max-height: none; height: 100%; background: transparent; }
+.flo-preview-image img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.flo-cover { height: 100%; min-height: 0; gap: 12px; }
+.flo-cover .flo-preview-image { flex: 1 1 auto; min-height: 0; width: 100%; }
+.flo-cover-title { flex: 0 0 auto; font-size: clamp(22px, 2.5vw, 36px); line-height: 1.12; }
+span.flo-block-body { font-size: clamp(13px, 1.12vw, 17px); line-height: 1.55; color: #473a2b; }
+.flo-dedication { flex-direction: column; }
+.flo-reader-foot { margin-top: 12px; }
+.flo-preview-modal { overflow-y: auto; }
+@media (max-width: 620px) {
+  .flo-page-inner { gap: 12px; }
+  span.flo-block-body { font-size: 14px; line-height: 1.5; }
+  .flo-spread-gutter { display: none; }
+  .flo-world { min-height: 440px; }
+  .flo-story-preview-head h3 { font-size: 28px; }
+}
+
+.flo-edit-illustration { position: absolute; right: 12px; bottom: 6px; z-index: 4; background: #fff9ed; border: 1px solid #c9b89c; border-radius: 20px; padding: 5px 10px; font-size: 11px; color: #543921; cursor: pointer; }
+.flo-reader-edit-status { color: #fff5df; padding: 12px; }
+.flo-illustration-editor { width: min(1080px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 28px; border: 1px solid #cdbda4; border-radius: 18px; background: #fcf8ef; color: #302719; box-sizing: border-box; overflow-y: auto; }
+.flo-illustration-editor::backdrop { background: rgb(14 17 23 / .76); }
+.flo-illustration-editor header, .flo-illustration-editor footer { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
+.flo-illustration-editor h2 { font: 400 32px/1.2 var(--font-family-heading); margin: 6px 0 0; }
+.flo-illustration-editor .flo-kicker { position: static; padding: 0; margin: 0; background: none; }
+.flo-edit-intro { max-width: 64ch; line-height: 1.6; }
+.flo-edit-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, 1fr); gap: 28px; }
+.flo-edit-surface { position: relative; width: fit-content; margin: auto; cursor: crosshair; touch-action: none; line-height: 0; }
+.flo-edit-surface > img { max-width: 100%; max-height: 55vh; display: block; user-select: none; }
+.flo-edit-selection { position: absolute; border: 2px solid white; outline: 2px solid #965b30; background: rgb(178 127 60 / .2); pointer-events: none; box-sizing: border-box; }
+.flo-edit-controls, .flo-edit-controls label { display: flex; flex-direction: column; gap: 12px; }
+.flo-edit-controls textarea { min-height: 90px; border: 1px solid #cdbda4; border-radius: 10px; padding: 12px; font: inherit; resize: vertical; }
+.flo-edit-reference { max-height: 110px; max-width: 130px; object-fit: contain; align-self: start; }
+.flo-edit-region { display: grid; grid-template-columns: 1fr 1fr; border: 0; margin-top: 12px; padding: 0; gap: 8px; }
+.flo-edit-region label { display: grid; }
+.flo-edit-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 24px; }
+.flo-edit-comparison figure { margin: 0; }
+.flo-edit-comparison img { max-width: 100%; max-height: 60vh; object-fit: contain; }
+.flo-edit-comparison figcaption { margin-bottom: 10px; font-weight: 600; }
+.flo-illustration-editor footer { margin-top: 24px; border-top: 1px solid #d7c9b3; padding-top: 20px; }
+.flo-illustration-editor button:not(.flo-btn) { border: 1px solid #cdbda4; border-radius: 18px; padding: 8px 14px; background: #fffdf8; cursor: pointer; color: inherit; }
+@media (max-width: 650px) { .flo-edit-grid { grid-template-columns: 1fr; } .flo-illustration-editor { padding: 18px; } .flo-edit-surface > img { max-height: 42vh; } }
+
+.flo-preview-modal { background: #faf5e9; color: #302719; }
+.flo-preview-modal .flo-preview-kicker { color: #715137; }
+.flo-preview-modal > .flo-reader-exit { background: #fffaf0; color: #513d29; border-color: #b8a487; }
+.flo-text-full-page { display: flex; align-items: center; justify-content: center; height: 100%; }
+.flo-text-full-page .flo-block-body { white-space: pre-line; font-size: clamp(15px, 1.35vw, 20px); line-height: 1.7; max-width: 32ch; }
+.flo-story .flo-read .flo-story-preview-head h3, .flo-story .flo-read .flo-story-preview-head p { color: #382c20; }
+
+.flo-edit-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.flo-edit-fields:disabled { opacity: .7; }

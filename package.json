@@ -13,6 +13,7 @@
     "test": "vitest run",
     "pretest": "npm run build:node-packages",
     "test:watch": "vitest",
+    "dev:image-editor": "tsx scripts/dev-image-editor.ts",
     "dev:api": "tsx apps/api/src/dev-server.ts",
     "dev:worker": "tsx apps/worker/src/dev-worker.ts",
     "start:api": "tsx apps/api/src/server.ts",
