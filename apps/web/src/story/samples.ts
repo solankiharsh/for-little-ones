@@ -47,13 +47,30 @@ const lighthouse = story("Leo and the Lighthouse That Sang", "A listening advent
   "One by one, the little boats turned toward the harbour lights. Their bells answered the lighthouse, until the whole bay seemed to hum.",
   "As the sun slipped into the sea, Leo waved to his new friend. He had discovered something wonderful: sometimes the bravest thing to do is stop and listen."
 ]);
+const dinosaurs = story("Sam and the Valley of Gentle Giants", "A small kindness helps a very big family find each other.", [
+  "Sam dipped a finger into a little stream. Rings of water shimmered between the stones. Behind her, a small dinosaur bent its long neck and gave a soft, questioning hum.",
+  "Across the water, an enormous dinosaur answered. The little one stretched towards the sound, then looked at its feet. Sam understood. It wanted to go home, but it did not know where to cross.",
+  "They followed the bank until Sam spotted a row of broad, dry stones. She tested the first with her boot. Then she pointed to the next. The little dinosaur watched her carefully.",
+  "One slow step, then another. Sam stayed beside her new friend as they crossed the shallow stream. When its tail made a tiny splash, they both stopped—and then carried on together.",
+  "On the far bank, the little dinosaur hurried into the shade of its mother's long neck. She lowered her head until her gentle eyes met Sam's. Her happy hum made the leaves tremble.",
+  "Sam waved from the grassy path. The valley was full of giants, but today it had needed one small helper. She tucked a fallen yellow flower into her pocket and headed home before supper."
+]);
+const space = story("Noor and the Quiet Stars", "A little astronaut discovers that a quiet moment can reveal something wonderful.", [
+  "Noor floated beside the moon station with her fox friend, their golden safety lines trailing behind them. Far below, Earth glowed blue. Above them, the stars made pictures: a bear, a rabbit and a running fox.",
+  "But one tiny star at the tip of the fox's tail seemed to have vanished. Noor looked left, then right. Her friend tilted his helmet. Without that last spark, the sky-picture felt unfinished.",
+  "They returned to the warm cabin and peered through the round window. Noor searched again. The bright reading lamp made a golden reflection on the glass, right where the missing star should have been.",
+  "Noor turned the lamp down. The cabin grew soft and quiet. She waited while her eyes settled into the darkness. Beside her, the fox curled his paws beneath his chin and waited too.",
+  "There it was: one small, steady light. The star had not gone anywhere. Noor traced the fox's tail on the window with her finger, joining the last spark to all the others.",
+  "They watched Earth turning slowly below them. Noor smiled and pulled her blanket close. She did not need to fill every quiet moment. Sometimes, when she paused, the universe had something lovely to show her."
+]);
+const landscape = (file: string, alt: string): StoryAsset => ({ ...image(file, alt), width: 1600, height: 900 });
 const moon: CatalogueSample = { id: "moon", childName: "Aarav", story: aaravStory(), cover: ASSETS.aaravCover, art: [MOON_PHOTO_LED, ASSETS.aaravSceneTwo, ASSETS.aaravSceneThree] };
 export function sampleForWorld(world: string): CatalogueSample {
   const value = world.toLowerCase();
   if (value.includes("garden")) return { id: "garden", childName: "Mira", story: garden, cover: GARDEN_COVER, art: [GARDEN_COVER, image("garden-stream.png", "Mira and the fox clear the garden stream"), image("garden-ending.png", "Mira plants a seed in the greenhouse")] };
   if (value.includes("lighthouse") || value.includes("sea")) return { id: "lighthouse", childName: "Leo", story: lighthouse, cover: LIGHTHOUSE_COVER, art: [LIGHTHOUSE_COVER, image("lighthouse-shutter.png", "Leo and the puffin repair the shutter"), image("lighthouse-ending.png", "Leo waves as boats reach the harbour")] };
-  if (value.includes("dinosaur")) return { id: "dinosaurs", childName: "Sam", story: story("Sam and the Valley of Gentle Giants", "A small kindness for a very big friend.", ["Sam found a tiny dinosaur waiting beside a fallen branch. Its family was across the stream.", "Together they followed the bank until the stones formed a safe path. Sam pointed the way, and the little dinosaur hurried home."]), cover: ASSETS.worldDinosaurs, art: [ASSETS.worldDinosaurs] };
-  if (value.includes("space") || value.includes("quiet stars")) return { id: "space", childName: "Noor", story: story("Noor and the Quiet Stars", "A gentle journey through the night sky.", ["From the moon station, Noor watched the Earth turn slowly below. One small star was hiding behind a cloud of silver dust.", "Noor switched off the bright cabin lamp. In the quiet darkness, the little star shone clearly. It had been there all along."]), cover: ASSETS.worldSpace, art: [ASSETS.worldSpace] };
+  if (value.includes("dinosaur") || value.includes("gentle giants")) return { id: "dinosaurs", childName: "Sam", story: dinosaurs, cover: ASSETS.worldDinosaurs, art: [ASSETS.worldDinosaurs, landscape("dinosaurs-crossing.jpg", "Sam helps a little dinosaur cross the stream"), landscape("dinosaurs-ending.jpg", "Sam waves goodbye as the little dinosaur rejoins its mother")] };
+  if (value.includes("space") || value.includes("quiet stars")) return { id: "space", childName: "Noor", story: space, cover: ASSETS.worldSpace, art: [ASSETS.worldSpace, landscape("space-cabin.jpg", "Noor dims the cabin lamp while her fox watches"), landscape("space-ending.jpg", "Noor and the fox discover the quiet star through their cabin window")] };
   return moon;
 }
 export const SAMPLE_TITLE = moon.story.title;
