@@ -1,8 +1,10 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { localApi } from "./vite.local-api";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), localApi(fileURLToPath(new URL("../..", import.meta.url)))],
   server: {
     port: 5173,
     // Local Path A access (D024/D028): the Slice-2 Hono app registers its routes
