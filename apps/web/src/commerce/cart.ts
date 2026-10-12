@@ -3,6 +3,8 @@ import type { ApprovedLineReference, PurchaseOption } from "./approval";
 export interface CartEntry {
   /** Opaque approved-revision id — one line per approved book (guide §4). */
   key: string;
+  /** D026 payment claim for a created book; sent top-level at checkout, never on a line. */
+  creationClaimId?: string;
   title: string;
   formatLabel: string;
   reference: ApprovedLineReference;
@@ -33,6 +35,7 @@ export function formatMoney(value: number): string {
 
 export function toEntry(option: PurchaseOption): CartEntry {
   return {
+    ...(option.creationClaimId ? { creationClaimId: option.creationClaimId } : {}),
     key: option.cartKey ?? option.reference.approvedBookRevisionId,
     title: option.title,
     formatLabel: option.sandboxFormatLabel,

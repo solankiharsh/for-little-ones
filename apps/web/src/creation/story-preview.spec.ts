@@ -81,3 +81,12 @@ describe("guided creation persistence", () => {
     })).toBeNull();
   });
 });
+
+describe("page correction recovery", () => {
+  it("restores page jobs alongside the current server story", () => {
+    const teaser = { schemaVersion: "1", title: "Moon", synopsis: "A gentle story", emotionalGoal: "Calm", pages: Array.from({ length: 6 }, (_, i) => ({ pageNumber: i + 1, text: "Milo looked up.", illustrationCue: "Moon" })) };
+    const snapshot = parseStoryProjectSnapshot({ entitlement: "PAID", revision: { revisionId: "revision_123", status: "TEASER_READY", teaser }, job: null,
+      corrections: [{ idempotencyKey: "correction-key-123", pageNumber: 3, intent: "SHORTER", status: "RUNNING", canRetry: true }] });
+    expect(snapshot?.corrections).toEqual([{ idempotencyKey: "correction-key-123", pageNumber: 3, intent: "SHORTER", status: "RUNNING", canRetry: true }]);
+  });
+});

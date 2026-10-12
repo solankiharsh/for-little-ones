@@ -1,6 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { database } from "../../../../../../../lib/approvals";
 import { authorizeProject, completeStoryJob, failStoryJob, readBearerToken, readModerationBody } from "../../../../../../../lib/creation-projects";
+import { requireCreationService } from "../../../../../../../lib/page-corrections";
 
 export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   const token = readBearerToken(req.headers.authorization);
@@ -15,6 +16,10 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   }
   const db = database(req.scope);
   if (!await authorizeProject(db, req.params.id, token)) return res.status(404).json({ message: "Project not found." });
+  // The complete story is server-held (D025) and later corrected in place, so only the
+  // story service may write it — an owner token alone must not be able to.
+  try { requireCreationService(req.headers["x-flo-service-secret"]); }
+  catch { return res.status(403).json({ message: "Story service credential required." }); }
   const input = { projectId: req.params.id, revisionId: body.revisionId, jobId: req.params.jobId };
   if (body.status === "READY") {
     if ("error" in moderated) return res.status(400).json({ message: moderated.error });

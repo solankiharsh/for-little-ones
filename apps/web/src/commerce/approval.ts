@@ -36,6 +36,8 @@ export function assertOpaqueLineReference(value: unknown): asserts value is Appr
 export interface PurchaseOption {
   /** Local basket identity; never sent as commerce metadata. */
   cartKey?: string;
+  /** D026 payment claim for a created book; sent top-level at checkout, never on a line. */
+  creationClaimId?: string;
   title: string;
   variantSku: string;
   reference: ApprovedLineReference;

@@ -146,3 +146,28 @@ That slice is a working product path, not competitor-level maturity. Continue in
 The next implementation slice is the paid page-level correction remainder of item 2, followed by item 3. Items 2–4 remain the largest gaps visible in the competitor references: richer concept choice, recoverable generation, multi-character/personal detail controls, full-book exploration and clear product-value presentation before purchase.
 
 Commercial generation rule (D025): pre-payment shows the title, synopsis, one complete page, a short next-page glimpse and eventually no more than two low-resolution watermarked image drafts. Captured payment unlocks the full story, production images, bounded regeneration and the studio. Entitlement and budget checks live on the server and run before provider enqueue; UI locking alone is never sufficient.
+
+## Next work selection — 2026-10-12
+
+- **Shipped in source (D033):** paid **text** page correction.
+  - Shorter, Gentler, the parent's own words, and undo.
+  - Each change touches one page only, with bounded retries.
+  - It runs on the D026 claim, which sandbox checkout now redeems.
+- **Before calling the slice hosted-ready:**
+  - provision `CREATION_SERVICE_SECRET` on both hosts;
+  - run the seed;
+  - verify creation → capture → correction → refresh → undo against the deployed hosts,
+    with a live AI rewrite.
+- **Still open on payment:** refund revocation and resuming an existing order on a
+  retried checkout (deferred by D033).
+
+**Next: item 3, the image and character pipeline.** It starts from the
+[Spike E 2026-10-12 findings](../spike/identity-qa/FINDINGS_2026-10-12.md). Build in this order:
+
+1. D017 private upload and consent.
+2. An immutable, parent-approved reference look (F-005).
+3. One recoverable, isolated page-illustration job conditioned on that look.
+
+Keep the stand-ins until likeness and child-count QA are qualified. A real-provider
+trial plus blinded human review in `spike/identity-qa` is a precondition for any
+threshold.

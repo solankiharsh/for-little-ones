@@ -1180,3 +1180,14 @@ span.flo-block-body { font-size: clamp(13px, 1.12vw, 17px); line-height: 1.55; c
 
 .flo-edit-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .flo-edit-fields:disabled { opacity: .7; }
+
+.flo-story-changes { margin-top: 1.5rem; }
+.flo-story-changes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.flo-story-changes li { border: 1px solid #d9d2c5; border-radius: .75rem; padding: 1rem; background: #fffdf8; }
+.flo-page-corrections { margin-top: 1rem; border-top: 1px solid #d9d2c5; padding-top: .75rem; }
+.flo-page-corrections p, .flo-page-corrections small { font-size: .85rem; }
+.flo-page-correction-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.flo-page-corrections button { font: inherit; cursor: pointer; border: 1px solid #d9d2c5; border-radius: .6rem; background: #faf7f0; padding: .5rem .75rem; margin: .25rem; color: inherit; }
+.flo-page-corrections button:disabled { opacity: .5; cursor: default; }
+.flo-page-corrections label { display: grid; gap: .5rem; margin-top: 1rem; }
+.flo-page-corrections textarea { width: 100%; box-sizing: border-box; font: inherit; padding: .75rem; border: 1px solid #d9d2c5; border-radius: .6rem; }

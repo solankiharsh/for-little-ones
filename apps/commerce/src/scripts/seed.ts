@@ -78,6 +78,17 @@ export default async function seed({ container }: ExecArgs) {
   if (!await db.schema.hasColumn("flo_generation_job", "input_tokens")) await db.schema.alterTable("flo_generation_job", (table) => table.integer("input_tokens").nullable());
   if (!await db.schema.hasColumn("flo_generation_job", "output_tokens")) await db.schema.alterTable("flo_generation_job", (table) => table.integer("output_tokens").nullable());
   if (!await db.schema.hasColumn("flo_generation_job", "cost_cents")) await db.schema.alterTable("flo_generation_job", (table) => table.integer("cost_cents").nullable());
+  if (!await db.schema.hasTable("flo_page_correction")) await db.schema.createTable("flo_page_correction", (table) => {
+    table.text("id").primary();
+    table.text("project_id").notNullable().references("id").inTable("flo_creation_project").onDelete("CASCADE");
+    table.text("revision_id").notNullable().references("id").inTable("flo_creation_revision").onDelete("CASCADE");
+    table.text("idempotency_key").notNullable(); table.integer("page_number").notNullable(); table.text("intent").notNullable();
+    table.text("words").nullable(); table.text("previous_text").notNullable(); table.text("result_text").nullable();
+    table.text("status").notNullable(); table.text("attempt_token").notNullable(); table.integer("attempt_count").notNullable();
+    table.timestamp("lease_until").notNullable(); table.jsonb("generation_metadata").nullable();
+    table.timestamp("created_at").notNullable().defaultTo(db.fn.now()); table.timestamp("updated_at").notNullable().defaultTo(db.fn.now());
+    table.unique(["revision_id", "idempotency_key"]);
+  });
   const customers = container.resolve(Modules.CUSTOMER);
   const buyer = (await customers.listCustomers({ email: "buyer@example.test" }))[0] ??
     await customers.createCustomers({ email: "buyer@example.test" });

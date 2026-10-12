@@ -206,6 +206,8 @@ The evaluation report must clearly distinguish, per approach:
 
 **Decisions to resolve:** identity-generation approach; QA approach (or OPEN).
 
+**Latest result:** [phase 2a synthetic likeness comparison (2026-10-12)](../spike/identity-qa/FINDINGS_2026-10-12.md). Status INCONCLUSIVE. Provisional generation direction: reference-conditioned illustration with a parent-approved reference look. The provider and QA approach stay OPEN.
+
 ---
 
 ## Result format (standard)

@@ -24,6 +24,9 @@ COMMERCE := npm run --workspace @for-little-ones/commerce-app
 WEB := npm run --workspace @for-little-ones/web
 SLICE2_DB := postgres://commerce:commerce_local@localhost:5434/flo_slice2
 FLO_STORY_PROVIDER ?= example
+# Server-only credential shared by Medusa and the /api functions (story save, page
+# corrections). Local value only; deployed hosts bind it from Secret Manager.
+export CREATION_SERVICE_SECRET ?= local-creation-service-secret
 # GEMINI_API_KEY from the shell, else from the root .env.local (never from .env).
 GEMINI_API_KEY ?= $(shell grep -sE '^GEMINI_API_KEY=' .env.local | tail -1 | cut -d= -f2-)
 

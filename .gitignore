@@ -10,3 +10,6 @@ tmp/
 .medusa/
 .vercel/
 __pycache__/
+
+# Experiment images stay out of the public repo (synthetic child portraits; size).
+output/**/*.png

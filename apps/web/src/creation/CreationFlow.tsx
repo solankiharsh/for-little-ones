@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { StoryPreviewResult } from "@for-little-ones/contracts";
 import { generationAccessFor } from "@for-little-ones/domain";
-import { createStoryProject, generateStoryConcepts, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, selectStoryConcept, type CreationDraft, type StoryConcept, type StoryProjectCredential } from "./story-preview";
+import { createStoryProject, generateStoryConcepts, generateStoryPreview, loadSavedCreation, loadStoryProject, saveCreation, selectStoryConcept, type CreationDraft, type PageCorrectionJob, type StoryConcept, type StoryProjectCredential, type StoryProjectSnapshot } from "./story-preview";
+import PageCorrections from "./PageCorrections";
 import StoryReader from "./StoryReader";
 import { STORY_COMPANIONS } from "../story/personalization";
 
@@ -12,7 +13,7 @@ const FAVOURITES = ["Animals", "Space", "The sea", "Dinosaurs", "Gardens"];
 export default function CreationFlow({ open, onClose, onAddToBasket, initialDraft, localPhotoCount = 0 }: {
   open: boolean;
   onClose: () => void;
-  onAddToBasket: (draft: CreationDraft, storyTitle: string) => void;
+  onAddToBasket: (draft: CreationDraft, storyTitle: string, project?: StoryProjectCredential) => void;
   initialDraft?: CreationDraft;
   localPhotoCount?: number;
 }) {
@@ -40,6 +41,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
   const [restoring, setRestoring] = useState(false);
   const [started, setStarted] = useState(!initialDraft && Boolean(saved?.story));
   const [error, setError] = useState("");
+  const [corrections, setCorrections] = useState<PageCorrectionJob[]>([]);
   const child = name.trim();
   const draft: CreationDraft = { childName: child, age, world, companions, favourites, detail: detail.trim(), dedication: dedication.trim() };
   const selectedConcept = concepts.find((concept) => concept.id === selectedConceptId);
@@ -57,28 +59,36 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
     return () => { dialog.current?.close(); document.body.style.overflow = overflow; trigger?.focus(); };
   }, [open]);
   useEffect(() => { heading.current?.focus(); }, [step, started]);
+  /** The server copy is authoritative: after payment it carries the full, possibly corrected, story. */
+  function applySnapshot(snapshot: StoryProjectSnapshot) {
+    setProject((value) => value ? { ...value, revisionId: snapshot.revisionId, entitlement: snapshot.entitlement } : value);
+    setCorrections(snapshot.corrections ?? []);
+    if (snapshot.story) setStory(snapshot.story);
+    if (snapshot.concepts) setConcepts(snapshot.concepts);
+    if (snapshot.selectedConceptId) setSelectedConceptId(snapshot.selectedConceptId);
+  }
+  async function refreshProject() {
+    if (project) applySnapshot(await loadStoryProject(project));
+  }
+  // Re-read on every open, not only when no story is held locally: a purchase made
+  // since the last visit must replace the locally saved teaser with the full story.
   useEffect(() => {
-    if (!open || !project || story) return;
+    if (!open || !project) return;
     let current = true;
+    const hadStory = Boolean(story);
     setRestoring(true);
     void loadStoryProject(project).then((snapshot) => {
       if (!current) return;
-      setProject((value) => value ? { ...value, revisionId: snapshot.revisionId, entitlement: snapshot.entitlement } : value);
-      if (snapshot.story) {
-        setStory(snapshot.story);
-        setStarted(true);
-        setStep(3);
-      } else if (snapshot.jobKind === "STORY_PREVIEW" && snapshot.jobStatus === "RUNNING") {
+      applySnapshot(snapshot);
+      if (!hadStory && (snapshot.story || (snapshot.jobKind === "STORY_PREVIEW" && snapshot.jobStatus === "RUNNING"))) {
         setStarted(true);
         setStep(3);
       }
-      if (snapshot.concepts) setConcepts(snapshot.concepts);
-      if (snapshot.selectedConceptId) setSelectedConceptId(snapshot.selectedConceptId);
     }).catch(() => {
       // The local draft remains usable if the status service is temporarily unavailable.
     }).finally(() => { if (current) setRestoring(false); });
     return () => { current = false; };
-  }, [open, project?.projectId, story]);
+  }, [open, project?.projectId]);
   useEffect(() => {
     if (typeof window !== "undefined") saveCreation(window.localStorage, { draft, ...(story ? { story } : {}), ...(project ? { project } : {}), ...(concepts.length === 3 ? { concepts } : {}), ...(selectedConceptId ? { selectedConceptId } : {}) });
   }, [name, age, world, companions, favourites, detail, dedication, story, project, concepts, selectedConceptId]);
@@ -232,7 +242,14 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
               {generating && <div className="flo-create-generating" role="status"><span aria-hidden="true" /> <div><strong>Writing {child}’s story…</strong><small>Creating the title, story arc and six page drafts. This can take around a minute.</small></div></div>}
               {story && <>
                 <StoryReader {...(project ? { project } : {})} story={story} childName={child} world={world} dedication={dedication.trim()} visiblePages={visiblePages} />
-                {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse of the story</strong><p>Read the first page and a short excerpt of the next. The rest stays locked. You can keep these details in your saved draft; today’s sample basket is a demo and won’t purchase this story or unlock the full book.</p></div>}
+                {visiblePages !== "ALL" && <div className="flo-story-unlock"><strong>A glimpse of the story</strong><p>Read the first page and a short excerpt of the next. The rest stays locked until checkout. Checkout here is a sandbox: it unlocks the full story and page changes, but won’t print this book yet.</p></div>}
+                {project?.entitlement === "PAID" && <section className="flo-story-changes" aria-label="Change a page">
+                  <p className="flo-kicker">Change a page</p>
+                  <ol>{story.pages.map((page) => <li key={page.pageNumber}>
+                    <strong>Page {page.pageNumber}</strong><p>{page.text}</p>
+                    <PageCorrections project={project} pageNumber={page.pageNumber} text={page.text} jobs={corrections} refresh={refreshProject} />
+                  </li>)}</ol>
+                </section>}
                 <p className="flo-create-hint">The pictures are sample world artwork, not illustrations made for this story. The preview shows the real story text and illustration directions.</p>
               </>}
             </>}
@@ -242,7 +259,7 @@ export default function CreationFlow({ open, onClose, onAddToBasket, initialDraf
             <button type="button" className="flo-btn flo-btn-ghost" disabled={generating || generatingConcepts || selectingConcept || restoring} onClick={() => { if (step === 0) onClose(); else { setStep(step - 1); setStarted(false); } }}>{step === 0 ? "Back to the studio" : "← Back"}</button>
             {step < 2 ? <button className="flo-btn flo-btn-primary" type="submit">{step === 1 ? "Find story ideas" : "Continue"} →</button> : step === 2 ? <button type="button" className="flo-btn flo-btn-primary" onClick={() => concepts.length === 0 ? void findStoryIdeas() : void chooseStoryIdea()} disabled={generatingConcepts || selectingConcept || (concepts.length > 0 && !selectedConceptId)}>{generatingConcepts ? "Finding ideas…" : selectingConcept ? "Saving your choice…" : concepts.length === 0 ? "Find three story ideas" : "Read this story"}</button> : <button type="button" className="flo-btn flo-btn-primary" onClick={() => {
               if (!story) { setStarted(true); void writeStory(); return; }
-              onAddToBasket(draft, story.title);
+              onAddToBasket(draft, story.title, project);
             }} disabled={generating || restoring}>{restoring ? "Restoring story…" : generating ? "Writing story…" : story ? "See sample basket · £29.20" : "Create sample preview"}</button>}
           </footer>
         </form>
