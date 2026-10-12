@@ -62,9 +62,19 @@ function post() {
 beforeEach(() => {
   process.env.CREATION_API_URL = "https://creation.test";
   process.env.VITE_MEDUSA_PUBLISHABLE_KEY = "pk_test";
+  process.env.CREATION_SERVICE_SECRET = "server-secret";
   generateText.mockResolvedValue({ output: generated, usage: { inputTokens: 10, outputTokens: 20 } });
 });
 afterEach(() => { vi.unstubAllGlobals(); generateText.mockReset(); });
+
+describe("story service credential", () => {
+  it("refuses to write a story without the server-only service secret", async () => {
+    delete process.env.CREATION_SERVICE_SECRET;
+    const response = await generateStory(post());
+    expect(response.status).toBe(503);
+    expect(generateText).not.toHaveBeenCalled();
+  });
+});
 
 describe("pre-payment story response", () => {
   it("sends one full page, one excerpt and no later story text to the browser", async () => {

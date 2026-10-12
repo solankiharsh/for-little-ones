@@ -1,0 +1,35 @@
+{
+  "synthetic": true,
+  "sourceSize": [
+    1312,
+    1199
+  ],
+  "sceneSize": [
+    1199,
+    1312
+  ],
+  "registration": {
+    "source": {
+      "cx": 0.507,
+      "cy": 0.53,
+      "rx": 0.244,
+      "ry": 0.246
+    },
+    "target": {
+      "cx": 0.51,
+      "cy": 0.234,
+      "rx": 0.111,
+      "ry": 0.094
+    },
+    "feather": 0.14
+  },
+  "changedOutside": 0,
+  "copiedInterior": 38127,
+  "interiorMismatch": 0,
+  "limitations": [
+    "Manual registration for one frontal pose",
+    "Bilinear scaling changes source pixel sampling; no generative face redraw",
+    "No automated likeness score or parent approval",
+    "Not a production provider comparison"
+  ]
+}

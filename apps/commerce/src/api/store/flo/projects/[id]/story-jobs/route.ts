@@ -13,6 +13,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (!project) return res.status(404).json({ message: "Project not found." });
   const revision = await db("flo_creation_revision").where({ id: revisionId, project_id: req.params.id }).first();
   if (!revision) return res.status(404).json({ message: "Revision not found." });
+  if (revision.story) return res.status(409).json({ message: "This story is already saved. Use page corrections to change its words." });
   if (revision.selected_concept_id !== selectedConceptId) return res.status(409).json({ message: "Select this concept before writing the story." });
   try {
     return res.status(201).json(await startStoryJob(db, req.params.id, revisionId, parsePaymentState(project.payment_state)));

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { readCheckoutKey, writeCheckoutKey } from "./checkout-recovery";
 import { StorefrontCommerceClient } from "./client";
 import { demoPurchaseOption, SANDBOX_EMAIL, SANDBOX_REGION_NAME, type PurchaseOption } from "./approval";
 import {
@@ -70,7 +71,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
    * second order; cleared only once an order is confirmed (a deliberate re-buy of
    * the same basket afterwards gets a fresh key).
    */
-  const checkoutKeyRef = useRef<string | null>(null);
+  const checkoutKeyRef = useRef<string | null>(typeof window === "undefined" ? null : readCheckoutKey(window.sessionStorage));
 
   useEffect(() => {
     entriesRef.current = entries;
@@ -112,7 +113,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const regions = await storefront.fetchRegions();
       const region = regions.find((region) => region.name === SANDBOX_REGION_NAME) ?? regions[0];
       if (!region) throw new Error("No sandbox region configured on the storefront");
-      if (!checkoutKeyRef.current) checkoutKeyRef.current = crypto.randomUUID();
+      // D026 carries one payment claim per checkout, top-level beside the envelope.
+      const claims = [...new Set(current.flatMap((entry) => entry.creationClaimId ? [entry.creationClaimId] : []))];
+      if (claims.length > 1) throw new Error("Please check out one personalised book at a time.");
+      if (!checkoutKeyRef.current) {
+        checkoutKeyRef.current = crypto.randomUUID();
+        writeCheckoutKey(window.sessionStorage, checkoutKeyRef.current);
+      }
       const checkoutKey = checkoutKeyRef.current;
       const cartId = await storefront.createCart({ regionId: region.id, currencyCode: "gbp" });
       for (const entry of current) {
@@ -128,8 +135,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         idempotencyKey: checkoutKey,
         shippingAddress: address,
         gifts: checkoutGifts(current),
+        ...(claims[0] ? { creationClaimId: claims[0] } : {}),
       });
       checkoutKeyRef.current = null;
+      writeCheckoutKey(window.sessionStorage, null);
       setStatus({
         state: "done",
         orderId: result.orderId,

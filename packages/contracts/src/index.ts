@@ -53,3 +53,4 @@ export {
   type QaDimension,
   type QaDecision
 } from "./quality";
+export { PageCorrectionRequestSchema, type PageCorrectionRequest } from "./page-correction";

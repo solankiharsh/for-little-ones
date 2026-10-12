@@ -1,5 +1,7 @@
 # 12_PAGE_CORRECTION.md — Page-Level Intent-Based Corrections
 
+> **Scoped agreement (D033, 2026-10-12):** paid text corrections (Shorter, Gentler, Change the words), isolated page revisions, refresh recovery, retry and undo. Image corrections and the complete M3 feature remain draft.
+
 > **Spec ID:** F-012 · **Priority:** P1 · **Status:** draft
 > **Depends on:** F-011 Book Preview, F-010 Generation Progress, F-009 Illustration Generation, F-005 Character Bible
 > **Owner spec guide:** ../features/_SPEC_GUIDE.md
@@ -20,10 +22,42 @@ Spec §9 and competitor teardowns (spec §2, §24) show the category's structura
 
 ## 3. Current implementation
 
-```text
-None (Observed). No application code exists anywhere in the workspace.
-See ../codebase/README.md and RESEARCH_LOG.md. Nothing to KEEP/MODIFY/REPLACE; this system is greenfield (ADD/BUILD per D013).
-```
+Observed source implementation (D033, 2026-10-12):
+
+- `api/correct-page.ts` / `api/undo-page.ts`:
+  - service-authenticated reservation;
+  - a one-page rewrite or the parent's verbatim edit;
+  - a semantic safety, facts and continuity check;
+  - measured usage, then a terminal job update.
+- `apps/commerce/src/lib/page-corrections.ts`:
+  - owner, paid and story-ready guards;
+  - transactional page isolation;
+  - two included changes per page, two attempts per change, and 120-second leases;
+  - the original page is kept until success, plus a persisted undo history.
+- **Paid state** comes from the D026 `payment_state`, which checkout moves to captured
+  by redeeming the project's claim.
+- `apps/web/src/creation/PageCorrections.tsx` sits inside the creation flow's "Change a
+  page" panel. The current words stay visible while a change runs. A failed job can be
+  retried, and the current completed change can be undone.
+
+**Recovery and QA limits.** Recovery after an interruption is a parent retry once the
+lease expires; there is no background-worker resume yet. Model QA is probabilistic.
+Literal fact references also have a deterministic preservation guard.
+
+**Not yet built:**
+
+- refund revocation;
+- illustration corrections;
+- global character changes;
+- pg-boss integration.
+
+**Verification.**
+
+- Locally (2026-10-12), against Postgres and the browser: story save refused without
+  the service secret; claim redeemed at sandbox checkout; full story and panel shown
+  after payment; failed edit kept the original page; completed edit changed one page
+  only; undo restored it.
+- Not exercised: a live AI rewrite (the gateway credential had expired).
 
 Proposed subsystems consumed: `CharacterBible` (identity refs), `GenerationJob` (per-page work), `BookService` (page revision commit), provider interfaces `IllustrationProvider`, `StoryProvider` (text intent), `IdentityProvider` (likeness enforcement), `ModerationProvider` (child-content moderation per intent).
 

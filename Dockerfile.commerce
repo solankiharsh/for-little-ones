@@ -6,6 +6,7 @@ RUN npm ci --include-workspace-root --no-audit --no-fund
 ENV PATH="/app/node_modules/.bin:${PATH}"
 ENV NODE_ENV=development
 ENV COMMERCE_SANDBOX=true
+RUN npm run build --workspace @for-little-ones/domain
 RUN npm run build --workspace @for-little-ones/commerce
 # Medusa build evaluates the config but does not connect to these services.
 # Keep real credentials exclusively in runtime Secret Manager bindings.

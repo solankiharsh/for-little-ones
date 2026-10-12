@@ -1,6 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { database } from "../../../../../lib/approvals";
 import { authorizeProject, parsePaymentState, readBearerToken, readGenerationUsage, readableStory } from "../../../../../lib/creation-projects";
+import { correctionHistory } from "../../../../../lib/page-corrections";
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const token = readBearerToken(req.headers.authorization);
@@ -14,6 +15,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   return res.json({
     projectId: project.id, paymentState, claimId: project.claim_id ?? null,
     revision: revision ? { revisionId: revision.id, version: revision.version, status: revision.status, draft: revision.draft, concepts: revision.concepts, selectedConceptId: revision.selected_concept_id, teaser: revision.teaser, story: readableStory(revision, paymentState) } : null,
+    corrections: revision && paymentState === "captured" ? await correctionHistory(db, revision.id) : [],
     generation: revision ? await readGenerationUsage(db, revision.id) : { assetsGenerated: 0, storyAttempts: 0, conceptAttempts: 0 },
     job: job ? { jobId: job.id, kind: job.kind, status: job.status, progress: job.progress, errorCode: job.error_code, moderation: job.moderation ?? null, generationMetadata: { model: job.provider_model, inputTokens: job.input_tokens, outputTokens: job.output_tokens, costCents: job.cost_cents } } : null
   });

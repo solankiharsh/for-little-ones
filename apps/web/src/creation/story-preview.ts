@@ -40,9 +40,12 @@ export interface StoryProjectCredential {
   revisionId: string;
   ownerToken: string;
   entitlement: "TEASER" | "PAID" | "REVOKED";
+  /** D026 single-use payment claim; checkout redeems it to mark this project captured. */
+  claimId?: string;
 }
 
 export interface StoryProjectSnapshot {
+  corrections?: PageCorrectionJob[];
   entitlement: StoryProjectCredential["entitlement"];
   revisionId: string;
   revisionStatus: "DRAFT" | "GENERATING" | "TEASER_READY";
@@ -69,7 +72,8 @@ export async function createStoryProject(draft: CreationDraft): Promise<StoryPro
     projectId: project.projectId,
     revisionId: project.revisionId,
     ownerToken: project.ownerToken,
-    entitlement: project.entitlement
+    entitlement: project.entitlement,
+    ...(typeof project.claimId === "string" && /^claim_[a-f0-9]{64}$/.test(project.claimId) ? { claimId: project.claimId } : {})
   };
 }
 
@@ -192,7 +196,10 @@ export function parseStoryProjectSnapshot(value: unknown): StoryProjectSnapshot 
     progress = job.progress;
   }
   const concepts = parseStoryConcepts(revision.concepts);
+  const corrections = record.corrections !== undefined ? parseCorrectionJobs(record.corrections) : undefined;
+  if (corrections === null) return null;
   return {
+    ...(corrections ? { corrections } : {}),
     entitlement: record.entitlement,
     revisionId: revision.revisionId,
     revisionStatus: revision.status,
@@ -260,4 +267,45 @@ function isDraft(value: unknown): value is CreationDraft {
     && draft.favourites.every((item) => typeof item === "string")
     && typeof draft.detail === "string"
     && typeof draft.dedication === "string";
+}
+
+export interface PageCorrectionJob {
+  idempotencyKey: string; pageNumber: number; intent: "SHORTER" | "GENTLER" | "EDIT_TEXT";
+  status: "RUNNING" | "READY" | "FAILED" | "UNDONE"; canRetry: boolean; words?: string; text?: string;
+}
+
+function parseCorrectionJobs(value: unknown): PageCorrectionJob[] | null {
+  if (!Array.isArray(value)) return null;
+  const jobs: PageCorrectionJob[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const job = item as Record<string, unknown>;
+    if (typeof job.idempotencyKey !== "string" || typeof job.pageNumber !== "number" || !Number.isInteger(job.pageNumber) || job.pageNumber < 1 || job.pageNumber > 6
+      || !["SHORTER", "GENTLER", "EDIT_TEXT"].includes(String(job.intent)) || !["RUNNING", "READY", "FAILED", "UNDONE"].includes(String(job.status)) || typeof job.canRetry !== "boolean"
+      || (job.words !== undefined && typeof job.words !== "string") || (job.text !== undefined && typeof job.text !== "string")) return null;
+    jobs.push(item as PageCorrectionJob);
+  }
+  return jobs;
+}
+
+export async function changeStoryPage(project: StoryProjectCredential, input: { pageNumber: number; intent: PageCorrectionJob["intent"]; idempotencyKey: string; words?: string }): Promise<void> {
+  const response = await fetch("/api/correct-page", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ projectId: project.projectId, revisionId: project.revisionId, ownerToken: project.ownerToken, ...input }) });
+  const body = await response.json().catch(() => null) as { error?: string; status?: string } | null;
+  if (!response.ok || body?.status === "FAILED") throw new Error(body?.error ?? "We couldn't change this page. Your original words are safe. Try again.");
+}
+
+export async function undoStoryPage(project: StoryProjectCredential, idempotencyKey: string): Promise<void> {
+  const response = await fetch("/api/undo-page", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ projectId: project.projectId, revisionId: project.revisionId, ownerToken: project.ownerToken, idempotencyKey }) });
+  const body = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(body?.error ?? "The original words could not be restored just now.");
+}
+
+export function pageCorrectionState(jobs: PageCorrectionJob[], pageNumber: number, text: string) {
+  const pageJobs = jobs.filter((job) => job.pageNumber === pageNumber);
+  return {
+    lastJob: pageJobs.at(-1),
+    undoJob: [...pageJobs].reverse().find((job) => job.status === "READY" && job.text === text),
+    running: pageJobs.some((job) => job.status === "RUNNING"),
+    remaining: Math.max(0, 2 - pageJobs.length)
+  };
 }

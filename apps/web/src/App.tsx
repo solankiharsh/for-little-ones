@@ -10,7 +10,7 @@ import CartDrawer from "./commerce/CartDrawer";
 import { demoPurchaseOption } from "./commerce/approval";
 
 import CreationFlow from "./creation/CreationFlow";
-import type { CreationDraft } from "./creation/story-preview";
+import type { CreationDraft, StoryProjectCredential } from "./creation/story-preview";
 import StoryExperience from "./story/StoryExperience";
 import { FLO_CREATE_EVENT, FLO_SAMPLE_EVENT, type StoryCreationHandoff } from "./story/personalization";
 
@@ -75,11 +75,11 @@ function Shell() {
     setCreating(true);
   }, []);
 
-  const addCreatedBook = useCallback((draft: CreationDraft, storyTitle: string) => {
+  const addCreatedBook = useCallback((draft: CreationDraft, storyTitle: string, project?: StoryProjectCredential) => {
     const option = demoPurchaseOption();
-    const cartKey = `draft:${crypto.randomUUID()}`;
+    const cartKey = project ? `project:${project.projectId}` : `draft:${crypto.randomUUID()}`;
     setCreatedStoryDraft({ cartKey, draft, storyTitle });
-    add({ ...option, cartKey, title: "Sample hardcover" });
+    add({ ...option, cartKey, title: "Sample hardcover", ...(project?.claimId ? { creationClaimId: project.claimId } : {}) });
     setCreating(false);
     setOpen(true);
   }, [add, setOpen]);

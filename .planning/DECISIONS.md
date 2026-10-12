@@ -890,3 +890,77 @@ Cloud Run API on the project; provision Postgres (+ `flo-api_DATABASE_URL`) and
 service and re-decide cookie SameSite/CORS (D024 assumed same-origin); verify a
 live story; only then delete Path B. Verified so far: prod entry boots locally
 and serves; image builds from a clean tree.
+
+---
+
+## D033 — Scoped Paid Text Corrections on the D026 Payment Claim (2026-10-12)
+
+**Status:** ADOPTED in source. Hosted validation is pending. The user authorised the
+paid page-text slice (built 2026-10-11 on `codex/commerce-deploy-redis`, recorded
+there as "D024") and its port onto main.
+
+**Context.** The slice was cut on 2026-09-25, before D026. It brought its own payment
+linkage: a `flo_creation_purchase` table, an `entitlement` column and a `full_story`
+column. Main had since adopted D026: a single-use `claim_id`, `payment_state`,
+`story`, and `readableStory`. Keeping both would give two sources of truth for
+"paid".
+
+**Decision**
+
+- **KEEP** D026 as the only payment record. Paid access means
+  `paymentEntitlement(payment_state) === "PAID"`.
+  - **REPLACE** the branch's `flo_creation_purchase` / `entitlement` linkage. It is not
+    ported.
+  - **ADD** the missing D026 handoff:
+    - The created book's credential carries its `claimId`.
+    - The basket entry carries only the claim (never the owner token).
+    - Checkout sends `creation_claim_id` top-level.
+    - One claim is allowed per checkout.
+- **ADD** text corrections:
+  - Operations are `SHORTER`, `GENTLER` and `EDIT_TEXT` (the parent's words, saved
+    verbatim after quality checks).
+  - Each correction is a persisted one-page job with a 120 s lease. Replays are
+    idempotent, and a late or stale completion fails closed.
+  - Two included changes per page, and two attempts per change.
+  - Undo keeps the audit history and does not refund the allowance.
+  - A correction rewrites only that page of the server-held `story`. Artwork and
+    every other page are untouched.
+- **Gate on `canRegeneratePages`.** Access comes from the canonical
+  `generationAccessFor(entitlement).canRegeneratePages`. It is consumed through a CJS
+  build of `packages/domain/src/generation-access.ts`
+  (`@for-little-ones/domain/generation-access`) for the Medusa boundary. The
+  `PAGE_REGENERATION` *operation* is an illustration command that requires asset facts,
+  so a text change does not use it.
+- **MODIFY** story completion to require the server-only `CREATION_SERVICE_SECRET`
+  (header `x-flo-service-secret`).
+  - **Why:** the complete story is server-held and later corrected in place, so an
+    owner token alone must not be able to write it.
+  - The same credential guards correction reserve and finish.
+  - Both hosts need it. Local dev gets a default from the Makefile.
+- **MODIFY** the creation flow to re-read the project on every open.
+  - **Why:** a purchase made since the last visit must replace the locally saved
+    teaser.
+  - Paid projects show a "Change a page" panel below the reader.
+- **KEEP** checkout-key persistence across refresh (`sessionStorage`).
+
+**Deferred.** These were tied to the branch's purchase table and are not rebuilt on
+D026:
+
+- **Refund/cancel revocation.** Main has no path from a Medusa refund to
+  `payment_state = refunded`.
+- **Resuming an already-created order on a retried checkout.**
+- **Also deferred:** illustration corrections, global character changes, personalised
+  print fulfilment, and automatic worker resume (recovery is a parent retry after the
+  lease expires).
+
+**Consequences**
+
+- The sandbox checkout now unlocks the story and page changes, and the UI copy says so.
+  It still fulfils the fixture product, not the personalised book.
+- Deploy order:
+  - Provision `commerce_CREATION_SERVICE_SECRET`.
+  - Set the same value on the API host.
+  - Run the idempotent seed, which adds `flo_page_correction`.
+- Existing saved teasers have no full story behind them, so they need a fresh preview.
+- QA of rewrites is model-based and uncalibrated. Literal fact references also have a
+  deterministic preservation guard.

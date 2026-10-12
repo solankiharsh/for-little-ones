@@ -283,7 +283,7 @@ export default function CartDrawer({
                       {creationDraft.draft.detail && <><dt>Personal detail</dt><dd>{creationDraft.draft.detail}</dd></>}
                       {creationDraft.draft.dedication && <><dt>Dedication</dt><dd>{creationDraft.draft.dedication}</dd></>}
                     </dl>
-                    <p className="flo-cart-story-draft-note">This sandbox order uses a sample book and does not attach this story draft or unlock its full pages.</p>
+                    <p className="flo-cart-story-draft-note">Paying in this sandbox unlocks the full story and page changes. It still prints the sample book, not this story.</p>
                   </section>}
                   <ShippingForm attempted={addressAttempted} />
                   <footer className="flo-cart-foot">

@@ -610,3 +610,41 @@ All listed checks green: root `npm test` 73/73 (7 files), `packages/editor` type
 ## 2026-09-25 — Supplied creation-flow screenshots and next-feature selection
 
 Observed eight user-supplied screens across Diffrun, Adorabook and Magic Moon; no live competitor claims or purchases verified. Inspected Site.open/previewBook, BookReader, API/worker shells and ChildProfile in this checkout. Recorded evidence, KEEP/MODIFY/ADD/DEFER/REJECT dispositions and four ordered next slices in [the tracker](market/2026-09-25_CREATION_FLOW_LEARNINGS.md). Existing screenshot personal data was not copied into repo assets. Planning changes only; no production features promoted or runtime code changed.
+
+## 2026-10-12 — Matched synthetic likeness comparison
+
+- **What was tested.** The user authorised a synthetic reference. Built-in image
+  generation created an invented portrait and a watercolour garden scene conditioned
+  on it. A local protected-face compositor then copied the reference face into that
+  same scene.
+- **Preservation checks:**
+  - 0 changed pixels outside the face region;
+  - 38,127 interior pixels taken from the source;
+  - 0 mismatches against the source resampling.
+- **Data.** No real child data was used.
+- **Limits.** One frontal pose only.
+- **Evidence:** [comparison](../output/identity-comparison-2026-10-12/README.md).
+
+## 2026-10-12 — Varied-pose identity experiment follow-up
+
+- **What was tested.** The same synthetic reference across a three-quarter view, a wider
+  full-body scene and an open-mouth laugh.
+- **A (reference-conditioned illustration)** accommodated the requested turn and
+  expression.
+- **B (the compositor)** left everything outside the face region unchanged, but:
+  - gave the wrong gaze and perspective on the three-quarter view;
+  - replaced the laugh with the reference's smile.
+- **The wide shot was not a real small-face test:** the head was about 13% of image
+  height, not the requested 9%.
+- **Evidence:** [pose trial](../output/identity-comparison-2026-10-12/pose-trial/README.md).
+- **Conclusion:** [Spike E findings](../spike/identity-qa/FINDINGS_2026-10-12.md),
+  INCONCLUSIVE. The provisional direction is A with a parent-approved reference look.
+
+## 2026-10-12 — Paid text corrections ported onto D026 (D033)
+
+- **Why a port.** The correction slice was cut before D026, so it was ported rather
+  than merged.
+- **What changed:** D026 `payment_state` is the only payment record, and checkout
+  redeems the project claim. The branch's purchase-link table was not ported.
+- **Verified locally end to end** with a synthetic story, because the AI Gateway
+  credential had expired. Details: F-012 §3.

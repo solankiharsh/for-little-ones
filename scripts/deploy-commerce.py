@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SECRET_BINDINGS = ','.join([
     'DATABASE_URL=commerce_DB_URL:latest', 'REDIS_URL=commerce_REDIS_URL:latest',
     'JWT_SECRET=commerce_JWT_SECRET:latest', 'COOKIE_SECRET=commerce_COOKIE_SECRET:latest',
+    'CREATION_SERVICE_SECRET=commerce_CREATION_SERVICE_SECRET:latest',
 ])
 
 
@@ -20,7 +21,7 @@ def main():
     parser.add_argument('--region', default='us-central1')
     parser.add_argument('--repository', default='flo-commerce')
     parser.add_argument('--service', default='flo-commerce-backend')
-    parser.add_argument('--service-account', help='Runtime identity with access to the four secrets')
+    parser.add_argument('--service-account', help='Runtime identity with access to the runtime secrets')
     parser.add_argument('--dry-run', action='store_true', help='Print commands without contacting GCP')
     args = parser.parse_args()
     if args.action != 'build' and not args.service_account:

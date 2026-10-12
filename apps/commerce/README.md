@@ -74,6 +74,24 @@ charge twice.
   replaced by the authenticated Book service.
 - Customer-facing cart/payment UI (next slice).
 
+## Paid text corrections (D033)
+
+- **What it adds:**
+  - `flo_page_correction`, a persisted one-page job per change;
+  - `/store/flo/projects/:id/corrections` (POST reserve, PATCH finish, DELETE undo);
+  - the correction history on the project read.
+- **Who can call what:**
+  - The story service (the `api/*` host) must send `x-flo-service-secret`, matching
+    `CREATION_SERVICE_SECRET`, to save a story or to reserve and finish a correction.
+  - Undo needs only the owner token.
+- **Paid access** comes from the D026 `payment_state`. Sandbox checkout moves it to
+  captured by redeeming the project's claim.
+- **Deploy:** provision `commerce_CREATION_SERVICE_SECRET` (bound by
+  `scripts/deploy-commerce.py`) and set the same value on the API host. Never use a
+  `VITE_` variable for it. Then run the seed.
+- **Build:** the domain package must be built first (`npm run build:node-packages`),
+  because commerce imports `@for-little-ones/domain/generation-access` (CJS).
+
 ## Cloud Run deployment
 
 See [the deployment runbook](../../scripts/README.md) for reproducible builds,

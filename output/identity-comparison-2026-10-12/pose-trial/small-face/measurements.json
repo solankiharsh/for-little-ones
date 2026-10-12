@@ -1,0 +1,38 @@
+{
+  "synthetic": true,
+  "sourceSize": [
+    1312,
+    1199
+  ],
+  "sceneSize": [
+    1024,
+    1536
+  ],
+  "registration": {
+    "source": {
+      "cx": 0.507,
+      "cy": 0.53,
+      "rx": 0.244,
+      "ry": 0.246
+    },
+    "target": {
+      "cx": 0.488,
+      "cy": 0.375,
+      "rx": 0.07,
+      "ry": 0.05
+    },
+    "rotationDegrees": 0,
+    "feather": 0.14
+  },
+  "changedOutside": 0,
+  "copiedInterior": 12789,
+  "interiorMismatch": 0,
+  "limitations": [
+    "Manual 2D affine registration",
+    "One original frontal closed-mouth reference; no pose/expression reconstruction",
+    "B preserves source expression; incompatible target pose/expression is a failure",
+    "Bilinear sampling; not byte-identical to unscaled source",
+    "No automated likeness score or parent approval"
+  ],
+  "decodedOutsideDifferences": 0
+}

@@ -65,6 +65,8 @@ async function handle(request: Request): Promise<Response> {
   if (request.method !== "POST") {
     return Response.json({ error: "Method not allowed." }, { status: 405, headers: { Allow: "POST" } });
   }
+  // Story completion writes the server-held full story, which only the story service may do.
+  if (!process.env.CREATION_SERVICE_SECRET) return Response.json({ error: "The story studio is temporarily unavailable." }, { status: 503 });
 
   let body: unknown;
   let jobId: string | undefined;
@@ -236,7 +238,8 @@ async function projectRequest(
     headers: {
       "content-type": "application/json",
       "x-publishable-api-key": publishableKey,
-      authorization: `Bearer ${input.ownerToken}`
+      authorization: `Bearer ${input.ownerToken}`,
+      ...(process.env.CREATION_SERVICE_SECRET ? { "x-flo-service-secret": process.env.CREATION_SERVICE_SECRET } : {})
     },
     ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) })
   });
